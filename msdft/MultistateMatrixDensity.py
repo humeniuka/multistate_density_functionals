@@ -128,19 +128,19 @@ class MultistateMatrixDensity(object):
         grad_ao_value = ao_value_all[1:4,:,:]
 
         # Evaluate the matrix density functions on the grid.
-        for i in range(0, nstate):
-            for j in range(0, nstate):
-                for spin in range(0, nspin):
+        for spin in range(0, nspin):
+            for i in range(0, nstate):
+                for j in range(0, nstate):
                     # (transition) density in AO basis.
                     dao_ij = self.density_matrices[spin,i,j,:,:]
                     D[spin,i,j,:] = numpy.einsum('ab,ra,rb->r', dao_ij, ao_value.conjugate(), ao_value)
                     grad_D[spin,i,j,:,:] = (
                         numpy.einsum('ab,gra,rb->gr', dao_ij, grad_ao_value.conjugate(), ao_value)
                         +numpy.einsum('ab,ra,grb->gr', dao_ij, ao_value.conjugate(), grad_ao_value))
-                if i == j:
-                    # trace over electronic states.
-                    trace_D[spin,:] += D[spin,i,i,:]
-                    # grad tr(D) = tr(grad D)
-                    grad_trace_D[spin,:,:] += grad_D[spin,i,i,:,:]
+                    if i == j:
+                        # trace over electronic states.
+                        trace_D[spin,:] += D[spin,i,i,:]
+                        # grad tr(D) = tr(grad D)
+                        grad_trace_D[spin,:,:] += grad_D[spin,i,i,:,:]
 
         return D, grad_D, trace_D, grad_trace_D

@@ -14,39 +14,82 @@ import pyscf.scf
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 class TestMultistateMatrixDensity(unittest.TestCase):
-    def create_matrix_density(self):
+    def test_molecules(self):
+        """ dictionary with different molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            'hydrogen molecular ion': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 1,
+                spin = 1),
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
         """
         Compute multistate matrix density for the lowest few excited states
         of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
         """
-        mol = pyscf.gto.Mole()
-        mol.build(
-            atom = 'Li 0 0 0; H 0 0 0.74',  # in Angstrom
-            basis = '6-31g',
-            # singlet
-            spin = 0,
-        )
         hf = pyscf.scf.RHF(mol)
         hf.kernel()
 
-        # number of orbitals
-        norb = hf.mo_coeff.shape[1]
-
         cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
-        cisolver.nroots = 4
+        cisolver.nroots = nstate
         fci_energies, fcivecs = cisolver.kernel()
 
         msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
 
         return msmd
 
-    def test_integrals(self):
+    def check_integrals(self, mol):
         """
         check that the state density integrates to the correct number of electrons
         and that the transition density integrates to 0.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
         """
         # Example density.
-        msmd = self.create_matrix_density()
+        msmd = self.create_matrix_density(mol)
         # integration grid
         grids = pyscf.dft.gen_grid.Grids(msmd.mol)
         grids.level = 8
@@ -69,13 +112,24 @@ class TestMultistateMatrixDensity(unittest.TestCase):
                         # the states, which should be zero for different eigenstates.
                         self.assertAlmostEqual(integrals[i,j], 0.0, places=4)
 
-    def test_gradients(self):
+        # The trace over spin and electronic states should be equal to
+        # (number of electrons) x (number of states)
+        integral_trace_D = numpy.einsum('r,sr->', grids.weights, D)
+        self.assertAlmostEqual(integral_trace_D, number_of_electrons*nstate, places=3)
+
+    def test_integrals(self):
+        """ Check integrals of D(r) for all test molecules """
+        for name, mol in self.test_molecules().items():
+            with self.subTest(molecule=name):
+                self.check_integrals(mol)
+
+    def check_gradients(self, mol):
         """
         compare analytical gradients ∇D(r) and ∇tr(D)(r)
         with numerical ones from finite differences
         """
         # Example density.
-        msmd = self.create_matrix_density()
+        msmd = self.create_matrix_density(mol)
         # Gradients are checked at random coordinates.
         ncoord = 100
         coords = 5.0*(numpy.random.rand(ncoord,3) - 0.5)
@@ -116,6 +170,13 @@ class TestMultistateMatrixDensity(unittest.TestCase):
                 la.norm(grad_trace_D - grad_trace_D_numerical)/la.norm(grad_trace_D_numerical))
             self.assertLess(relative_error, 1.0e-3)
             numpy.testing.assert_almost_equal(grad_trace_D, grad_trace_D_numerical, decimal=3)
+
+    def test_integrals(self):
+        """ Compare numerical and analytical gradients of D(r) for all test molecules """
+        for name, mol in self.test_molecules().items():
+            with self.subTest(molecule=name):
+                self.check_gradients(mol)
+
 
 if __name__ == "__main__":
     unittest.main()
