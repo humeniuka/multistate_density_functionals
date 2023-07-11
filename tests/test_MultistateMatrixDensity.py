@@ -23,6 +23,11 @@ class TestMultistateMatrixDensity(unittest.TestCase):
                 basis = '6-31g',
                 # doublet
                 spin = 1),
+            'hydrogen atom (large basis set)': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = 'aug-cc-pvtz',
+                # doublet
+                spin = 1),
             'hydrogen molecular ion': pyscf.gto.M(
                 atom = 'H 0 0 0; H 0 0 0.74',
                 basis = '6-31g',
@@ -70,6 +75,9 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         :rtype: MultistateMatrixDensity
         """
         hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
         hf.kernel()
 
         cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
