@@ -11,10 +11,12 @@ import pyscf.fci
 import pyscf.gto
 import pyscf.scf
 
+from tqdm import tqdm
+
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 class TestMultistateMatrixDensity(unittest.TestCase):
-    def test_molecules(self):
+    def create_test_molecules(self):
         """ dictionary with different molecules to run the tests on """
         molecules = {
             # 1-electron systems
@@ -127,7 +129,7 @@ class TestMultistateMatrixDensity(unittest.TestCase):
 
     def test_integrals(self):
         """ Check integrals of D(r) for all test molecules """
-        for name, mol in self.test_molecules().items():
+        for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
                 self.check_integrals(mol)
 
@@ -181,11 +183,10 @@ class TestMultistateMatrixDensity(unittest.TestCase):
 
     def test_integrals(self):
         """ Compare numerical and analytical gradients of D(r) for all test molecules """
-        for name, mol in self.test_molecules().items():
+        for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
                 self.check_gradients(mol)
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,0 +1,201 @@
+#!/usr/bin/env python
+# coding: utf-8
+import unittest
+
+import numpy
+import numpy.linalg as la
+import numpy.testing
+
+import pyscf.dft
+import pyscf.fci
+import pyscf.gto
+import pyscf.scf
+
+from tqdm import tqdm
+
+from msdft.KineticOperatorFunctional import KineticOperatorFunctional
+from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+
+class VonWeizsaeckerKineticOperatorFunctional(object):
+    """
+    The von Weizsäcker density functional of the kinetic energy:
+    
+                        (∇ρ)²
+           T[ρ] = ∫ 1/8 ----
+                          ρ
+
+    """
+    def __init__(self, mol, level=8):
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity):
+        """
+        Compute the von Weizsaecker kinetic energy for the density of a single
+        electronic state.
+
+        :param msmd: A multistate density matrix with only a single electronic state
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :return kinetic_matrix: A 1x1 matrix with the scalar kinetic energy.
+        :rtype kinetic_energy: numpy.ndarray of shape (1,1)
+        """
+        # number of electronic states
+        nstate = msmd.number_of_states
+        assert nstate == 1, \
+           "The von Weizsaecker functional is only defined for a single electronic state."
+        # up or down spin
+        nspin = 2
+        
+        # Evaluate D(r), ∇D(r), tr(D)(r) and ∇tr(D)(r) on the integration grid.
+        D, grad_D, trace_D, grad_trace_D = msmd.evaluate(self.grids.coords)
+
+        # matrix element of the kinetic energy operator <i|Top|j>
+        kinetic_matrix = numpy.zeros((nstate,nstate))
+        
+        # Loop over spins. For kinetic energy is computed separately for each spin
+        # projection and added.
+        for s in range(0, nspin):
+            if numpy.all(trace_D[s,...] == 0.0):
+                # There are no electrons with spin projection s
+                # that could contribute to the kinetic energy.
+                continue
+        
+            # von Weizsäcker
+            T = 1.0/8.0 * (
+                numpy.einsum('ikar,kjar->ijr', grad_D[s,...], grad_D[s,...]) /
+                numpy.expand_dims(trace_D[s,...], axis=(0,1)))
+
+            # The matrix of the kinetic energy operator in the subspace is obtained
+            # by integration T_{i,j}(r) over space
+            #
+            #  ∫ -1/2 ϕᵢ*(r) ∇²ϕⱼ(r) = ∫ 1/2 ∇ϕᵢ*(r) ∇ϕⱼ(r)
+            #
+            kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, T)
+
+        return kinetic_matrix
+
+        
+class TestMultistateMatrixDensity(unittest.TestCase):
+    def create_test_molecules_1electron(self):
+        """ dictionary with 1-electron molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            'hydrogen atom (large basis set)': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = 'aug-cc-pvtz',
+                # doublet
+                spin = 1),
+            'hydrogen molecular ion': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 1,
+                spin = 1),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+
+        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        cisolver.nroots = nstate+1
+        fci_energies, fcivecs = cisolver.kernel()
+        # Remove the additional state again. For small basis sets,
+        # there can be fewer states than requested.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+        
+        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+
+        return msmd
+
+    def check_exact_kinetic_energy(self, mol, nstate=1):
+        """
+        For molecules with a single electron, the kinetic energy functional
+        should yield the exact kinetic energy.
+
+        :param mol: A test molecule with only one electron.
+        :type mol: gto.Mole
+
+        :param nstate: Number of electronic states in the subspace.
+           The full CI problem is solved for the lowest nstate states.
+        :type nstate: int > 0
+        """
+        # These tests are expected to work only for one-electron systems.
+        assert sum(mol.nelec) == 1, "This test only works for 1-electron systems."
+        assert nstate > 0, "The number of electronic states has to be > 0."
+        
+        # functional for kinetic operator, T[D(r)]
+        kinetic_functional = KineticOperatorFunctional(mol)
+
+        # compute D(r) from full CI
+        msmd = self.create_matrix_density(mol, nstate=nstate)
+
+        # Evaluate T[D(r)]
+        T_msdft = kinetic_functional(msmd)
+
+        # The exact kinetic energy matrix is calculated by contracting the (transition)
+        # density matrices in the AO basis with the kinetic energy matrix.
+        T_exact = msmd.exact_1e_operator(intor='int1e_kin')
+        
+        numpy.testing.assert_almost_equal(T_msdft, T_exact, decimal=3)
+
+    def test_von_Weizsaecker_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the von Weizsäcker functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            # scalar D(r) from single electronic state
+            msmd = self.create_matrix_density(mol, nstate=1)
+
+            # functionals for kinetic operator, T[D(r)]
+            kinetic_functional = KineticOperatorFunctional(mol)
+            kinetic_functional_vW = VonWeizsaeckerKineticOperatorFunctional(mol)
+
+            # Compare the multistate and the single-state vW functionals.
+            kinetic_matrix = kinetic_functional(msmd)
+            kinetic_matrix_vW = kinetic_functional_vW(msmd)
+
+            numpy.testing.assert_almost_equal(kinetic_matrix, kinetic_matrix_vW)
+            
+    def test_1electron_systems(self):
+        """ Check that the kinetic energy functional is exact for one-electron systems """
+        for name, mol in tqdm(
+                self.create_test_molecules_1electron().items()):
+            for nstate in tqdm([1,2,3,4]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_exact_kinetic_energy(mol, nstate=nstate)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -6,6 +6,7 @@ matrix with the state densities on the diagonal and the transition densities on 
 off-diagonal.
 """
 import numpy
+
 from pyscf.dft import numint
 
 class MultistateMatrixDensity(object):
@@ -32,7 +33,7 @@ class MultistateMatrixDensity(object):
 
         :param fcivecs: list of solutions vectors of the full CI problem for
           each electronic state in the subspace
-        :type fcivecs: list of numpy.ndarrays
+        :type fcivecs: list of numpy.ndarray
         """
         # Save molecule with AO basis.
         self.mol = mol
@@ -65,8 +66,7 @@ class MultistateMatrixDensity(object):
         self.number_of_states = nstate
         # Compute the (transition) density matrices in the AO basis.
         nspin = 2
-        self.density_matrices = numpy.zeros(
-            (nspin,nstate,nstate,nao,nao), dtype=complex)
+        self.density_matrices = numpy.zeros((nspin,nstate,nstate,nao,nao))
         for i in range(0, nstate):
             for j in range(0, nstate):
                 if i == j:
@@ -83,6 +83,36 @@ class MultistateMatrixDensity(object):
                     self.density_matrices[0,i,j,:,:] = density_matrix_mo2ao(tdm1a)
                     # for spin-down
                     self.density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
+
+    def exact_1e_operator(self, intor='int1e_kin'):
+        """
+        For testing purposes the matrix of one-electron operators in the
+        basis of the electronic states is calculated by contracting the
+        (transition) density matrices in the AO basis with the AO integrals
+        of the operator:
+
+          Oᵢⱼ = <Ψᵢ|∑ₙ oₙ|Ψⱼ>
+
+              = sum_{a,b} P^{i,j}_{a,b} <a|o|b>
+
+        where i,j enumerate many-electron states, a,b are AOs and P^{i,j}_{a,b}
+        is the (transition) density between the states i and j in the AO basis.
+
+        :param intor: Name of the 1-electron integrals, e.g. 'int1e_kin' for
+           the kinetic energy.
+        :type intor: str
+
+        :return matrix_elements: The matrix elements of the operator in the
+           basis of the many-electron states in the subspace.
+        :rtype matrix_elements: numpy.array of shape (nstate,nstate)
+        """
+        integrals_1e_ao = self.mol.intor_symmetric(intor)
+        matrix_elements = numpy.einsum(
+            'ab,sijab->ij',
+            integrals_1e_ao,
+            self.density_matrices)
+
+        return matrix_elements
 
     def evaluate(self, coords):
         """
@@ -113,10 +143,10 @@ class MultistateMatrixDensity(object):
         nspin = 2
 
         # Create empty arrays for return values.
-        D = numpy.zeros((nspin,nstate,nstate,ncoord), dtype=complex)
-        grad_D = numpy.zeros((nspin,nstate,nstate,3,ncoord), dtype=complex)
-        trace_D = numpy.zeros((nspin,ncoord), dtype=complex)
-        grad_trace_D = numpy.zeros((nspin,3,ncoord), dtype=complex)
+        D = numpy.zeros((nspin,nstate,nstate,ncoord))
+        grad_D = numpy.zeros((nspin,nstate,nstate,3,ncoord))
+        trace_D = numpy.zeros((nspin,ncoord))
+        grad_trace_D = numpy.zeros((nspin,3,ncoord))
 
         # Evaluate atomic orbitals on the grid.
         # The orbital values and their gradients are returned in a single
@@ -133,10 +163,10 @@ class MultistateMatrixDensity(object):
                 for j in range(0, nstate):
                     # (transition) density in AO basis.
                     dao_ij = self.density_matrices[spin,i,j,:,:]
-                    D[spin,i,j,:] = numpy.einsum('ab,ra,rb->r', dao_ij, ao_value.conjugate(), ao_value)
+                    D[spin,i,j,:] = numpy.einsum('ab,ra,rb->r', dao_ij, ao_value, ao_value)
                     grad_D[spin,i,j,:,:] = (
-                        numpy.einsum('ab,gra,rb->gr', dao_ij, grad_ao_value.conjugate(), ao_value)
-                        +numpy.einsum('ab,ra,grb->gr', dao_ij, ao_value.conjugate(), grad_ao_value))
+                        numpy.einsum('ab,gra,rb->gr', dao_ij, grad_ao_value, ao_value)
+                        +numpy.einsum('ab,ra,grb->gr', dao_ij, ao_value, grad_ao_value))
                     if i == j:
                         # trace over electronic states.
                         trace_D[spin,:] += D[spin,i,i,:]
