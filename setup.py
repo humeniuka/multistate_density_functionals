@@ -1,19 +1,15 @@
 #!/usr/bin/env python
-import os
+from os import path
 import re
 from io import open
-from setuptools import setup, find_packages
-
+from setuptools import setup
 
 def get_property(property, package):
     result = re.search(
         r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(property),
-        open(package + '/__init__.py').read(),
+        open(path.join('src', package, '__init__.py')).read(),
     )
     return result.group(1)
-
-
-from os import path
 
 this_dir = path.abspath(path.dirname(__file__))
 with open(path.join(this_dir, 'README.rst'), encoding='utf8') as f:
@@ -42,7 +38,7 @@ setup(
     author='Alexander Humeniuk',
     author_email='alexander.humeniuk@gmail.com',
     license='LICENSE.txt',
-    packages=find_packages(),
+    package_dir = {"": "src"},
     install_requires=['numpy', 'matplotlib', 'pyscf', 'tqdm'],
     include_package_data=True,
     zip_safe=False,
