@@ -80,7 +80,7 @@ class VonWeizsaeckerKineticOperatorFunctional(object):
         return kinetic_matrix
 
         
-class TestMultistateMatrixDensity(unittest.TestCase):
+class TestKineticOperatorFunctional(unittest.TestCase):
     def create_test_molecules_1electron(self):
         """ dictionary with 1-electron molecules to run the tests on """
         molecules = {
@@ -133,7 +133,7 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         # there can be fewer states than requested.
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
-        
+
         msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
 
         return msmd
@@ -166,8 +166,8 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         # The exact kinetic energy matrix is calculated by contracting the (transition)
         # density matrices in the AO basis with the kinetic energy matrix.
         T_exact = msmd.exact_1e_operator(intor='int1e_kin')
-        
-        numpy.testing.assert_almost_equal(T_msdft, T_exact, decimal=3)
+
+        numpy.testing.assert_almost_equal(T_msdft, T_exact)
 
     def test_von_Weizsaecker_functional(self):
         """

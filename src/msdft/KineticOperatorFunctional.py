@@ -32,7 +32,7 @@ class KineticOperatorFunctional(object):
             msmd : MultistateMatrixDensity):
         """
         compute the matrix of the kinetic energy operator in the subspace
-        of excited states by evaluating the kinetic energy functional T[D(r)]
+        of electronic states by evaluating the kinetic energy functional T[D(r)]
         on the matrix density D(r):
 
           Tᵢⱼ = <Ψᵢ|-1/2 ∑ₙ∇ₙ²|Ψⱼ> = T[D(r)]ᵢⱼ ,
@@ -60,7 +60,7 @@ class KineticOperatorFunctional(object):
         # Evaluate D(r), ∇D(r), tr(D)(r) and ∇tr(D)(r) on the integration grid.
         D, grad_D, trace_D, grad_trace_D = msmd.evaluate(self.grids.coords)
 
-        # Loop over spins. For kinetic energy is computed separately for each spin
+        # Loop over spins. The kinetic energy is computed separately for each spin
         # projection and added.
         for s in range(0, nspin):
             if numpy.all(trace_D[s,...] == 0.0):
