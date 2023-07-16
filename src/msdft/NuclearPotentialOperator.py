@@ -55,7 +55,7 @@ class NuclearPotentialOperator(object):
         nspin = 2
 
         # Evaluate D(r) on the integration grid.
-        D, _, _, _ = msmd.evaluate(self.grids.coords)
+        D, _, _ = msmd.evaluate(self.grids.coords)
 
         # Evaluate the nuclear potential on the integration grid.
         V = numpy.zeros_like(self.grids.weights)

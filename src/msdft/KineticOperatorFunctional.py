@@ -57,8 +57,14 @@ class KineticOperatorFunctional(object):
         # matrix element of the kinetic energy operator <i|Top|j>
         kinetic_matrix = numpy.zeros((nstate,nstate))
 
-        # Evaluate D(r), ∇D(r), tr(D)(r) and ∇tr(D)(r) on the integration grid.
-        D, grad_D, trace_D, grad_trace_D = msmd.evaluate(self.grids.coords)
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(self.grids.coords)
+
+        # Trace over electronic states to get tr(D)(r) and ∇tr(D)(r) = tr(∇D(r))
+        # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
+        trace_D = numpy.einsum('siir->sr', D)
+        # `grad_trace_D` has shape (2,3,Ncoord) and is the gradient of `trace_D`.
+        grad_trace_D = numpy.einsum('siiar->sar', grad_D)
 
         # Loop over spins. The kinetic energy is computed separately for each spin
         # projection and added.

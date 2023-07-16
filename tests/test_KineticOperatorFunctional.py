@@ -19,7 +19,7 @@ from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 class VonWeizsaeckerKineticOperatorFunctional(object):
     """
     The von Weizsäcker density functional of the kinetic energy:
-    
+
                         (∇ρ)²
            T[ρ] = ∫ 1/8 ----
                           ρ
@@ -50,13 +50,15 @@ class VonWeizsaeckerKineticOperatorFunctional(object):
            "The von Weizsaecker functional is only defined for a single electronic state."
         # up or down spin
         nspin = 2
-        
-        # Evaluate D(r), ∇D(r), tr(D)(r) and ∇tr(D)(r) on the integration grid.
-        D, grad_D, trace_D, grad_trace_D = msmd.evaluate(self.grids.coords)
+
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(self.grids.coords)
+        # Trace out electronic states to get tr(D)(r)
+        trace_D = numpy.einsum('siir->sr', D)
 
         # matrix element of the kinetic energy operator <i|Top|j>
         kinetic_matrix = numpy.zeros((nstate,nstate))
-        
+
         # Loop over spins. For kinetic energy is computed separately for each spin
         # projection and added.
         for s in range(0, nspin):
@@ -64,7 +66,7 @@ class VonWeizsaeckerKineticOperatorFunctional(object):
                 # There are no electrons with spin projection s
                 # that could contribute to the kinetic energy.
                 continue
-        
+
             # von Weizsäcker
             T = 1.0/8.0 * (
                 numpy.einsum('ikar,kjar->ijr', grad_D[s,...], grad_D[s,...]) /
@@ -79,7 +81,7 @@ class VonWeizsaeckerKineticOperatorFunctional(object):
 
         return kinetic_matrix
 
-        
+
 class TestKineticOperatorFunctional(unittest.TestCase):
     def create_test_molecules_1electron(self):
         """ dictionary with 1-electron molecules to run the tests on """
@@ -153,7 +155,7 @@ class TestKineticOperatorFunctional(unittest.TestCase):
         # These tests are expected to work only for one-electron systems.
         assert sum(mol.nelec) == 1, "This test only works for 1-electron systems."
         assert nstate > 0, "The number of electronic states has to be > 0."
-        
+
         # functional for kinetic operator, T[D(r)]
         kinetic_functional = KineticOperatorFunctional(mol)
 
@@ -187,7 +189,7 @@ class TestKineticOperatorFunctional(unittest.TestCase):
             kinetic_matrix_vW = kinetic_functional_vW(msmd)
 
             numpy.testing.assert_almost_equal(kinetic_matrix, kinetic_matrix_vW)
-            
+
     def test_1electron_systems(self):
         """ Check that the kinetic energy functional is exact for one-electron systems """
         for name, mol in tqdm(

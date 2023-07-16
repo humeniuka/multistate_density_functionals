@@ -18,7 +18,7 @@ class MultistateMatrixDensity(object):
             fcivecs):
         """
         This class holds the multistate matrix density and can evaluate
-        D(r), ∇D(r), tr(D)(r) and ∇tr(D)(r) on a grid.
+        D(r), ∇D(r) and ∇²D(r) on a grid.
         The state densities and transition densities are constructed from
         a full configuration interaction calculation with pyscf.
 
@@ -116,9 +116,8 @@ class MultistateMatrixDensity(object):
 
     def evaluate(self, coords):
         """
-        evaluate the multistate matrix density D(r), its gradient ∇D(r),
-        its trace over states tr(D) and the gradient of the trace ∇tr(D)
-        on a grid.
+        evaluate the multistate matrix density D(r), its gradient ∇D(r)
+        and its Laplacian ∇²D(r) on a grid.
 
         Mstate is the number of electronic states
         Ncoord is the number of grid points.
@@ -126,14 +125,15 @@ class MultistateMatrixDensity(object):
         :param coords: The Cartesian coordinates of the grid r
         :type coords: numpy.ndarray of shape (Ncoord,3)
 
-        :return: D, grad_D, trace_D, grad_trace_D
+        :return: D, grad_D, lapl_D
         :rtype: tuple of numpy.ndarray
           `D` has shape (2,Mstate,Mstate,Ncoord), D[s,i,j,c] is the (transition) density matrix
-          for electrons with spin projection s=0 (up) or s=1 (down) evaluated at the grid point coords[c,:]
+            for electrons with spin projection s=0 (up) or s=1 (down) evaluated at the grid point coords[c,:]
           `grad_D` has shape (2,Mstate,Mstate,3,Ncoord), grad_D[s,i,j,xyz,c] is the first-order
-          derivative dD_ij(r)/dq (q=0(x), 1(y), 2(z)) evaluated at the grid point coords[c,:]
-          `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
-          `grad_trace_D` has shape (2,3,Ncoord) and is the gradient of `trace_D`.
+            derivative dD_ij(r)/dq (q=0(x), 1(y), 2(z)) evaluated at the grid point coords[c,:]
+          `lapl_D` has shape (2,Mstate,Mstate,Ncoord), D[s,i,j,c] is the Laplacian of the
+            (transition) density matrix for electrons with spin projection s=0 (up) or s=1 (down)
+            evaluated at the grid point coords[c,:]
         """
         # number of grid points
         ncoord = coords.shape[0]
@@ -145,17 +145,18 @@ class MultistateMatrixDensity(object):
         # Create empty arrays for return values.
         D = numpy.zeros((nspin,nstate,nstate,ncoord))
         grad_D = numpy.zeros((nspin,nstate,nstate,3,ncoord))
-        trace_D = numpy.zeros((nspin,ncoord))
-        grad_trace_D = numpy.zeros((nspin,3,ncoord))
+        lapl_D = numpy.zeros((nspin,nstate,nstate,ncoord))
 
-        # Evaluate atomic orbitals on the grid.
+        # Evaluate atomic orbitals 𝛘ₐ(r) on the grid.
         # The orbital values and their gradients are returned in a single
         # array of shape (4,ncoord,norb).
-        ao_value_all = numint.eval_ao(self.mol, coords, deriv=1)
+        ao_value_all = numint.eval_ao(self.mol, coords, deriv=2)
         # value AO(r)
         ao_value = ao_value_all[0,:,:]
         # gradient d(AO)/dx, d(AO)/dy, d(AO)/dz
         grad_ao_value = ao_value_all[1:4,:,:]
+        # Laplacian ∇²(AO)(r) = d^2(AO)/dx^2 + d^2(AO)/dy^2 + d^2(AO)/dz^2
+        lapl_ao_value = ao_value_all[4,:,:] + ao_value_all[7,:,:] + ao_value_all[9,:,:]
 
         # Evaluate the matrix density functions on the grid.
         for spin in range(0, nspin):
@@ -165,12 +166,14 @@ class MultistateMatrixDensity(object):
                     dao_ij = self.density_matrices[spin,i,j,:,:]
                     D[spin,i,j,:] = numpy.einsum('ab,ra,rb->r', dao_ij, ao_value, ao_value)
                     grad_D[spin,i,j,:,:] = (
-                        numpy.einsum('ab,gra,rb->gr', dao_ij, grad_ao_value, ao_value)
-                        +numpy.einsum('ab,ra,grb->gr', dao_ij, ao_value, grad_ao_value))
-                    if i == j:
-                        # trace over electronic states.
-                        trace_D[spin,:] += D[spin,i,i,:]
-                        # grad tr(D) = tr(grad D)
-                        grad_trace_D[spin,:,:] += grad_D[spin,i,i,:,:]
+                        numpy.einsum('ab,gra,rb->gr', dao_ij, grad_ao_value, ao_value) +
+                        numpy.einsum('ab,ra,grb->gr', dao_ij, ao_value, grad_ao_value))
 
-        return D, grad_D, trace_D, grad_trace_D
+                    # ∇²D(r) = sum_{a,b} P_{a,b} [ (∇²𝛘*_a)(𝛘_b) + 2 (∇𝛘_a)·(∇𝛘_b) + (𝛘_a)(∇²𝛘*_b) ]
+                    lapl_D[spin,i,j,:] = (
+                        numpy.einsum('ab,ra,rb->r', dao_ij, lapl_ao_value, ao_value) +
+                        2*numpy.einsum('ab,gra,grb->r', dao_ij, grad_ao_value, grad_ao_value) +
+                        numpy.einsum('ab,ra,rb->r', dao_ij, ao_value, lapl_ao_value)
+                        )
+
+        return D, grad_D, lapl_D

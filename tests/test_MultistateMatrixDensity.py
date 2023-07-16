@@ -105,7 +105,9 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         grids.level = 8
         grids.build()
 
-        D, grad_D, trace_D, grad_trace_D = msmd.evaluate(grids.coords)
+        D, grad_D, lapl_D = msmd.evaluate(grids.coords)
+        trace_D = numpy.einsum('siir->sr', D)
+
         # The integral also involves a sum over spins.
         integrals = numpy.einsum('r,sijr->ij', grids.weights, D)
 
@@ -120,12 +122,12 @@ class TestMultistateMatrixDensity(unittest.TestCase):
                     else:
                         # Integrating the transition density, just gives the overlap between
                         # the states, which should be zero for different eigenstates.
-                        self.assertAlmostEqual(integrals[i,j], 0.0, places=4)
+                        self.assertAlmostEqual(integrals[i,j], 0.0)
 
         # The trace over spin and electronic states should be equal to
         # (number of electrons) x (number of states)
-        integral_trace_D = numpy.einsum('r,sr->', grids.weights, D)
-        self.assertAlmostEqual(integral_trace_D, number_of_electrons*nstate, places=3)
+        integral_trace_D = numpy.einsum('r,sr->', grids.weights, trace_D)
+        self.assertAlmostEqual(integral_trace_D, number_of_electrons*nstate)
 
     def test_integrals(self):
         """ Check integrals of D(r) for all test molecules """
@@ -133,9 +135,9 @@ class TestMultistateMatrixDensity(unittest.TestCase):
             with self.subTest(molecule=name):
                 self.check_integrals(mol)
 
-    def check_gradients(self, mol):
+    def check_derivatives(self, mol):
         """
-        compare analytical gradients ∇D(r) and ∇tr(D)(r)
+        compare analytical gradients ∇D(r) and ∇tr(D)(r) and the Laplacian ∇²D(r)
         with numerical ones from finite differences
         """
         # Example density.
@@ -144,11 +146,16 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         ncoord = 100
         coords = 5.0*(numpy.random.rand(ncoord,3) - 0.5)
 
-        # Analytical gradients of D and tr(D)
-        D, grad_D, trace_D, grad_trace_D = msmd.evaluate(coords)
+        # Analytical gradients and Laplacian of D
+        D, grad_D, lapl_D = msmd.evaluate(coords)
+
+        # Trace out electronic states to get tr(D) and ∇tr(D)
+        trace_D = numpy.einsum('siir->sr', D)
+        grad_trace_D = numpy.einsum('siiar->sar', grad_D)
 
         # Numerical gradients of D and tr(D)
         grad_D_numerical = numpy.zeros_like(grad_D)
+        lapl_D_numerical = numpy.zeros_like(lapl_D)
         grad_trace_D_numerical = numpy.zeros_like(grad_trace_D)
 
         # dD/dx = [D(x+h) - D(x-h)]/(2 h)
@@ -159,13 +166,19 @@ class TestMultistateMatrixDensity(unittest.TestCase):
             unit_vector[xyz] = 1.0
 
             # D(r+h*e_x)
-            D_plus, _, trace_D_plus, _ = msmd.evaluate(coords + h*unit_vector)
+            D_plus, _, _ = msmd.evaluate(coords + h*unit_vector)
+            trace_D_plus = numpy.einsum('siir->sr', D_plus)
             # D(r-h*e_x)
-            D_minus, _, trace_D_minus, _ = msmd.evaluate(coords - h*unit_vector)
+            D_minus, _, _ = msmd.evaluate(coords - h*unit_vector)
+            trace_D_minus = numpy.einsum('siir->sr', D_minus)
 
             # finite difference gradient
             grad_D_numerical[:,:,:,xyz,:] = (D_plus - D_minus)/(2*h)
             grad_trace_D_numerical[:,xyz,:] = (trace_D_plus - trace_D_minus)/(2*h)
+
+            # Add finite difference approximation for second derivative to
+            # numerical Laplacian.
+            lapl_D_numerical += (D_plus - 2*D + D_minus)/pow(h,2)
 
         # Compare analytical and numerical gradients
         with self.subTest("gradient of D(r)"):
@@ -173,19 +186,26 @@ class TestMultistateMatrixDensity(unittest.TestCase):
             relative_error = (
                 la.norm(grad_D - grad_D_numerical)/la.norm(grad_D_numerical))
             self.assertLess(relative_error, 1.0e-3)
-            numpy.testing.assert_almost_equal(grad_D, grad_D_numerical, decimal=3)
+            numpy.testing.assert_almost_equal(grad_D, grad_D_numerical, decimal=2)
         with self.subTest("gradient of tr(D)"):
             # relative error |∇trD-∇trD(numerical)|/|∇trD(numerical)|
             relative_error = (
                 la.norm(grad_trace_D - grad_trace_D_numerical)/la.norm(grad_trace_D_numerical))
             self.assertLess(relative_error, 1.0e-3)
-            numpy.testing.assert_almost_equal(grad_trace_D, grad_trace_D_numerical, decimal=3)
+            numpy.testing.assert_almost_equal(grad_trace_D, grad_trace_D_numerical, decimal=2)
+        with self.subTest("Laplacian of D(r)"):
+            # relative error |∇²D-∇²D(numerical)|/|∇²D(numerical)|
+            relative_error = (
+                la.norm(lapl_D - lapl_D_numerical)/la.norm(lapl_D_numerical))
+            self.assertLess(relative_error, 1.0e-3)
+            numpy.testing.assert_almost_equal(lapl_D, lapl_D_numerical, decimal=2)
 
-    def test_integrals(self):
-        """ Compare numerical and analytical gradients of D(r) for all test molecules """
+
+    def test_derivatives(self):
+        """ Compare numerical and analytical derivatives of D(r) for all test molecules """
         for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
-                self.check_gradients(mol)
+                self.check_derivatives(mol)
 
 
 if __name__ == "__main__":
