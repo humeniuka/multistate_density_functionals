@@ -31,3 +31,7 @@ jobs:
         working-directory: tests
         run: |
           python test_NuclearPotentialOperator.py
+      - name: Test HartreeLikeOperatorFunctional class
+        working-directory: tests
+        run: |
+          python test_ElectronRepulsionOperators.py

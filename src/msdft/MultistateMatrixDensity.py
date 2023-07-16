@@ -104,7 +104,7 @@ class MultistateMatrixDensity(object):
 
         :return matrix_elements: The matrix elements of the operator in the
            basis of the many-electron states in the subspace.
-        :rtype matrix_elements: numpy.array of shape (nstate,nstate)
+        :rtype matrix_elements: numpy.ndarray of shape (nstate,nstate)
         """
         integrals_1e_ao = self.mol.intor_symmetric(intor)
         matrix_elements = numpy.einsum(
@@ -113,6 +113,41 @@ class MultistateMatrixDensity(object):
             self.density_matrices)
 
         return matrix_elements
+
+    def exact_coulomb_energy(self):
+        """
+        Compute the Coulomb integrals for all possible combinations of
+        (transition) densities using the exact integrals between the Gaussian
+        atomic orbitals.
+
+          C[i,j,k,l] = ∫∫' Dᵢⱼ(r) Dₖₗ(r') /|r-r'|
+
+                     = sum_{a,b,c,d} P^{i,j}_{a,b} (ab|cd) P^{k,l}_{c,d}
+
+        where the (transition) density is expanded in the AO basis.
+
+          Dᵢⱼ(r) = sum_{a,b} P^{i,j}_{a,b} χ_a(r) χ_b(r)
+
+        :return coulomb_integrals:
+           Coulomb integrals between (transition) densities
+        :rtype coulomb_integrals:
+           numpy.ndarray of shape (nstate,nstate,nstate,nstate)
+        """
+        nstate = self.number_of_states
+        # Electron repulsion integrals (ab|cd)
+        integrals_eri = self.mol.intor('int2e')
+        # sum over spin
+        dm_spin_trace = self.density_matrices[0,...] + self.density_matrices[1,...]
+
+        # All combinations of Coulomb interactions between (transition densities)
+        # D_{i,j}(r) and D_{k,l}(r)
+        coulomb_integrals = numpy.einsum(
+            'ijab,abcd,klcd->ijkl',
+            dm_spin_trace,
+            integrals_eri,
+            dm_spin_trace)
+
+        return coulomb_integrals
 
     def evaluate(self, coords):
         """
