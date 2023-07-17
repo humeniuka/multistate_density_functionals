@@ -11,3 +11,11 @@ __pychache__/
 \#*\#
 # ignore pyscf temporary files
 tmp*
+
+# From latex
+notes/*.aux
+notes/*.bbl
+notes/*.blg
+notes/*.log
+notes/*.pdf
+notes/acs-main.bib
