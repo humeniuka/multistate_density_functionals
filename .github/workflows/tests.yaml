@@ -17,12 +17,11 @@ jobs:
 
       - name: Checkout dependencies
         uses: actions/checkout@v3
-	with:
-	  repository: humeniuka/becke_multicenter_integration
-	  path: becke
+        with:
+          repository: humeniuka/becke_multicenter_integration
       - name: Install dependencies
         working-directory: ./becke
-	run: |
+        run: |
           python -m pip install --upgrade pip
           pip install -e .
 
