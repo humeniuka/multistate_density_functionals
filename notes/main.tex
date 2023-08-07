@@ -30,6 +30,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand*\mycommand[1]{\texttt{\emph{#1}}}
 \DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Span}{span}
+% bold matrix
+\newcommand\m[1]{\mathbf{#1}}
+% bold vector
+\renewcommand\vec[1]{\mathbf{#1}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Meta-data block
@@ -114,9 +120,213 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Start the main part of the manuscript here.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Introduction}
+%\section{Introduction}
 
-\cite{Lu2022}
+\subsection{Properties of the density matrix functional.}
+
+\textbf{$\mathcal{F}[\m{D}(r)]$ is an analytic matrix functional.}
+Since $\m{D}(\vec{r})$ is the projection of $\hat{\rho}(\vec{r})$ into the subspace $\mathbb{V}^{N}$, while ${\mathcal{H}[\m{D}(\vec{r})] = \mathcal{F}[\m{D}(\vec{r})] + \int d^3r ~ v(\vec{r}) \m{D}(\vec{r})}$ is the projection of the Hamiltonian $\hat{H}$, the matrix density functional has to transform under an arbitrary basis transformation $\m{L} : \mathbb{C}^{N \times N} \to \mathbb{C}^{N \times N}$ as \cite{Lu2022JPCL}
+\begin{equation}
+\mathcal{F}[\m{L} \m{D}(\vec{r}) \m{L}^{-1}] = \m{L} \mathcal{F}[\mathbf{D}(\vec{r})] \mathbf{L}^{-1} \label{eqn:basis_transformation_symmetry}
+\end{equation}
+This transformation property implies that $\mathcal{F}$ is an \emph{analytic matrix functional}. As we know, an analytic function of a scalar variable, $f(z): \mathbb{C} \to \mathbb{C}$ is defined by its Taylor series around some point $z_0$:
+\begin{equation}
+f(z) = \sum_{n=0}^{\infty} \frac{f^{(n)}}{n!} (z-z_0)^n
+\end{equation}
+With the help of the Taylor series the scalar function can be turned into a analytic matrix function, $f(\m{Z}): \mathbb{C}^{N \times N} \to \mathbb{C}^{N \times N}$, where the product of complex numbers is replaced by the matrix product
+\begin{equation}
+f(\m{Z}) = \sum_{n=0}^{\infty} \frac{f^{(n)}}{n!} (\m{Z} - z_0 \m{I})^n
+\end{equation}
+where $\m{I}$ is the identity matrix. If the Taylor series converges everywhere, we can take $z_0 = 0$ without loss of generality.
+The coefficients $f^{(n)}$ are independent of the matrix dimension. Under a similarity transformation, an analytic matrix function behaves as
+\begin{equation}
+\begin{split}
+  f(\m{L} \m{Z} \m{L}^{-1}) &= \sum_{n=0}^{\infty} \frac{f^{(n)}}{n!} (\m{L} \m{Z} \m{L}^{-1})^n \\
+  &= f^{(0)} \underbrace{\m{L} \m{L}^{-1}}_{\m{I}} \m{I}
+  + f^{(1)} \m{L} \m{Z} \m{L}^{-1}
+  + \frac{f^{(2)}}{2} \m{L} \m{Z} \underbrace{\m{L}^{-1} \m{L}}_{\m{I}} \m{Z} \m{L}^{-1}
+  + \ldots
+  + \frac{f^{(n)}}{n!} \m{L} \m{Z}^n \m{L}^{-1} + \ldots \\
+  &= \m{L} f(\m{Z}) \m{L}^{-1}.
+\end{split}
+\end{equation}
+The definitions of analytic matrix functions in terms of a Taylor series or the transformation property are equivalent. \cite{Rinehart1955} 
+An analytical matrix \emph{functional} $\mathcal{F}[\m{D}(\vec{r})] : (L^1)^{N \times N} \to \mathbb{C}^{N \times N}$ takes a matrix of $L^1$-integrable functions, which depend on the 3-dimensional spatial coordinate vector $\vec{r}$, as an argument.
+If we interpret $\mathcal{F}$ as a general functional of $N^2$ functions, its functional Taylor expansion around $\m{D}(r) = 0$ would be
+\begin{equation}
+  \begin{split}
+    \mathcal{F}[\m{D}(\vec{r})] & = \sum_{n=0}^{\infty} \frac{1}{n!} \int d^3\!r_1 d^3\!r_2 \cdots d^3\!r_n ~ \\
+    & \quad \sum_{A,B,C,D,\ldots}^{N} \frac{\delta^{n} \mathcal{F}[\m{D}(\vec{r})]}{\delta D_{AB}(\vec{r}_1) \delta D_{CD}(\vec{r}_2) \ldots \delta D_{YZ}(\vec{r}_n)} D_{AB}(\vec{r}_1) D_{CD}(\vec{r}_2) \ldots D_{YZ}(\vec{r}_n).
+  \end{split}
+\end{equation}
+where the Taylor coefficients are themselves $N^{2 n}$-dimensional tensors of functionals of the spatial coordinates $\vec{r}_1,\ldots,\vec{r}_n$.
+However, because of the transformation property of Eqn.~\ref{eqn:basis_transformation_symmetry} the Taylor expansion of the matrix density functional
+$\mathcal{F}[\m{D}(\vec{r})]$ is constrained to have the form
+\begin{equation}
+ \begin{split}
+   \mathcal{F}[\m{D}(\vec{r})] &= \sum_{n=0}^{\infty} \frac{1}{n!} \int d^3\!r_1 d^3\!r_2 \cdots d^3\!r_n ~ \\
+   & \quad f^{(n)}(\vec{r}_1,\ldots,\vec{r}_n; \mathcal{N}(\vec{r}), \tr(\m{D}(\vec{r})), \ldots) \m{D}(\vec{r}_1) \m{D}(\vec{r}_2) \cdots \m{D}(\vec{r}_n) \label{eqn:functional_taylor_expansion}
+ \end{split}
+\end{equation}
+The coefficients $f^{(n)}$ are scalar functions and the matrix density occurs either as a matrix product or in scalar quantities that are invariant under basis transformations, such as the trace $\tr(\mathbf{D}(\vec{r}))$. The translation property does not exclude the possibility that the functional depends explicitly on the dimension of the subspace, which can be expressed as $\mathcal{N}(\vec{r}) = \tr\{\m{D}(\vec{r}) \m{D}^{-1}(\vec{r})\}$ and therefore is also a functional of the matrix density.
+The following expressions, for instance, are formally valid analytical matrix functionals
+\begin{align}
+  \mathcal{G}_{AC}[\m{D}(\vec{r})] &= \int d^3\!r_1 \int d^3\!r_2 \frac{\sum_{B=1}^{N} D_{AB}(\vec{r}_1) D_{BC}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert} \\
+  \mathcal{G}_{AB}[\m{D}(\vec{r})] &= \int d^3\!r \nabla \rho_{V}(\vec{r}) \cdot \nabla D_{AB}(\vec{r})
+\end{align}
+because they satisfy the transformation property of Eqn.~\ref{eqn:basis_transformation_symmetry}. On the other hand, expressions like
+\begin{equation}
+ \mathcal{G}_{AB}[\m{D}(\vec{r})] = \int d^3\!r_1 \int d^3\!r_2 \frac{D_{AA}(\vec{r}_1) D_{BB}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert}
+\end{equation}
+are not analytical, because they do not transform correctly under basis transformations.
+
+\textbf{$\mathcal{F}[\m{D}(\vec{r})]$ does not depend on the subspace dimension.}
+Although an analytical matrix functional can accept a matrix density of any dimension, it is not immediately obvious that the functional has to be the same independently of the dimension of the subspace. The ensemble density functional theory of Gross, Oliveira and Kohn \cite{Gross1988ReyleighRitz,Gross1988EnsembleDFT} certainly depends on the weights of the states, so that there is a different functional for an ensemble of 2,3,4,... states. It is conceivable that a similar dependence on the subspace dimension exists for the matrix density functional $\mathcal{F}[\m{D}(\vec{r})]$. However, the following considerations (which falls short of a rigorous proof) suggests that this is not the case and that the same matrix functional applies to all subspace dimensions:
+Let us suppose that the matrix functional could be different and denote the functional for a subspace with dimension $N$ as $\mathcal{F}^{(N)}$.
+Let $v(r)$ be the external potential (for instance the Coulomb attraction to the nuclei in a molecule) that is localized around the origin $\vec{O}$. $v(r)$ decays lik $\propto -\frac{1}{r}$ or faster with distance. A copy of the same nuclei is put at a distant point $\vec{R}$, so that the total external potential is $v(\vec{r}) + v(\vec{r}-\vec{R})$ as shown in Fig.\ref{fig:repeated_effective_potential}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.9\linewidth]{figures/repeated_effective_potential.png}
+  \caption{\label{fig:repeated_effective_potential} Effective potential of two identical molecules separated by a large distance $R$. The localized wavefunction in the left and right potential wells are identical except for the rigid shift.}
+\end{figure}
+
+$\mathbb{V}_{\vec{O}}^N$ is the subspace spanned by $N$ electronic wavefunctions (not necessarily eigenstates) that are localized around the origin $\vec{O}$. These wavefunctions decay exponentially with distance. $\mathbb{V}_{\vec{R}}^N$ is spanned by the same wavefunctions rigidly translated to the center $\vec{R}$. A subspace of twice the dimension is formed by combining the subspaces of the left and right molecules,
+\begin{equation}
+  \begin{split}
+    \mathbb{V}^{2N} = \mathbb{V}^{N}_{\vec{O}} \cup \mathbb{V}^{N}_{\vec{R}} = \Span\Big\{ &
+                  \Psi_1(\vec{r}_1,\vec{r}_2,\ldots),
+                  \Psi_2(\vec{r}_1,\vec{r}_2,\ldots), \ldots,
+                  \Psi_N(\vec{r}_1,\vec{r}_2,\ldots), \\
+    &             \Psi_1(\vec{r}_1-\vec{R},\vec{r}_2-\vec{R},\ldots),
+                  \Psi_2(\vec{r}_1-\vec{R},\vec{r}_2-\vec{R},\ldots), \ldots,
+                  \Psi_N(\vec{r}_1-\vec{R},\vec{r}_2-\vec{R},\ldots) \Big\}.
+  \end{split}
+\end{equation}
+Because of the large distance $R$, the transition densities between states localized at $\vec{O}$ and those at $\vec{R}$ vanishes. The state densities and transition densities among the states localized on the same molecule are the same for both moleules except for a rigid shift. The matrix density for the combined subspace therefore consists of two blocks of size $N$, each:
+\begin{equation}
+  \m{D}^{(2N)}(\vec{r}) =
+  \begin{pmatrix}
+    \m{D}^{(N)}(\vec{r}) & 0 \\
+    0 & \m{D}^{(N)}(\vec{r}-\vec{R})
+  \end{pmatrix}
+\end{equation}
+As the distance between the two molecules is increased ($R \to \infty$), the matrix elements of the Hamiltonian vanishes, $\langle \Psi_{A} \vert \hat{H} \vert \Psi_{B} \rangle \to 0$, if the wavefunctions $\Psi_A$ and $\Psi_B$ are localized on different molecules. The matrix elements of the kinetic energy decrease exponentially, $\langle \Psi_{A} \vert \hat{T} \vert \Psi_{B} \rangle \propto \exp(-\alpha R)$, for the Coulomb operator the decrease is like $\langle \Psi_{A} \vert \hat{W} \vert \Psi_{B} \rangle \propto \frac{1}{R}$. Therefore, in the limit $R \to \infty$, the universal part of the Hamiltonian in the subspace $\mathbb{V}^{(2 N)}$ is just block-diagonal, $\hat{H}^{(2N)}_0 = \hat{H}^{(N)} \oplus \hat{H}^{(N)}$. The projection of $\hat{H}_0$ into the combined subspace $\mathbb{V}^{(2N)}$ is a functional of the matrix density $\m{D}^{(2N)}$, and the Hamiltonians in the individual subspaces $\mathbb{V}^{(N)}_{\vec{O}}$ and $\mathbb{V}^{(N)}_{\vec{R}}$ are functionals of the matrix densities $\m{D}^{(N)}(\vec{r})$ and $\m{D}^{(N)}(\vec{r}-\vec{R})$, respectively. Furthermore the universal functional should be translationally invariant, so that $\mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r}-\vec{R})] = \mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r})] = \m{H}^{(N)}_0$. Therefore the following relation holds between the functionals $\mathcal{F}^{(2N)}$ and $\mathcal{F}^{(N)}$:
+\begin{equation}
+  \mathcal{F}^{(2N)}
+  \left[
+    \begin{pmatrix}
+      \m{D}^{(N)}(\vec{r}) & 0 \\
+      0 & \m{D}^{(N)}(\vec{r}-\vec{R})
+    \end{pmatrix}
+    \right]
+  =
+  \begin{pmatrix}
+    \m{H}^{(N)}_{0} & 0 \\
+    0 & \m{H}^{(N)}_{0}
+  \end{pmatrix}
+  =
+  \begin{pmatrix}
+    \mathcal{F}^{(N)}[\m{D}(\vec{r})] & 0 \\
+    0 & \mathcal{F}^{(N)}[\m{D}(\vec{r})]
+  \end{pmatrix} \label{eqn:relation_F2N_FN}
+\end{equation}
+
+The plan is to plug the functional Taylor expansion of Eqn.~\ref{eqn:functional_taylor_expansion} into Eqn.~\ref{eqn:relation_F2N_FN} in order to work out the relation between the functional $\mathcal{F}^{(2N)}$ and $\mathcal{F}^{(N)}$. A priori it is assumed that the functional could be different for different subspace dimensions. It will be shown that this is not the case. However, Eqn.~\ref{eqn:relation_F2N_FN} is not yet in a suitable form to compare the two functionals, since on its LHS the functional $\mathcal{F}^{(2N)}$ operates on a matrix density of dimension $2N$, while on the RHS the arguments of the functional $\mathcal{F}^{(N)}$ have dimension $N$. So we have to transform the expession in such a way, that $\mathcal{F}^{(2N)}$ operates on a matrix density of dimension $N$.
+%%%
+
+First some preliminaries.
+The functional Taylor expansion involves integrations over three-dimensional space.
+The three-dimensional space is partitioned into Voronoi polyhedra. Each point $\vec{r}$ is assigned to the closest molecule,
+\begin{align}
+  V_{\vec{O}} &= \{\vec{r}: \vert \vec{r} \vert < \vert \vec{r} - \vec{R} \vert \} \\
+  V_{\vec{R}} &= \{\vec{r}: \vert \vec{r} - \vec{R} \vert \leq \vert \vec{r} \vert \} \\
+  \mathbb{R}^3 &= V_{\vec{O}} \cup V_{\vec{R}}.
+\end{align}
+Integration over space is split into separate integrations over the Voronoi polyhedra,
+\begin{equation}
+ \int_{\mathbb{R}^3} \ldots d^3\!r = \int_{V_{\vec{O}}} \ldots d^3\!r + \int_{V_{\vec{R}}} \ldots d^3\!r.
+\end{equation}
+Since the wavefunctions are localized around the potential at either $\vec{O}$ or $\vec{R}$, there is no point in space where $\m{D}(\vec{r})$ and $\m{D}(\vec{r}-\vec{R})$ are simultaneously non-zero. So dependening on where the point $\vec{r}$ lies, the projection of the density operator in the subspace $\mathbb{V}^{2N}$ has only one non-zero block at the top or at the bottom:
+\begin{equation}
+  \m{D}^{(2N)}(\vec{r}) = \m{D}^{(N)}(\vec{r}) \oplus \m{D}^{(N)}(\vec{r}-\vec{R}) =
+  \begin{cases}
+    \m{D}^{(N)}(\vec{r}) \oplus 0 & \text{if } \vec{r} \in V_{\vec{O}} \\
+    0 \oplus \m{D}^{(N)}(\vec{r}-\vec{R}) & \text{if } \vec{r} \in V_{\vec{R}} \label{eqn:D_split}
+  \end{cases}
+\end{equation}
+Similarly we get for the trace,
+\begin{equation}
+  \tr\left(\m{D}^{(2N)}(\vec{r}) \right)
+  =
+  \tr\left(\m{D}^{(N)}(\vec{r}) \oplus \m{D}^{(N)}(\vec{r}-\vec{R}) \right)
+  =
+  \begin{cases}
+    \tr(\m{D}(\vec{r})) & \text{if } \vec{r} \in V_{\vec{O}} \\
+    \tr(\m{D}(\vec{r}-\vec{R}) & \text{if } \vec{r} \in V_{\vec{R}} \label{eqn:tr_split}
+  \end{cases}
+\end{equation}
+If the functional should depend explicitly on the subspace dimension, the number of electronic states has to be expressed as a functional of the matrix density. One way to do this is
+\begin{equation}
+ \mathcal{N}(\vec{r}) = \tr\left\{ \m{D}(\vec{r}) \m{D}^{-1}(\vec{r}) \right\}.
+\end{equation}
+If at some point the matrix density does not have full rank and therefore is not invertible, the pseudinverse is used instead of the inverse. $\mathcal{N}(\vec{r})$ always equals the rank of the matrix density.
+Since $\m{D}^{(2N)}(\vec{r})$ has at most rank $N$ (the number of wavefunctions that are simultaneously non-zero is at most $N$),
+\begin{equation}
+  \mathcal{N}^{(2N)}(\vec{r})
+  =
+  \begin{pmatrix}
+    \mathcal{N}^{(N)}(\vec{r}) & \text{if } \vec{r} \in V_{\vec{O}} \\
+    \mathcal{N}^{(N)}(\vec{r}-\vec{R}) & \text{if } \vec{r} \in V_{\vec{R}}. \label{eqn:N_split}
+  \end{pmatrix}
+\end{equation}
+
+Now we right out the Taylor expansion and focus only on the term linear in $\m{D}^{(2N)}(\vec{r})$, but higher-order terms work the same way:
+
+\begin{align}
+  &\mathcal{F}^{(2N)}[\m{D}^{(2N)}(\vec{r})] = \int d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(2N)}(\vec{r}_1)), \mathcal{N}^{(2N)}(\vec{r}_1) \right) \m{D}^{(2N)}(\vec{r}_1) + \ldots \\
+    =& \int d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(2N)}(\vec{r}_1)), \mathcal{N}^{(2N)}(\vec{r}_1) \right)
+    \begin{pmatrix}
+      \m{D}^{(N)}(\vec{r}_1) & 0 \\
+      0 & \m{D}^{(N)}(\vec{r}_1 - \vec{R})
+    \end{pmatrix} + \ldots \\
+    =& \int_{V_{\vec{O}}} d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(N)}(\vec{r}_1)), \mathcal{N}^{(N)}(\vec{r}_1) \right)
+    \begin{pmatrix}
+      \m{D}^{(N)}(\vec{r}_1) & 0 \\
+      0 & 0
+    \end{pmatrix} \\
+    & + \int_{V_{\vec{R}}} d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(N)}(\vec{r}_1-\vec{R})), \mathcal{N}^{(N)}(\vec{r}_1-\vec{R}) \right)
+    \begin{pmatrix}
+      0 & 0 \\
+      0 & \m{D}^{(N)}(\vec{r}_1-\vec{R})
+    \end{pmatrix} + \ldots \\
+    =&
+    \begin{pmatrix}
+      \int_{\mathbb{R}^3} d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(N)}(\vec{r}_1)), \mathcal{N}^{(N)}(\vec{r}_1) \right) \m{D}^{(N)}(\vec{r}_1) + \ldots & 0 \\
+      0 & \int_{\mathbb{R}^3} d^3\!r_1 ~ f^{(1)}\left(\ldots \right) \m{D}^{(N)}(\vec{r}_1-\vec{R}) + \ldots\\
+    \end{pmatrix} \\
+    =&
+    \begin{pmatrix}
+      \mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r})] & 0 \\
+      0 & \mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r})]
+    \end{pmatrix} \label{eqn:relation_F2N_FN_same_dim}
+\end{align}
+
+In going from line 2 to 3, the integration was split up and the corresponding cases from Eqns.~\ref{eqn:D_split},\ref{eqn:tr_split},\ref{eqn:N_split} were used inside each integration volume. In going from lines 3 and 4 to line 5, the integration range was extended again over the entire $\mathbb{R}^3$, since the respective integrands vanish on the additional volume. Finally, to get to the last line, we sum up the Taylor expansion again to obtain $\mathcal{F}^{(2N)}$ evaluated on the matrix density in the subspaces $\mathbb{V}_{\vec{O}}$ and $\mathbb{V}_{\vec{R}}$, respectively. As the universal functional has translational invariance, we can use $\mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r}-\vec{R})] = \mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r})]$.
+Comparison of Eqn.~\ref{eqn:relation_F2N_FN_same_dim} with Eqn.~\ref{eqn:relation_F2N_FN} shows that
+\begin{equation}
+ \mathcal{F}^{(2N)}[\m{D}^{N}(\vec{r})] = \mathcal{F}^{(N)}[\m{D}^{N}(\vec{r})]
+\end{equation}
+for any matrix density $\m{D}^{(N)}(\vec{r})$ that decays exponentially with distance.
+Now the dimension of the argument is the same on both sides. The above equality suggests that the same universal functional applies to all subspace dimensions and one can drop the superscript writing simply $\mathcal{F}[\m{D}(\vec{r})]$. For $N=1$ it is equal to the ground-state kinetic and Hartree-exchange-correlation (Hxc) functionals,
+\begin{equation}
+ \mathcal{F}[\rho(\vec{r})] = T[\rho(\vec{r})] + E_{\text{Hxc}}[\rho(\vec{r})]
+\end{equation}
+However, deducing the multi-state functional from known ground-state kinetic-energy and Hartree-exchange-correlation functionals is not possible. Even if one has a closed expression of the functionals in term of $\rho(\vec{r})$, $\nabla \rho(\vec{r})$, $\ldots$, it is not clear where $\rho(\vec{r})$ has to be replaced by the scalar $\tr(\m{D}(\vec{r}))$ and where by the matrix $\m{D}(\vec{r})$. For $N=1$, all three are the same, i.e. $\rho(\vec{r}) = \tr(\m{D}(\vec{r})) = \m{D}(\vec{r})$.
+Nevertheless ground-state functionals can give some guidance.
+
+\subsection{Kinetic energy functional}
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The "Acknowledgement" section can be given in all manuscript
