@@ -324,7 +324,121 @@ Now the dimension of the argument is the same on both sides. The above equality 
 However, deducing the multi-state functional from known ground-state kinetic-energy and Hartree-exchange-correlation functionals is not possible. Even if one has a closed expression of the functionals in term of $\rho(\vec{r})$, $\nabla \rho(\vec{r})$, $\ldots$, it is not clear where $\rho(\vec{r})$ has to be replaced by the scalar $\tr(\m{D}(\vec{r}))$ and where by the matrix $\m{D}(\vec{r})$. For $N=1$, all three are the same, i.e. $\rho(\vec{r}) = \tr(\m{D}(\vec{r})) = \m{D}(\vec{r})$.
 Nevertheless ground-state functionals can give some guidance.
 
+The next step is to find a multistate matrix density functional, that satisfies the above constraints and ideally reduces to some known ground state functional for $N=1$.
 \subsection{Kinetic energy functional}
+\textbf{Multistate von-Weizs\"{a}cker kinetic functional.} We start with the von-Weizs\"{a}cker kinetic energy functional, which can be extended to multiple electronic states and is exact for one-electron systems.
+In the following $A,B,\ldots,I,J,K,L = 1,\ldots,N$ enumerate electronic states, $\alpha,\beta=x,y,z$ denote Cartesian coordinates and partial derivatives with respect to Cartesian coordinates are abbreviated as $\partial_{\alpha} f = \frac{\partial f}{\partial_{r_\alpha}}$. 
+Let the single particle wavefunctions be denoted as $\phi_A(\vec{r})$. The matrix elements of the kinetic energy operator are
+\begin{equation}
+T_{A,B} = -\frac{1}{2} \int d^3\!r ~ \phi^*_A(\vec{r}) \nabla^2 \phi_B(\vec{r}).
+\end{equation}
+Plugging the vector field $\vec{F}(\vec{r}) = \phi^*_A \nabla \phi_B$ into Gauss' law,
+\begin{equation}
+ \int_V (\nabla \cdot \vec{F}) ~ d^3\!r = \int_{\partial V} \vec{F} \cdot d\vec{S},
+\end{equation}
+and noting that the surface integral on the right hand side disappears as the volume $V \to \mathbb{R}^3$, because $\vec{F}(\vec{r})$ decays exponentially,
+one finds that
+\begin{equation}
+ \int_{\mathbb{R}^3} d^3\!r ~ \nabla \cdot \vec{F} = \int d^3\!r \sum_{\alpha=x,y,z} \left\{ (\partial_{\alpha} \phi^*_A)(\partial_{\alpha} \phi_B) + \phi^*_A \partial^2_{\alpha} \phi_B  \right\} = 0,
+\end{equation}
+or after rearrangeing
+\begin{equation}
+  \begin{split}
+    T_{A,B} &= -\frac{1}{2} \int d^3\!r ~ \phi^*_A \nabla^2 \phi_B \\
+    &= -\frac{1}{2} \int d^3\!r ~ \sum_{\alpha} \phi^*_A \partial^2_{\alpha} \phi_B = \frac{1}{2} \int d^3\!r ~ \sum_{\alpha} (\partial_{\alpha} \phi^*_A)(\partial_{\alpha} \phi_B) \\
+    &= \int d^3\!r ~ \frac{1}{2} (\nabla \phi^*_A)\cdot (\nabla \phi_B) \label{eqn:kinetic_energy_1e}.
+  \end{split}
+\end{equation}
+For a single-electron system, the matrix density is just the product of the wavefunctions (the density matrix),
+\begin{equation}
+ D_{AB}(\vec{r}) = \phi^*_A(\vec{r}) \phi_B(\vec{r}).
+\end{equation}
+Note that
+\begin{equation}
+ \sum_{K=1}^{N} D_{IK} D_{KJ} = \phi^*_I \sum_{K} \phi_{K} \phi^*_{K} \phi_J = \tr(\m{D}) D_{IJ}
+\end{equation}
+To derive the von-Weizs\"{a}cker kinetic energy functional one has to assume that all wavefunctions are real, so that $D_{AB} = \phi_A \phi_B$.
+Now consider
+\begin{equation}
+\begin{split}
+  & \sum_K (\nabla D_{IK}) \cdot (\nabla D_{KJ})
+  = \sum_K (\nabla \phi_I \phi_K + \phi_I \nabla \phi_K)\cdot (\nabla \phi_K \phi_J + \phi_K \nabla \phi_J) \\
+  =&
+  (\sum_K \phi_K \phi_K) \nabla \phi_I \cdot \nabla \phi_J +
+  \sum_K (\nabla \phi_K \cdot \nabla \phi_K) \phi_I \phi_J +
+  \sum_K (\nabla \phi_I \cdot \nabla \phi_K) \phi_K \phi_J +
+  \sum_K \phi_I \phi_K (\nabla \phi_K \cdot  \nabla \phi_J) \\
+  =& \tr(\m{D}) (\nabla \phi_I \cdot \nabla \phi_J) + D_{IJ} \sum_{K} (\nabla \phi_K \cdot \nabla \phi_K) + \sum_K (\nabla \phi_I \cdot \nabla \phi_K) D_{KJ}
+  + \sum_K D_{IK} (\nabla \phi_K \cdot \nabla \phi_J)
+\end{split}
+\end{equation}
+The kinetic energy density $T_{IJ}(\vec{r}) = \frac{1}{2} \nabla \phi_I(\vec{r}) \cdot \nabla \phi_J(\vec{r})$ (the integrand in Eqn.~\ref{eqn:kinetic_energy_1e}) appears on the right hand side multiple times. Rewriting the previous equation in terms of $T_{IJ}(\vec{r})$ gives
+\begin{equation}
+T_{IJ}(\vec{r}) = \underbrace{\frac{1}{2} \frac{\sum_K \nabla D_{IK} \cdot \nabla D_{KJ}}{\tr(\m{D})}}_{C_{IJ}(\vec{r})} - \underbrace{\frac{D_{IJ}}{\tr(\m{D})}}_{R_{IJ}(\vec{r})} \sum_K T_{KK}(\vec{r}) - \sum_{K} T_{IK}(\vec{r}) \underbrace{\frac{D_{KJ}}{\tr(\m{D})}}_{R_{KJ}(\vec{r})} - \sum_{K} \underbrace{\frac{D_{IK}}{\tr(\m{D})}}_{R_{IK}(\vec{r})} T_{KJ}(\vec{r}) \label{eqn:kinetic_density_multistate}
+\end{equation}
+For a single electronic state ($N=1$), we get $C = \frac{1}{2} (\nabla \rho)\cdot (\nabla \rho) / \rho$, $R = 1$ and the above equation reduces to
+\begin{equation}
+t_W(\vec{r}) = \frac{1}{2} \frac{\nabla \rho \cdot \nabla \rho}{\rho} - 3 t_W(\vec{r})
+\end{equation}
+or
+\begin{equation}
+t_W(\vec{r}) = \frac{1}{8} \frac{\nabla \rho(\vec{r}) \cdot \nabla \rho(\vec{r})}{\rho(\vec{r})},
+\end{equation}
+which is the kinetic energy density of the familiar von-Weizs\"{a}cker functional,
+\begin{equation}
+  T_W[\rho] = \int t_W[\rho](\vec{r}) d^3\!r  \label{eqn:von_Weizsaecker_functional}.
+\end{equation}
+For $N > 1$ Eqn.~\ref{eqn:kinetic_density_multistate} is a system of linear equations,
+\begin{equation}
+ T_{IJ}(\vec{r}) = C_{IJ} - R_{IJ} \sum_K T_{KK} - \sum_K T_{IK} R_{KJ} - \sum_K R_{IK} T_{KJ}
+\end{equation}
+that has to be solved for $T_{IJ}(\vec{r})$ at each point $\vec{r}$.
+To solve the linear system, $T_{IJ}(\vec{r})$ is treated as a vector in $\mathbb{R}^{N \times N}$ and the equation is rewritten as
+\begin{equation}
+T_{IJ}(\vec{r}) = C_{IJ}(\vec{r}) + \sum_{K,L=1}^{N} \mathcal{K}_{IJ,KL}(\vec{r}) T_{KL}(\vec{r}) \label{eqn:CplusKT}
+\end{equation}
+This equation has the form $\vec{T} = \vec{C} + \mathcal{K} \vec{T}$, which can be solved for the vector $\vec{T} = (1 - \mathcal{K})^{-1} \vec{C}$.
+By writing Eqn.~\ref{eqn:CplusKT} as
+\begin{equation}
+T_{IJ}(\vec{r}) = C_{IJ}(\vec{r}) + \sum_{K,L} \left\{ - R_{IK}(\vec{r}) \delta_{LJ} - \delta_{IK} R_{LJ}(\vec{r}) - R_{IJ}(\vec{r}) \delta_{KL} \right\} \vec{T}_{KL}(\vec{r}) \label{eqn:vonWZ_matrix_equation}
+\end{equation}
+we see that the matrix $\mathcal{K} \in \mathbb{R}^{N^2 \times N^2}$ is
+\begin{equation}
+ \mathcal{K}_{IJ,KL} = - R_{IK}(\vec{r}) \delta_{LJ} - \delta_{IK} R_{LJ}(\vec{r}) - R_{IJ}(\vec{r}) \delta_{KL}
+\end{equation}
+Under the assumption $\lvert \mathcal{K} \rvert < 1$, $(1 - \mathcal{K})^{-1}$ can be written as a geometric series
+\begin{equation}
+ (1 - \mathcal{K})^{-1} = \sum_{k=0}^{\infty} \mathcal{K}^{k}
+\end{equation}
+so that
+\begin{equation}
+\vec{T} = \sum_{k=0}^{\infty} \mathcal{K}^{k} \vec{C} = \vec{C} + \sum_{k=1}^{\infty} \mathcal{K}^{k} \vec{C} \label{eqn:solution_geometric_series}
+\end{equation}
+To prove $\lvert \mathcal{K} \rvert < 1$, we have to show that $R_{IJ} < 1$. This follows from
+\begin{equation}
+D_{IJ}(\vec{r}) = \phi_I(\vec{r}) \phi_J(\vec{r}) \leq \max_{K} \phi_K(\vec{r}) \phi_K(\vec{r}) \leq \sum_K \phi_K(\vec{r}) \phi_K(\vec{r}) = \tr(\m{D})
+\end{equation}
+Eqn.~\ref{eqn:solution_geometric_series} demonstrates that the kinetic energy density obtained by solving Eqn.~\ref{eqn:vonWZ_matrix_equation} is indeed a functional of the matrix density $\m{D}$. The first term of the series \ref{eqn:solution_geometric_series} is
+\begin{equation}
+\begin{split}
+  (\mathcal{K} \vec{C})_{IJ} &= -\sum_{K} R_{IK} C_{KJ} - \sum_{K} C_{IK} R_{KJ} - R_{IJ} \sum_K C_{KK} \\
+   &= - (\m{R} \m{C} + \m{C} \m{R})_{IJ} - R_{IJ} \tr(\m{C}).
+\end{split}
+\end{equation}
+Since $\m{R}$ and $\m{C}$ are analytical matrix functionals of $\m{D}$, i.e. $\m{R}[\m{U} \m{D} \m{U}^{-1}] = \m{U} \m{R}[\m{D}] \m{U}^{-1}$ and similarly for $\m{C}$,
+we conclude that $\mathcal{K} \vec{C}$ and $\mathcal{K} (\mathcal{K} \vec{C})$ etc. are analytical matrix functionals, which only depend on $\m{D}(\vec{r})$, $\nabla \m{D}(\vec{r})$ and the scalar invariant $\tr(\m{D})$, as well.
+
+Although for $N=1$ it reduces to the simple expression in Eqn.~\ref{eqn:von_Weizsaecker_functional}, the \emph{multistate} von-Weizsaecker functional is an infinite series. 
+This suggests that trying to guess the functional form of a matrix density functional from a known ground state functional will in general not be crowned with success.
+Taking only the first two terms of the infinite series, the kinetic energy functional reads
+\begin{equation}
+\begin{split}
+  \m{T}[\m{D}(\vec{r})] =& \int \m{C} ~ d^3\!r  - \int \left(\m{R} \m{C} + \m{C} \m{R} + \tr(\m{C}) \m{R} \right) d^3\!r  + \ldots \\
+  =& \int \frac{1}{2} \tr(\m{D})^{-1} (\nabla \m{D} \cdot \nabla \m{D}) ~ d^3\!r \\
+  & - \int \frac{1}{2} \tr(\m{D})^{-2} \left[ \m{D} (\nabla \m{D} \cdot \nabla \m{D}) + (\nabla \m{D} \cdot \nabla \m{D}) \m{D} + \tr(\nabla \m{D} \cdot \nabla \m{D}) \m{D} \right] ~ d^3\!r + \ldots .
+\end{split}
+\end{equation}
+In practice $\m{T}[\m{D}(\vec{r})]$ is determined by solving Eqn.~\ref{eqn:CplusKT} for each grid point and then integrating the kinetic energy density numerically.
 
 
 
