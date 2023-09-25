@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from msdft.NuclearPotentialOperator import NuclearPotentialOperator
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+from msdft.BasisTransformation import BasisTransformation
 
 class TestNuclearPotentialOperator(unittest.TestCase):
     def create_test_molecules(self):
@@ -78,13 +79,13 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         :rtype: MultistateMatrixDensity
         """
         assert nstate > 0
-        hf = pyscf.scf.RHF(mol)
+        rhf = pyscf.scf.RHF(mol)
         # supress printing of SCF energy
-        hf.verbose = 0
+        rhf.verbose = 0
         # compute self-consistent field
-        hf.kernel()
+        rhf.kernel()
 
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        cisolver = pyscf.fci.FCI(mol, rhf.mo_coeff)
         # Solve for one state more than requested to avoid
         # problems when nstate == 1.
         cisolver.nroots = nstate+1
@@ -94,7 +95,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensity(mol, rhf, cisolver, fcivecs)
 
         return msmd
 
@@ -138,5 +139,65 @@ class TestNuclearPotentialOperator(unittest.TestCase):
                 with self.subTest(molecule=name, nstate=nstate):
                     self.check_exact_potential_energy(mol, nstate=nstate)
 
+    def check_transformation(self, mol, nstate=1):
+        """
+        As an analytical matrix density functional, V[D(r)] should transform under
+        a basis transformation L as
+
+          V[L D(r) Lᵗ] = L V[D(r)] Lᵗ
+        """
+        assert nstate > 0
+        # First the electronic eigenstates are determined using
+        # full configuration interaction.
+        rhf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        rhf.verbose = 0
+        # compute self-consistent field
+        rhf.kernel()
+
+        cisolver = pyscf.fci.FCI(mol, rhf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        cisolver.nroots = nstate+1
+        fci_energies, fcivecs = cisolver.kernel()
+        # Remove the additional state again.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+        # For small basis sets, there can be fewer states than requested.
+        nstate = len(fcivecs)
+            
+        # functional for nuclear potential, V[D(r)]
+        nuclear_potential = NuclearPotentialOperator(mol)
+
+        # random transformation L
+        basis_transformation = BasisTransformation.random(nstate)
+        
+        # The multistate density matrix D(r)
+        msmd = MultistateMatrixDensity(mol, rhf, cisolver, fcivecs)
+        # Evaluate V[D(r)] by integration on the grid.
+        V = nuclear_potential(msmd)
+        # Transform the operator, L V[D(r)] Lᵗ
+        V_transformed = basis_transformation.transform_operator(V)
+
+        # To compute L D(r) Lᵗ we apply the basis transformation to the CI vectors.
+        fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
+        # The multistate density matrix L D(r) Lᵗ in the transformed basis
+        msmd_transformed = MultistateMatrixDensity(mol, rhf, cisolver, fcivecs_transformed)
+        # Evaluate V[L D(r) Lᵗ] by integration on the grid.
+        V_from_transformed_D = nuclear_potential(msmd_transformed)
+
+        numpy.testing.assert_almost_equal(V_from_transformed_D, V_transformed)
+
+    def test_nuclear_potential_matrix(self):
+        """
+        Verify the nuclear potential transforms correctly under basis changes.
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules().items()):
+            for nstate in tqdm([2,3]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_transformation(mol, nstate=nstate)
+
+
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(failfast=True)

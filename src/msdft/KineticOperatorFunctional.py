@@ -6,7 +6,13 @@ import pyscf.dft
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
+
 class KineticOperatorFunctional(object):
+    """ base class for kinetic operator functionals """
+    pass
+
+
+class VonWeizsaeckerFunctional(KineticOperatorFunctional):
     def __init__(self, mol, level=8):
         """
         A von-Weizsäcker-like functional that maps the matrix density D(r)

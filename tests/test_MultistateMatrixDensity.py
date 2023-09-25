@@ -86,6 +86,7 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         cisolver.nroots = nstate
         fci_energies, fcivecs = cisolver.kernel()
 
+        fcivecs = numpy.asarray(fcivecs)
         msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
 
         return msmd

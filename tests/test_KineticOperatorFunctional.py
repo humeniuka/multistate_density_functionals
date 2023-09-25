@@ -13,10 +13,11 @@ import pyscf.scf
 
 from tqdm import tqdm
 
-from msdft.KineticOperatorFunctional import KineticOperatorFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
-class VonWeizsaeckerKineticOperatorFunctional(object):
+
+class VonWeizsaeckerFunctionalSingleState(object):
     """
     The von Weizsäcker density functional of the kinetic energy:
 
@@ -82,7 +83,7 @@ class VonWeizsaeckerKineticOperatorFunctional(object):
         return kinetic_matrix
 
 
-class TestKineticOperatorFunctional(unittest.TestCase):
+class TestVonWeizsaeckerFunctional(unittest.TestCase):
     def create_test_molecules_1electron(self):
         """ dictionary with 1-electron molecules to run the tests on """
         molecules = {
@@ -157,7 +158,7 @@ class TestKineticOperatorFunctional(unittest.TestCase):
         assert nstate > 0, "The number of electronic states has to be > 0."
 
         # functional for kinetic operator, T[D(r)]
-        kinetic_functional = KineticOperatorFunctional(mol)
+        kinetic_functional = VonWeizsaeckerFunctional(mol)
 
         # compute D(r) from full CI
         msmd = self.create_matrix_density(mol, nstate=nstate)
@@ -181,14 +182,14 @@ class TestKineticOperatorFunctional(unittest.TestCase):
             msmd = self.create_matrix_density(mol, nstate=1)
 
             # functionals for kinetic operator, T[D(r)]
-            kinetic_functional = KineticOperatorFunctional(mol)
-            kinetic_functional_vW = VonWeizsaeckerKineticOperatorFunctional(mol)
+            kinetic_functional_multi = VonWeizsaeckerFunctional(mol)
+            kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
 
             # Compare the multistate and the single-state vW functionals.
-            kinetic_matrix = kinetic_functional(msmd)
-            kinetic_matrix_vW = kinetic_functional_vW(msmd)
+            kinetic_matrix_multi = kinetic_functional_multi(msmd)
+            kinetic_matrix_single = kinetic_functional_single(msmd)
 
-            numpy.testing.assert_almost_equal(kinetic_matrix, kinetic_matrix_vW)
+            numpy.testing.assert_almost_equal(kinetic_matrix_multi, kinetic_matrix_single)
 
     def test_1electron_systems(self):
         """ Check that the kinetic energy functional is exact for one-electron systems """
