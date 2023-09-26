@@ -52,6 +52,12 @@ molecules = {
         atom = 'Li 0 0 -1.335; Li 0 0 1.335',
         basis = '6-31g',
         # singlet
+        spin = 0),
+    # H2O
+    'water': pyscf.gto.M(
+        atom = 'O 0.0 0.0 0.1173; H 0.0 0.7572 -0.4692; H 0.0 -0.7572 -0.4692',
+        basis = '6-31g',
+        # singlet
         spin = 0)
 }
 
@@ -193,5 +199,6 @@ def compare_kinetic_energy_densities(mol, nstate=2):
 
 if __name__ == "__main__":
     #compare_kinetic_energy_densities(molecules['hydrogen molecule'], nstate=2)
-    compare_kinetic_energy_densities(molecules['lithium hydride'], nstate=2)
+    #compare_kinetic_energy_densities(molecules['lithium hydride'], nstate=2)
     #compare_kinetic_energy_densities(molecules['lithium diatomic'], nstate=3)
+    compare_kinetic_energy_densities(molecules['water'], nstate=4)
