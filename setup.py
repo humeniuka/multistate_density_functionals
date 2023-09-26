@@ -39,7 +39,7 @@ setup(
     author_email='alexander.humeniuk@gmail.com',
     license='LICENSE.txt',
     package_dir = {"": "src"},
-    install_requires=['numpy', 'matplotlib', 'pyscf', 'scipy', 'tqdm'],
+    install_requires=['matplotlib', 'numpy', 'pyscf', 'scipy', 'tqdm'],
     include_package_data=True,
     zip_safe=False,
 )

@@ -13,6 +13,7 @@ import pyscf.scf
 
 from tqdm import tqdm
 
+from msdft.KineticOperatorFunctional import ThomasFermiFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
@@ -69,7 +70,7 @@ class VonWeizsaeckerFunctionalSingleState(object):
                 continue
 
             # von Weizsäcker
-            T = 1.0/8.0 * (
+            KED = 1.0/8.0 * (
                 numpy.einsum('ikar,kjar->ijr', grad_D[s,...], grad_D[s,...]) /
                 numpy.expand_dims(trace_D[s,...], axis=(0,1)))
 
@@ -78,7 +79,7 @@ class VonWeizsaeckerFunctionalSingleState(object):
             #
             #  ∫ -1/2 ϕᵢ*(r) ∇²ϕⱼ(r) = ∫ 1/2 ∇ϕᵢ*(r) ∇ϕⱼ(r)
             #
-            kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, T)
+            kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, KED)
 
         return kinetic_matrix
 
@@ -198,6 +199,151 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
             for nstate in tqdm([1,2,3,4]):
                 with self.subTest(molecule=name, nstate=nstate):
                     self.check_exact_kinetic_energy(mol, nstate=nstate)
+
+
+class ThomasFermiFunctionalSingleState(object):
+    """
+    The Thomas-Fermi density functional of the kinetic energy:
+
+           T[ρ] = 3/10 (3π²)²ᐟ³ ∫ ρ(r)⁵ᐟ³ dr
+
+    """
+    def __init__(self, mol, level=8):
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity):
+        """
+        Compute the Thomas-Fermi kinetic energy for the density of a single
+        electronic state.
+
+        :param msmd: A multistate density matrix with only a single electronic state
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :return kinetic_matrix: A 1x1 matrix with the scalar kinetic energy.
+        :rtype kinetic_energy: numpy.ndarray of shape (1,1)
+        """
+        # number of electronic states
+        nstate = msmd.number_of_states
+        assert nstate == 1, \
+           "The von Weizsaecker functional is only defined for a single electronic state."
+        # up or down spin
+        nspin = 2
+
+        # Evaluate D(r) on the integration grid.
+        D, _, _ = msmd.evaluate(self.grids.coords)
+        # Trace out electronic states to get tr(D)(r)
+        trace_D = numpy.einsum('siir->sr', D)
+
+        # matrix element of the kinetic energy operator <i|Top|j>
+        kinetic_matrix = numpy.zeros((nstate,nstate))
+
+        # Loop over spins. For kinetic energy is computed separately for each spin
+        # projection and added.
+        for s in range(0, nspin):
+            if numpy.all(trace_D[s,...] == 0.0):
+                # There are no electrons with spin projection s
+                # that could contribute to the kinetic energy.
+                continue
+
+            # Thomas-Fermi kinetic energy density
+            KED = 3.0/10.0 * pow(3.0*numpy.pi**2, 2.0/3.0) * pow(D[s,...], 5.0/3.0)
+
+            # The matrix of the kinetic energy operator in the subspace is obtained
+            # by integration KED_{i,j}(r) over space.
+            kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, KED)
+
+        return kinetic_matrix
+
+
+class TestThomasFermiFunctional(unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+
+        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        cisolver.nroots = nstate+1
+        fci_energies, fcivecs = cisolver.kernel()
+        # Remove the additional state again. For small basis sets,
+        # there can be fewer states than requested.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+
+        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+
+        return msmd
+
+    def test_Thomas_Fermi_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the Thomas-Fermi functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            # scalar D(r) from single electronic state
+            msmd = self.create_matrix_density(mol, nstate=1)
+
+            # functionals for kinetic operator, T[D(r)]
+            kinetic_functional_multi = ThomasFermiFunctional(mol)
+            kinetic_functional_single = ThomasFermiFunctionalSingleState(mol)
+
+            # Compare the multistate and the single-state TF functionals.
+            kinetic_matrix_multi = kinetic_functional_multi(msmd)
+            kinetic_matrix_single = kinetic_functional_single(msmd)
+
+            numpy.testing.assert_almost_equal(kinetic_matrix_multi, kinetic_matrix_single)
 
 
 if __name__ == "__main__":

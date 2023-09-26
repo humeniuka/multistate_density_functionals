@@ -208,6 +208,38 @@ class TestMultistateMatrixDensity(unittest.TestCase):
             with self.subTest(molecule=name):
                 self.check_derivatives(mol)
 
+    def check_kinetic_energy_density(self, mol):
+        """
+        Check that the kinetic energy density integrates
+        to the correct kinetic energy.
+        """
+        msmd = self.create_matrix_density(mol)
+        # Compute the kinetic energy matrix exactly
+        kinetic_matrix_exact = msmd.exact_1e_operator(intor='int1e_kin')
+
+        # Generate the multicenter integration grid.
+        grids = pyscf.dft.gen_grid.Grids(mol)
+        grids.level = 8
+        grids.build()
+
+        # Evaluate the two types of kinetic energy densities on the grid.
+        T_lap, T_gg = msmd.kinetic_energy_density(grids.coords)
+        # Integrate over spin and space, Tᵢⱼ = ∫ Tᵢⱼ(r) dr
+        kinetic_matrix_lap = numpy.einsum('r,sijr->ij', grids.weights, T_lap)
+        kinetic_matrix_gg = numpy.einsum('r,sijr->ij', grids.weights, T_gg)
+
+        # Compare with the exact matrix elements
+        numpy.testing.assert_almost_equal(
+            kinetic_matrix_gg, kinetic_matrix_exact, decimal=6)
+        numpy.testing.assert_almost_equal(
+            kinetic_matrix_lap, kinetic_matrix_exact, decimal=6)
+
+    def test_kinetic_energy_density(self):
+        """ compare integral of kinetic energy density with exact matrix elements """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_kinetic_energy_density(mol)
+
 
 if __name__ == "__main__":
     unittest.main()

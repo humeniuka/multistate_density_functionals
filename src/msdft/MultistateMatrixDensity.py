@@ -212,3 +212,72 @@ class MultistateMatrixDensity(object):
                         )
 
         return D, grad_D, lapl_D
+
+    def kinetic_energy_density(
+            self,
+            coords : numpy.ndarray):
+        """
+        The kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+        can be computed in two ways:
+
+          KEDᵢⱼ(r) = -1/2 ∑_a ∑_b Dᵢⱼ(a,b) 𝛘_a(r) ∇²𝛘_b(r)   (Laplacian)
+
+        or as
+
+          KEDᵢⱼ(r) = 1/2 ∑_a ∑_b Dᵢⱼ(a,b) ∇𝛘_a(r) · ∇𝛘_b(r)   (scalar product of gradients)
+
+        Both kinetic energy densities integrate to the same kinetic energy matrix
+        (see DOI:10.1063/1.1565316) as they only differ by a term of the form
+        1/4 ∇²D(r) that vanishes after integrating over all space.
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: (KEDlapᵢⱼ(r), KEDggᵢⱼ(r))
+           kinetic energy densities computed in the two ways
+        :rtype: two numpy.ndarray's of shape (2,Mstate,Mstate,Ncoord) each
+           KED[s,i,j,r] is the kinetic energy density
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states
+        nstate = self.number_of_states
+        # number of spins (up and down)
+        nspin = 2
+
+        # Create empty arrays for the kinetic energy densities.
+        KED_laplacian = numpy.zeros((nspin,nstate,nstate,ncoord))
+        KED_gradgrad = numpy.zeros((nspin,nstate,nstate,ncoord))
+
+        # Evaluate atomic orbitals 𝛘ₐ(r) on the grid.
+        # The orbital values and their gradients are returned in a single
+        # array of shape (4,ncoord,norb).
+        ao_value_all = numint.eval_ao(self.mol, coords, deriv=2)
+        # value AO(r)
+        ao_value = ao_value_all[0,:,:]
+        # gradient d(AO)/dx, d(AO)/dy, d(AO)/dz
+        grad_ao_value = ao_value_all[1:4,:,:]
+        # Laplacian ∇²(AO)(r) = d^2(AO)/dx^2 + d^2(AO)/dy^2 + d^2(AO)/dz^2
+        lapl_ao_value = ao_value_all[4,:,:] + ao_value_all[7,:,:] + ao_value_all[9,:,:]
+
+        # Evaluate the kinetic energy density
+        for spin in range(0, nspin):
+            for i in range(0, nstate):
+                for j in range(0, nstate):
+                    # (transition) density in AO basis.
+                    dao_ij = self.density_matrices[spin,i,j,:,:]
+
+                    # using the Laplacian of the orbitals
+                    KED_laplacian[spin,i,j,:] = -0.5 * numpy.einsum(
+                        'ab,ra,rb->r',
+                        dao_ij, ao_value, lapl_ao_value)
+                    # or using the gradients of the orbitals.
+                    KED_gradgrad[spin,i,j,:] = 0.5 * numpy.einsum(
+                        'ab,dra,drb->r',
+                        dao_ij, grad_ao_value, grad_ao_value)
+
+        return KED_laplacian, KED_gradgrad
