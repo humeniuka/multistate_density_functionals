@@ -182,10 +182,18 @@ class ThomasFermiFunctional(KineticOperatorFunctional):
     A Thomas-Fermi-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.
 
-      Tᵢⱼ = 3/10 (3π²)²ᐟ³ ∫ (D(r)⁵ᐟ³)ᵢⱼ dr
+      Tᵢⱼ = 3/10 (6π²)²ᐟ³ ∫ (D(r)⁵ᐟ³)ᵢⱼ dr
 
     Note that the power of 5/3 is not taken element-wise. D(r)⁵ᐟ³ is a matrix
     power that mixes the different elements of D(r).
+
+    The kinetic energy is calculated separately for the spin-up and spin-down
+    parts of the density matrix and summed:
+
+      Tᵢⱼ[D(up)] + Tᵢⱼ[D(down)]
+
+    Therefore the prefactor of the Thomas-Fermi energy contains (6π²) instead
+    of (3π²), which is for the kinetic energy of the total density, Tᵢⱼ[D(up)+D(down)].
     """
     def kinetic_energy_density(
             self,
@@ -234,9 +242,13 @@ class ThomasFermiFunctional(KineticOperatorFunctional):
 
             # The kinetic energy density
             #
-            #  KEDᵢⱼ(r) = 3/10 (3π²)²ᐟ³ (D(r)⁵ᐟ³)ᵢⱼ
+            #  KEDᵢⱼ(r) = 3/10 (6π²)²ᐟ³ (D(r)⁵ᐟ³)ᵢⱼ
             #
-            prefactor = 3.0/10.0 * pow(3.0*numpy.pi**2, 2.0/3.0)
+            # For a closed-shell molecule, Dtot = 2*D(up), so that
+            #
+            #  t = 3/10 (3π²)²ᐟ³ (2 Dtot) = 2 3/10 (6π²)²ᐟ³ D(up)
+            #    = 2 tₛₚᵢₙ
+            prefactor = 3.0/10.0 * pow(6.0*numpy.pi**2, 2.0/3.0)
             for r in range(0, ncoord):
                 ked_r = prefactor * scipy.linalg.fractional_matrix_power(
                     D[s,:,:,r], 5.0/3.0)

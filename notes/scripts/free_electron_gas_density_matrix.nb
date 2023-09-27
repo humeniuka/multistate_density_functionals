@@ -1,0 +1,202 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 11.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      5287,        194]
+NotebookOptionsPosition[      4707,        170]
+NotebookOutlinePosition[      5042,        185]
+CellTagsIndexPosition[      4999,        182]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell[TextData[{
+ "\nThe one-particle density matrix of the free electron gas is\n",
+ Cell[BoxData[
+  FormBox[
+   SubscriptBox["\[Rho]", "\[Sigma]"], TraditionalForm]],
+  FormatType->"TraditionalForm"],
+ "(r1,r2)=",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    FractionBox[
+     RowBox[{"k", "^", "3"}], 
+     RowBox[{"2", " ", 
+      RowBox[{"\[Pi]", "^", "2"}]}]], 
+    RowBox[{"f", "(", "kr", ")"}]}], TraditionalForm]],
+  FormatType->"TraditionalForm"],
+ "\nwith the function f defined as"
+}], "Input",
+ CellChangeTimes->{{3.904808891592538*^9, 3.904808901482418*^9}, {
+  3.904819860101128*^9, 3.9048200167764683`*^9}},
+ FormatType->"TextForm"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"f", "[", "x", "]"}], "=", 
+  FractionBox[
+   RowBox[{
+    RowBox[{"Sin", "[", "x", "]"}], "-", 
+    RowBox[{"x", "*", 
+     RowBox[{"Cos", "[", "x", "]"}]}]}], 
+   RowBox[{"x", "^", "3"}]]}], "\[IndentingNewLine]", 
+ RowBox[{"f1", "=", 
+  RowBox[{"D", "[", 
+   RowBox[{
+    RowBox[{"f", "[", "x", "]"}], ",", "x"}], 
+   "]"}]}], "\[IndentingNewLine]", 
+ RowBox[{"f2", "=", 
+  RowBox[{"D", "[", 
+   RowBox[{
+    RowBox[{"f", "[", "x", "]"}], ",", "x", ",", "x"}], "]"}]}]}], "Input",
+ CellChangeTimes->{{3.904819958648847*^9, 3.904819974118836*^9}, {
+  3.904820019407978*^9, 3.904820058690939*^9}, {3.90482026748728*^9, 
+  3.90482027421775*^9}}],
+
+Cell[BoxData[
+ FractionBox[
+  RowBox[{
+   RowBox[{
+    RowBox[{"-", "x"}], " ", 
+    RowBox[{"Cos", "[", "x", "]"}]}], "+", 
+   RowBox[{"Sin", "[", "x", "]"}]}], 
+  SuperscriptBox["x", "3"]]], "Output",
+ CellChangeTimes->{{3.904820049925797*^9, 3.904820059446967*^9}, 
+   3.90482027745551*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  FractionBox[
+   RowBox[{"Sin", "[", "x", "]"}], 
+   SuperscriptBox["x", "2"]], "-", 
+  FractionBox[
+   RowBox[{"3", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{
+       RowBox[{"-", "x"}], " ", 
+       RowBox[{"Cos", "[", "x", "]"}]}], "+", 
+      RowBox[{"Sin", "[", "x", "]"}]}], ")"}]}], 
+   SuperscriptBox["x", "4"]]}]], "Output",
+ CellChangeTimes->{{3.904820049925797*^9, 3.904820059446967*^9}, 
+   3.9048202774591722`*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  FractionBox[
+   RowBox[{"Cos", "[", "x", "]"}], 
+   SuperscriptBox["x", "2"]], "-", 
+  FractionBox[
+   RowBox[{"5", " ", 
+    RowBox[{"Sin", "[", "x", "]"}]}], 
+   SuperscriptBox["x", "3"]], "+", 
+  FractionBox[
+   RowBox[{"12", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{
+       RowBox[{"-", "x"}], " ", 
+       RowBox[{"Cos", "[", "x", "]"}]}], "+", 
+      RowBox[{"Sin", "[", "x", "]"}]}], ")"}]}], 
+   SuperscriptBox["x", "5"]]}]], "Output",
+ CellChangeTimes->{{3.904820049925797*^9, 3.904820059446967*^9}, 
+   3.9048202774604673`*^9}]
+}, Open  ]],
+
+Cell[TextData[{
+ "The spin kinetic energy density if -1/2 ",
+ Cell[BoxData[
+  FormBox[
+   SubscriptBox["\[Del]", "1"], TraditionalForm]],
+  FormatType->"TraditionalForm"],
+ "^2 ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"\[Rho]", 
+     RowBox[{"(", 
+      RowBox[{"r1", ",", "r2"}], ")"}]}], 
+    SubscriptBox["|", 
+     RowBox[{"r1", "=", "r2"}]]}], TraditionalForm]],
+  FormatType->"TraditionalForm"],
+ "\n"
+}], "Input",
+ CellChangeTimes->{{3.904820138842306*^9, 3.904820235965701*^9}, {
+  3.90482396995986*^9, 3.904823970418272*^9}},
+ FormatType->"TextForm"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ked", "=", 
+  RowBox[{
+   FractionBox[
+    RowBox[{"k", "^", "5"}], 
+    RowBox[{"2", "*", 
+     RowBox[{"\[Pi]", "^", "2"}]}]], "*", 
+   RowBox[{"Limit", "[", 
+    RowBox[{
+     RowBox[{
+      RowBox[{
+       RowBox[{
+        RowBox[{"-", "1"}], "/", "2"}], "*", "f2"}], "-", 
+      RowBox[{
+       FractionBox["1", "x"], "*", "f1"}]}], ",", 
+     RowBox[{"{", 
+      RowBox[{"x", "\[Rule]", "0"}], "}"}]}], "]"}]}]}]], "Input",
+ CellChangeTimes->{{3.904820239546217*^9, 3.90482025323044*^9}, {
+  3.904820284437154*^9, 3.904820343693665*^9}, {3.904821419350716*^9, 
+  3.904821419564783*^9}}],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  FractionBox[
+   SuperscriptBox["k", "5"], 
+   RowBox[{"20", " ", 
+    SuperscriptBox["\[Pi]", "2"]}]], "}"}]], "Output",
+ CellChangeTimes->{3.904820344859755*^9, 3.9048214236799517`*^9}]
+}, Open  ]]
+},
+WindowSize->{808, 911},
+WindowMargins->{{491, Automatic}, {57, Automatic}},
+FrontEndVersion->"11.0 for Linux x86 (64-bit) (July 28, 2016)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[558, 20, 644, 20, 101, "Input"],
+Cell[CellGroupData[{
+Cell[1227, 44, 680, 20, 105, InheritFromParent],
+Cell[1910, 66, 293, 9, 55, "Output"],
+Cell[2206, 77, 461, 15, 55, "Output"],
+Cell[2670, 94, 574, 19, 55, "Output"]
+}, Open  ]],
+Cell[3259, 116, 571, 20, 53, "Input"],
+Cell[CellGroupData[{
+Cell[3855, 140, 616, 19, 60, "Input"],
+Cell[4474, 161, 217, 6, 60, "Output"]
+}, Open  ]]
+}
+]
+*)
+

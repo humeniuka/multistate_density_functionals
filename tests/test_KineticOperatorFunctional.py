@@ -231,14 +231,29 @@ class ThomasFermiFunctionalSingleState(object):
         nstate = msmd.number_of_states
         assert nstate == 1, \
            "The von Weizsaecker functional is only defined for a single electronic state."
+        """
         # up or down spin
         nspin = 2
+        """
 
         # Evaluate D(r) on the integration grid.
         D, _, _ = msmd.evaluate(self.grids.coords)
+        """
         # Trace out electronic states to get tr(D)(r)
         trace_D = numpy.einsum('siir->sr', D)
+        """
 
+        # Sum over spins.
+        Dtot = D.sum(axis=0)
+
+        # Thomas-Fermi kinetic energy density.
+        KED = 3.0/10.0 * pow(3.0*numpy.pi**2, 2.0/3.0) * pow(Dtot, 5.0/3.0)
+
+        # The matrix of the kinetic energy operator in the subspace is obtained
+        # by integration KED_{i,j}(r) over space.
+        kinetic_matrix = numpy.einsum('r,ijr->ij', self.grids.weights, KED)
+
+        """
         # matrix element of the kinetic energy operator <i|Top|j>
         kinetic_matrix = numpy.zeros((nstate,nstate))
 
@@ -256,6 +271,7 @@ class ThomasFermiFunctionalSingleState(object):
             # The matrix of the kinetic energy operator in the subspace is obtained
             # by integration KED_{i,j}(r) over space.
             kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, KED)
+        """
 
         return kinetic_matrix
 
@@ -264,24 +280,12 @@ class TestThomasFermiFunctional(unittest.TestCase):
     def create_test_molecules(self):
         """ dictionary with molecules to run the tests on """
         molecules = {
-            # 1-electron systems
-            'hydrogen atom': pyscf.gto.M(
-                atom = 'H 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
             # 2-electron systems, paired spins
             'hydrogen molecule': pyscf.gto.M(
                 atom = 'H 0 0 0; H 0 0 0.74',
                 basis = '6-31g',
                 charge = 0,
                 spin = 0),
-            # 3-electron systems, one unpaired spin
-            'lithium atom': pyscf.gto.M(
-                atom = 'Li 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
             # 4-electron system, closed shell
             'lithium hydride': pyscf.gto.M(
                 atom = 'Li 0 0 0; H 0 0 1.60',
@@ -329,7 +333,7 @@ class TestThomasFermiFunctional(unittest.TestCase):
     def test_Thomas_Fermi_functional(self):
         """
         Check that for a single electronic state the multistate kinetic energy functional
-        reduces to the Thomas-Fermi functional.
+        reduces to the Thomas-Fermi functional for a closed shell molecule.
         """
         for name, mol in tqdm(self.create_test_molecules().items()):
             # scalar D(r) from single electronic state
@@ -343,7 +347,9 @@ class TestThomasFermiFunctional(unittest.TestCase):
             kinetic_matrix_multi = kinetic_functional_multi(msmd)
             kinetic_matrix_single = kinetic_functional_single(msmd)
 
-            numpy.testing.assert_almost_equal(kinetic_matrix_multi, kinetic_matrix_single)
+            with self.subTest(molecule=name):
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
 
 
 if __name__ == "__main__":
