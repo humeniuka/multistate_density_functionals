@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
-from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
 class VonWeizsaeckerFunctionalSingleState(object):
@@ -138,7 +138,7 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
 
         return msmd
 
@@ -326,7 +326,7 @@ class TestThomasFermiFunctional(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
 
         return msmd
 

@@ -14,7 +14,7 @@ import pyscf.scf
 from tqdm import tqdm
 
 from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
-from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 class TestHartreeLikeOperatorFunctional(unittest.TestCase):
     def create_test_molecules(self):
@@ -66,7 +66,7 @@ class TestHartreeLikeOperatorFunctional(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
 
         return msmd
 

@@ -19,3 +19,6 @@ notes/*.blg
 notes/*.log
 notes/*.pdf
 notes/acs-main.bib
+
+# ignore files in temporary workspace
+/scratch

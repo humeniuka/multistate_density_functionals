@@ -13,7 +13,8 @@ import pyscf.scf
 
 from tqdm import tqdm
 
-from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
+
 
 class TestMultistateMatrixDensity(unittest.TestCase):
     def create_test_molecules(self):
@@ -87,7 +88,7 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         fci_energies, fcivecs = cisolver.kernel()
 
         fcivecs = numpy.asarray(fcivecs)
-        msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
 
         return msmd
 

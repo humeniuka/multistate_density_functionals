@@ -9,80 +9,42 @@ import numpy
 
 from pyscf.dft import numint
 
+
 class MultistateMatrixDensity(object):
     def __init__(
             self,
             mol,
-            rhf,
-            cisolver,
-            fcivecs):
+            density_matrices):
         """
         This class holds the multistate matrix density and can evaluate
         D(r), ∇D(r) and ∇²D(r) on a grid.
-        The state densities and transition densities are constructed from
-        a full configuration interaction calculation with pyscf.
+
+        This is the base class, derived classes have to implement their own __init__
+        functions to compute the (transition) density matrices and then call
+        super().__init__(mol, density_matrices).
 
         :param mol: molecule with atomic coordinates, basis set and spin
         :type mol: pyscf.gto.Mole
 
-        :param rhf: restricted self-consistent field solution with molecular orbitals
-        :type rhf: pyscf.scf.RHF
-
-        :param cisolver: full configuration interaction solved
-        :type cisolver: pyscf.fci.FCI
-
-        :param fcivecs: list of solutions vectors of the full CI problem for
-          each electronic state in the subspace
-        :type fcivecs: list of numpy.ndarray
+        :param density_matrices:
+           density_matrices[spin,i,j,:,:] is the (transition) density matrix between
+           the electronic states i and j in the AO basis.
+        :type density_matrices: numpy.ndarray of shape (2,nstate,nstate,nao,nao)
+           nstate - number of electronic states
+           nao - number of atomic orbitals
         """
         # Save molecule with AO basis.
         self.mol = mol
-        # number of atomic orbitals and molecular orbitals
-        nao, nmo = rhf.mo_coeff.shape
+        # Check the dimensions of the (transition) density matrix.
+        nspin, nstate1, nstate2, nao1, nao2 = density_matrices.shape
+        assert nspin == 2, "Density matrix needs components for spin-up and spin-down."
+        assert nstate1 == nstate2, "Matrix density has to be square"
+        assert nao1 == nao2, "AO density matrix has to be square"
 
-        def density_matrix_mo2ao(dm_mo):
-            """
-            transform a density matrix in the MO basis in the AO basis
-
-              P^AO_{a,b}   = sum_{m,n} C*_{a,m} P^MO_{m,n} C_{b,n}
-
-            a,b enumerate atomic orbitals, m,n enumerate molecular orbitals
-            and C_{a,m} are the self-consistent field MO coefficients.
-
-            :param dm_mo: density matrix in MO basis
-            :type dm_mo: numpy.ndarray of shape (nmo,nmo)
-
-            :return dm_ao: density matrix in AO basis
-            :rtype dm_ao: numpy.ndarray of shape (nao,nao)
-            """
-            assert dm_mo.shape == (nmo,nmo)
-            dm_ao = numpy.einsum(
-                'am,mn,bn->ab',
-                rhf.mo_coeff.conjugate(), dm_mo, rhf.mo_coeff)
-            return dm_ao
-
-        # number of electronic states
-        nstate = len(fcivecs)
-        self.number_of_states = nstate
-        # Compute the (transition) density matrices in the AO basis.
-        nspin = 2
-        self.density_matrices = numpy.zeros((nspin,nstate,nstate,nao,nao))
-        for i in range(0, nstate):
-            for j in range(0, nstate):
-                if i == j:
-                    # 1-particle density matrix of state i in MO basis
-                    dm1a, dm1b = cisolver.make_rdm1s(fcivecs[i], nmo, mol.nelec)
-                    # for spin-up
-                    self.density_matrices[0,i,i,:,:] = density_matrix_mo2ao(dm1a)
-                    # for spin-down
-                    self.density_matrices[1,i,i,:,:] = density_matrix_mo2ao(dm1b)
-                else:
-                    # 1-particle transition density matrix
-                    # between electronic states i and j.
-                    tdm1a, tdm1b = cisolver.trans_rdm1s(fcivecs[i], fcivecs[j], nmo, mol.nelec)               # for spin-up
-                    self.density_matrices[0,i,j,:,:] = density_matrix_mo2ao(tdm1a)
-                    # for spin-down
-                    self.density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
+        # Number of electronic states.
+        self.number_of_states = nstate1
+        # Save (transition) density matrices.
+        self.density_matrices = density_matrices
 
     def exact_1e_operator(self, intor='int1e_kin'):
         """
@@ -281,3 +243,79 @@ class MultistateMatrixDensity(object):
                         dao_ij, grad_ao_value, grad_ao_value)
 
         return KED_laplacian, KED_gradgrad
+
+
+class MultistateMatrixDensityFCI(MultistateMatrixDensity):
+    def __init__(
+            self,
+            mol,
+            rhf,
+            cisolver,
+            fcivecs):
+        """
+        This class holds the multistate matrix density and can evaluate
+        D(r), ∇D(r) and ∇²D(r) on a grid.
+        The state densities and transition densities are constructed from
+        a full configuration interaction calculation with pyscf.
+
+        :param mol: molecule with atomic coordinates, basis set and spin
+        :type mol: pyscf.gto.Mole
+
+        :param rhf: restricted self-consistent field solution with molecular orbitals
+        :type rhf: pyscf.scf.RHF
+
+        :param cisolver: full configuration interaction solved
+        :type cisolver: pyscf.fci.FCI
+
+        :param fcivecs: list of solutions vectors of the full CI problem for
+          each electronic state in the subspace
+        :type fcivecs: list of numpy.ndarray
+        """
+        # number of atomic orbitals and molecular orbitals
+        nao, nmo = rhf.mo_coeff.shape
+
+        def density_matrix_mo2ao(dm_mo):
+            """
+            transform a density matrix in the MO basis in the AO basis
+
+              P^AO_{a,b}   = sum_{m,n} C*_{a,m} P^MO_{m,n} C_{b,n}
+
+            a,b enumerate atomic orbitals, m,n enumerate molecular orbitals
+            and C_{a,m} are the self-consistent field MO coefficients.
+
+            :param dm_mo: density matrix in MO basis
+            :type dm_mo: numpy.ndarray of shape (nmo,nmo)
+
+            :return dm_ao: density matrix in AO basis
+            :rtype dm_ao: numpy.ndarray of shape (nao,nao)
+            """
+            assert dm_mo.shape == (nmo,nmo)
+            dm_ao = numpy.einsum(
+                'am,mn,bn->ab',
+                rhf.mo_coeff.conjugate(), dm_mo, rhf.mo_coeff)
+            return dm_ao
+
+        # number of electronic states
+        nstate = len(fcivecs)
+        # Compute the (transition) density matrices in the AO basis.
+        nspin = 2
+        density_matrices = numpy.zeros((nspin,nstate,nstate,nao,nao))
+        for i in range(0, nstate):
+            for j in range(0, nstate):
+                if i == j:
+                    # 1-particle density matrix of state i in MO basis
+                    dm1a, dm1b = cisolver.make_rdm1s(fcivecs[i], nmo, mol.nelec)
+                    # for spin-up
+                    density_matrices[0,i,i,:,:] = density_matrix_mo2ao(dm1a)
+                    # for spin-down
+                    density_matrices[1,i,i,:,:] = density_matrix_mo2ao(dm1b)
+                else:
+                    # 1-particle transition density matrix
+                    # between electronic states i and j.
+                    tdm1a, tdm1b = cisolver.trans_rdm1s(fcivecs[i], fcivecs[j], nmo, mol.nelec)               # for spin-up
+                    density_matrices[0,i,j,:,:] = density_matrix_mo2ao(tdm1a)
+                    # for spin-down
+                    density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
+
+        # Initialize base class.
+        super().__init__(mol, density_matrices)

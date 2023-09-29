@@ -14,7 +14,7 @@ import pyscf.scf
 from tqdm import tqdm
 
 from msdft.NuclearPotentialOperator import NuclearPotentialOperator
-from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 from msdft.BasisTransformation import BasisTransformation
 
 class TestNuclearPotentialOperator(unittest.TestCase):
@@ -95,7 +95,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensity(mol, rhf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs)
 
         return msmd
 
@@ -173,7 +173,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         basis_transformation = BasisTransformation.random(nstate)
         
         # The multistate density matrix D(r)
-        msmd = MultistateMatrixDensity(mol, rhf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs)
         # Evaluate V[D(r)] by integration on the grid.
         V = nuclear_potential(msmd)
         # Transform the operator, L V[D(r)] Lᵗ
@@ -182,7 +182,8 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         # To compute L D(r) Lᵗ we apply the basis transformation to the CI vectors.
         fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
         # The multistate density matrix L D(r) Lᵗ in the transformed basis
-        msmd_transformed = MultistateMatrixDensity(mol, rhf, cisolver, fcivecs_transformed)
+        msmd_transformed = MultistateMatrixDensityFCI(
+            mol, rhf, cisolver, fcivecs_transformed)
         # Evaluate V[L D(r) Lᵗ] by integration on the grid.
         V_from_transformed_D = nuclear_potential(msmd_transformed)
 

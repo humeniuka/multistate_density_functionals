@@ -12,7 +12,7 @@ import pyscf.scf
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
-from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
 """ dictionary with atoms/molecules to run the tests on """
@@ -93,7 +93,7 @@ def create_matrix_density(mol, nstate=4):
     if len(fcivecs) == nstate+1:
         fcivecs = fcivecs[:-1]
             
-    msmd = MultistateMatrixDensity(mol, hf, cisolver, fcivecs)
+    msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
 
     return msmd
 
