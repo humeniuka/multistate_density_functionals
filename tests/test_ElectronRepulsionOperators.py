@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-import unittest
-
 import numpy
 import numpy.linalg as la
 import numpy.testing
@@ -12,6 +10,7 @@ import pyscf.gto
 import pyscf.scf
 
 from tqdm import tqdm
+import unittest
 
 from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI

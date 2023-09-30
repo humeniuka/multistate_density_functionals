@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-import unittest
+from abc import ABC, abstractmethod
 
 import numpy
 import numpy.linalg as la
@@ -10,59 +10,22 @@ import pyscf.dft
 import pyscf.fci
 import pyscf.gto
 import pyscf.scf
+import pyscf.tddft
 
 from tqdm import tqdm
+import unittest
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityTDDFT
 
 
-class TestMultistateMatrixDensity(unittest.TestCase):
+class BaseTestMultistateMatrixDensity(ABC):
+    @abstractmethod
     def create_test_molecules(self):
         """ dictionary with different molecules to run the tests on """
-        molecules = {
-            # 1-electron systems
-            'hydrogen atom': pyscf.gto.M(
-                atom = 'H 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
-            'hydrogen atom (large basis set)': pyscf.gto.M(
-                atom = 'H 0 0 0',
-                basis = 'aug-cc-pvtz',
-                # doublet
-                spin = 1),
-            'hydrogen molecular ion': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 1,
-                spin = 1),
-            # 2-electron systems, paired spins
-            'hydrogen molecule': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 0,
-                spin = 0),
-            # 3-electron systems, one unpaired spin
-            'lithium atom': pyscf.gto.M(
-                atom = 'Li 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
-            # 4-electron system, closed shell
-            'lithium hydride': pyscf.gto.M(
-                atom = 'Li 0 0 0; H 0 0 1.60',
-                basis = '6-31g',
-                # singlet
-                spin = 0),
-            # many electrons
-            'water': pyscf.gto.M(
-                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
-                basis = 'sto-3g',
-                # singlet
-                spin = 0),
-        }
-        return molecules
+        pass
 
+    @abstractmethod
     def create_matrix_density(self, mol, nstate=4):
         """
         Compute multistate matrix density for the lowest few excited states
@@ -77,20 +40,7 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         :return: multistate matrix density
         :rtype: MultistateMatrixDensity
         """
-        hf = pyscf.scf.RHF(mol)
-        # supress printing of SCF energy
-        hf.verbose = 0
-        # compute self-consistent field
-        hf.kernel()
-
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
-        cisolver.nroots = nstate
-        fci_energies, fcivecs = cisolver.kernel()
-
-        fcivecs = numpy.asarray(fcivecs)
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
-
-        return msmd
+        pass
 
     def check_integrals(self, mol):
         """
@@ -240,6 +190,198 @@ class TestMultistateMatrixDensity(unittest.TestCase):
         for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
                 self.check_kinetic_energy_density(mol)
+
+
+class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with different molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            'hydrogen atom (large basis set)': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = 'aug-cc-pvtz',
+                # doublet
+                spin = 1),
+            'hydrogen molecular ion': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 1,
+                spin = 1),
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of electronic states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        rhf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        rhf.verbose = 0
+        # compute self-consistent field
+        rhf.kernel()
+
+        cisolver = pyscf.fci.FCI(mol, rhf.mo_coeff)
+        cisolver.nroots = nstate
+        fci_energies, fcivecs = cisolver.kernel()
+
+        fcivecs = numpy.asarray(fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs)
+
+        return msmd
+
+
+class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with different molecules to run the tests on """
+        molecules = {
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited
+        singlet states of a small molecule using TD-DFT
+
+        :param mol: A test molecule with even number of electrons
+        :type mol: gto.Mole
+
+        :param nstate: number of electronic states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        rks = pyscf.scf.RKS(mol)
+        # supress printing of SCF energy
+        rks.verbose = 0
+        # compute self-consistent field
+        rks.kernel()
+
+        tddft = pyscf.tddft.TDDFT(rks)
+        # number of excited states (i.e. excluding the ground state)
+        tddft.nstate = nstate-1
+        tddft.kernel()
+
+        msmd = MultistateMatrixDensityTDDFT(mol, rks, tddft)
+
+        return msmd
+
+    def check_cis_coefficients_normalization(self, mol):
+        """
+        check that the CIS coefficients are orthonormalized.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+        """
+        # Example density.
+        msmd = self.create_matrix_density(mol)
+
+        # Overlap matrix between CIS states.
+        overlap = numpy.einsum(
+            'iov,jov->ij',
+            msmd.cis_coefficients,
+            msmd.cis_coefficients)
+        # The overlap matrix should be the identity matrix.
+        numpy.testing.assert_almost_equal(
+            overlap, numpy.eye(msmd.number_of_states-1), decimal=8)
+
+    def test_cis_coefficients_normalization(self):
+        """ Check CIS coefficients for all test molecules """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_cis_coefficients_normalization(mol)
+
+    def check_transition_dipoles(self, mol):
+        """
+        Check that the transition densities between the ground state and the
+        excited states are correct by comparing the transition dipoles
+        from numerical integration with the analytical ones.
+
+          td₀ᵢ = <Ψ₀|r|Ψᵢ> = ∫ r D₀ᵢ(r) dr
+        """
+        # Example density.
+        msmd = self.create_matrix_density(mol)
+
+        # integration grid
+        grids = pyscf.dft.gen_grid.Grids(msmd.mol)
+        grids.level = 8
+        grids.build()
+
+        # evaluate (transition) density matrices
+        D, _, _ = msmd.evaluate(grids.coords)
+        # integrate transition dipoles between ground state and excited states
+        transition_dipoles = numpy.einsum(
+            'r,rd,sijr->ijd', grids.weights, grids.coords, D)[0,1:,:]
+
+        # reference transition dipoles
+        transition_dipoles_ref = msmd.tddft.transition_dipole()
+
+        numpy.testing.assert_almost_equal(
+            transition_dipoles, transition_dipoles_ref, decimal=8)
+
+    @unittest.skip("pyscf CIS coefficients, CIS=2*(X+Y), are not orthonormalized")
+    def test_transition_dipoles(self):
+        """ Compare numerical and analytical transition dipoles """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_transition_dipoles(mol)
 
 
 if __name__ == "__main__":

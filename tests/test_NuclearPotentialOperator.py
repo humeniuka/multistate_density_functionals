@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-import unittest
-
 import numpy
 import numpy.linalg as la
 import numpy.testing
@@ -12,6 +10,7 @@ import pyscf.gto
 import pyscf.scf
 
 from tqdm import tqdm
+import unittest
 
 from msdft.NuclearPotentialOperator import NuclearPotentialOperator
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -201,4 +200,4 @@ class TestNuclearPotentialOperator(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(failfast=True)
+    unittest.main()

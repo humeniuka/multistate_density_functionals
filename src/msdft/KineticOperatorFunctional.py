@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from abc import ABC, abstractmethod
 import numpy
 import pyscf.dft
 import scipy.linalg
@@ -7,7 +8,7 @@ import scipy.linalg
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
-class KineticOperatorFunctional(object):
+class KineticOperatorFunctional(ABC):
     def __init__(self, mol, level=8):
         """
         The abstract base class for kinetic operator functionals.
@@ -24,11 +25,12 @@ class KineticOperatorFunctional(object):
         self.grids.level = level
         self.grids.build()
 
+    @abstractmethod
     def kinetic_energy_density(
             self,
             msmd : MultistateMatrixDensity,
             coords : numpy.ndarray):
-        raise NotImplementedError("The derived class has to implement this method.")
+        pass
 
     def __call__(
             self,
