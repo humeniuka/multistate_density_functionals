@@ -316,7 +316,7 @@ class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest
 
         tddft = pyscf.tddft.TDDFT(rks)
         # number of excited states (i.e. excluding the ground state)
-        tddft.nstate = nstate-1
+        tddft.nstates = nstate-1
         tddft.kernel()
 
         msmd = MultistateMatrixDensityTDDFT(mol, rks, tddft)

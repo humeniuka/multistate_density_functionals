@@ -400,7 +400,7 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
         # the Casida ansatz (Casida 1995), assigns a CIS-like wavefunction to an excited
         # state.
         cis_coefficients = numpy.zeros((nstate-1,nocc,nvir))
-        # Loop over excited states can convert excitation (X) and deexcitation (Y)
+        # Loop over excited states and convert excitation (X) and deexcitation (Y)
         # coefficients into coefficients in the basis of singly-excited, spin-adapted
         # configuration functions.
         for istate in range(1, nstate):
@@ -415,9 +415,16 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
             cis_coefficients[istate-1,:,:] /= scipy.linalg.norm(
                 cis_coefficients[istate-1,:,:])
 
-            # NOTE: pyscf uses the a different definition for the CIS coefficients.
-            #       The resulting CIS states are not orthonormal and the transition
-            #       dipoles are slightly different.
+            # NOTE: pyscf calculates the transition matrix elements of operators
+            #       directly from X+Y (Hermitian operator such as the dipole operator)
+            #       or X-Y (non-Hermitian) without an intermediate "wavefunction",
+            #       see eqn. (33) in https://doi.org/10.1063/1.4937410 .
+            #       Apparently the transition dipoles from the CIS-like "wavefunction"
+            #       differ slightly from the correct TD-DFT transition dipoles.
+            #
+            #       Using the CIS coefficients below leads to the same transition dipoles
+            #       that are output by `tddft.transition_dipole()`, but the corresponding
+            #       CIS "wavefunction" are not orthonormal.
             #Xi,Yi = tddft.xy[istate-1]
             #cis_coefficients[istate-1,:,:] = 2*(Xi+Yi)
 

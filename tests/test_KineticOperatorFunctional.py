@@ -14,6 +14,7 @@ import pyscf.scf
 from tqdm import tqdm
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaeckerAdHocFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -104,6 +105,7 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
                 atom = 'H 0 0 0; H 0 0 0.74',
                 basis = '6-31g',
                 charge = 1,
+                # doublet
                 spin = 1),
         }
         return molecules
@@ -174,25 +176,6 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
 
         numpy.testing.assert_almost_equal(T_msdft, T_exact)
 
-    def test_von_Weizsaecker_functional(self):
-        """
-        Check that for a single electronic state the multistate kinetic energy functional
-        reduces to the von Weizsäcker functional.
-        """
-        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
-            # scalar D(r) from single electronic state
-            msmd = self.create_matrix_density(mol, nstate=1)
-
-            # functionals for kinetic operator, T[D(r)]
-            kinetic_functional_multi = VonWeizsaeckerFunctional(mol)
-            kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
-
-            # Compare the multistate and the single-state vW functionals.
-            kinetic_matrix_multi = kinetic_functional_multi(msmd)
-            kinetic_matrix_single = kinetic_functional_single(msmd)
-
-            numpy.testing.assert_almost_equal(kinetic_matrix_multi, kinetic_matrix_single)
-
     def test_1electron_systems(self):
         """ Check that the kinetic energy functional is exact for one-electron systems """
         for name, mol in tqdm(
@@ -200,6 +183,107 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
             for nstate in tqdm([1,2,3,4]):
                 with self.subTest(molecule=name, nstate=nstate):
                     self.check_exact_kinetic_energy(mol, nstate=nstate)
+
+    def test_von_Weizsaecker_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the von Weizsäcker functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for kinetic operator, T[D(r)]
+                kinetic_functional_multi = VonWeizsaeckerFunctional(mol)
+                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state vW functionals.
+                kinetic_matrix_multi = kinetic_functional_multi(msmd)
+                kinetic_matrix_single = kinetic_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
+
+
+class TestVonWeizsaeckerAdHocFunctional(unittest.TestCase):
+    """
+    NOTE: This von-Weizsaecker-like kinetic energy function is NOT exact
+          for 1-electron systems but it performs better for many electron systems.
+    """
+    def create_test_molecules(self):
+        """ dictionary with molecules to run the tests on """
+        molecules = {
+                # H2
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 -0.375; H 0 0 0.375',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+
+        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        cisolver.nroots = nstate+1
+        fci_energies, fcivecs = cisolver.kernel()
+        # Remove the additional state again. For small basis sets,
+        # there can be fewer states than requested.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
+
+        return msmd
+
+    def test_von_Weizsaecker_adhoc_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the von Weizsäcker functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for kinetic operator, T[D(r)]
+                kinetic_functional_multi = VonWeizsaeckerAdHocFunctional(mol)
+                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state vW functionals.
+                kinetic_matrix_multi = kinetic_functional_multi(msmd)
+                kinetic_matrix_single = kinetic_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
 
 
 class ThomasFermiFunctionalSingleState(object):
