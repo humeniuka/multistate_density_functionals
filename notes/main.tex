@@ -15,6 +15,7 @@
 \usepackage[version=3]{mhchem} % Formula subscripts using \ce{}
 \usepackage{amssymb}
 \usepackage{xcolor}
+\usepackage{bbm}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% If issues arise when submitting your manuscript, you may want to
@@ -32,6 +33,7 @@
 \DeclareMathOperator{\Var}{Var}
 \DeclareMathOperator{\tr}{tr}
 \DeclareMathOperator{\Span}{span}
+\DeclareMathOperator{\Div}{div}
 % bold matrix
 \newcommand\m[1]{\mathbf{#1}}
 % bold vector
@@ -326,7 +328,7 @@ Nevertheless ground-state functionals can give some guidance.
 
 The next step is to find a multistate matrix density functional, that satisfies the above constraints and ideally reduces to some known ground state functional for $N=1$.
 \subsection{Kinetic energy functional}
-\textbf{Multistate von-Weizs\"{a}cker kinetic functional.} We start with the von-Weizs\"{a}cker kinetic energy functional, which can be extended to multiple electronic states and is exact for one-electron systems.
+\textbf{Multistate von-Weizs\"{a}cker kinetic functional I.} We start with the von-Weizs\"{a}cker kinetic energy functional, which can be extended to multiple electronic states and is exact for one-electron systems.
 In the following $A,B,\ldots,I,J,K,L = 1,\ldots,N$ enumerate electronic states, $\alpha,\beta=x,y,z$ denote Cartesian coordinates and partial derivatives with respect to Cartesian coordinates are abbreviated as $\partial_{\alpha} f = \frac{\partial f}{\partial_{r_\alpha}}$. 
 Let the single particle wavefunctions be denoted as $\phi_A(\vec{r})$. The matrix elements of the kinetic energy operator are
 \begin{equation}
@@ -353,10 +355,12 @@ For a single-electron system, the matrix density is just the product of the wave
 \begin{equation}
  D_{AB}(\vec{r}) = \phi^*_A(\vec{r}) \phi_B(\vec{r}).
 \end{equation}
-Note that
+Note that for wavefunctions of a single electron
 \begin{equation}
- \sum_{K=1}^{N} D_{IK} D_{KJ} = \phi^*_I \sum_{K} \phi_{K} \phi^*_{K} \phi_J = \tr(\m{D}) D_{IJ}
+ \sum_{K=1}^{N} D_{IK} D_{KJ} = \phi^*_I \sum_{K} \phi_{K} \phi^*_{K} \phi_J = \tr(\m{D}) D_{IJ},
 \end{equation}
+however, this relation is not true for matrix densities of multi-electron systems.
+
 To derive the von-Weizs\"{a}cker kinetic energy functional one has to assume that all wavefunctions are real, so that $D_{AB} = \phi_A \phi_B$.
 Now consider
 \begin{equation}
@@ -382,7 +386,7 @@ t_W(\vec{r}) = \frac{1}{2} \frac{\nabla \rho \cdot \nabla \rho}{\rho} - 3 t_W(\v
 \end{equation}
 or
 \begin{equation}
-t_W(\vec{r}) = \frac{1}{8} \frac{\nabla \rho(\vec{r}) \cdot \nabla \rho(\vec{r})}{\rho(\vec{r})},
+t_W(\vec{r}) = \frac{1}{8} \frac{\nabla \rho(\vec{r}) \cdot \nabla \rho(\vec{r})}{\rho(\vec{r})}, \label{eqn:von_Weizsaecker_ked}
 \end{equation}
 which is the kinetic energy density of the familiar von-Weizs\"{a}cker functional \cite{Weizsacker1935},
 \begin{equation}
@@ -438,7 +442,141 @@ Taking only the first two terms of the infinite series, the kinetic energy funct
   & - \int \frac{1}{2} \tr(\m{D})^{-2} \left[ \m{D} (\nabla \m{D} \cdot \nabla \m{D}) + (\nabla \m{D} \cdot \nabla \m{D}) \m{D} + \tr(\nabla \m{D} \cdot \nabla \m{D}) \m{D} \right] ~ d^3\!r + \ldots .
 \end{split}
 \end{equation}
-In practice $\m{T}[\m{D}(\vec{r})]$ is determined by solving Eqn.~\ref{eqn:CplusKT} for each grid point and then integrating the kinetic energy density numerically.
+In practice $\m{T}[\m{D}(\vec{r})]$ is determined by solving Eqn.~\ref{eqn:CplusKT} for ea
+ch grid point and then integrating the kinetic energy density numerically.
+
+\textbf{Multistate von-Weizs\"{a}cker kinetic functional II.}
+For a single electron, the kinetic energy matrix-functional defined by Eqn.~\ref{eqn:solution_geometric_series} gives the exact kinetic energy matrix.
+Unfortunately the functional does not perform well for multiple electrons.
+So one has to find a different generalization of the von-Weizs\"{a}cker functional to multiple electronic states. A ground state functional can be turned in multistate functional by reusing its functional form and simply replacing occurances of the density $\rho(\vec{r})$ by the matrix density $\m{D}(\vec{r})$. For the von-Weizs\"{a}cker functional this ad-hoc prescription gives,
+\begin{equation}
+T_W[\m{D}(\vec{r})]_{IJ} = \int d^3\!r ~ \frac{1}{8} \sum_{K} \sum_{L} \nabla D_{IK}(\vec{r}) \left(\m{D}^{-1}(\vec{r}) \right)_{KL} \nabla D_{KL}(\vec{r}) . \label{eqn:von_Weizasecker_many_electrons}
+\end{equation}
+The matrix inverse is placed symmetrically between the two gradients, which form a scalar product, so that the above equation can also be written as
+\begin{equation}
+  T_W[\m{D}]_{IJ} = \int~  \frac{1}{8} \sum_{K,L} \left(\m{D}^{-1}\right)_{KL} \nabla D_{IK} \cdot \nabla D_{KL}.
+\end{equation}
+This kinetic energy functional is not exact, not even for a single electron, but it works much better for many-electron systems than Eqn.~\ref{eqn:solution_geometric_series}.
+
+The rigorous derivation of Eqn.~\ref{eqn:von_Weizasecker_many_electrons} goes roughly as follows: One starts with the kinetic energy density, $\frac{1}{2} \langle \nabla I(\vec{r}) \vert \nabla J(\vec{r}) \rangle$, inserts a resolution of identity and collects terms that look like the kinetic energy density. But first some definitions are needed:
+
+Given an $n$-electron state $\vert L \rangle$, an $n-1$ electron state is defined as
+\begin{equation}
+\vert L^{(n-1)}(\vec{r}) \rangle = \int d^3\!r_2 \ldots d^3\!r_n ~ \Psi_{L}(\vec{r};\vec{r}_2,\ldots,\vec{r}_n) \vert \vec{r}_2 \ldots \vec{r}_{n} \rangle,
+\end{equation}
+where it has to be stressed that the integral is only over $n-1$ electronic degrees of freedom.
+$\vert L^{(n-1)}(\vec{r}) \rangle$ is not normalized and depends parametrically on the coordinate $\vec{r}$ of one electron. One could also say that the $n$-electron state has been partially transformed into the position representation. With the electronic coordinate $\vec{r} \in \mathbb{R}^{3}$ held fixed $\vert L^{(n-1)}(\vec{r}) \rangle$ is a vector in the Hilbert space for $n-1$ electrons, $\mathcal{H}^{(n-1)}(\vec{r})$, which itself is a function of $\vec{r}$, as well. So for each $\vec{r}$ there is a different Hilbert space. The scalar product in $\mathcal{H}^{(n-1)}(\vec{r})$ is an element of the matrix density evaluated at position $\vec{r}$:
+\begin{equation}
+D_{IJ}(\vec{r}) = \langle I^{(n-1)}(\vec{r}) \vert J^{(n-1)}(\vec{r}) \rangle
+\end{equation}
+and the kinetic energy matrix can be written as
+\begin{equation}
+T_{IJ}(\vec{r}) = \int d^3\!r ~ \langle I^{(n-1)}(\vec{r}) \vert \left(-\frac{1}{2} \nabla^2_{\vec{r}} \right) \vert J^{(n-1)}(\vec{r}) \rangle
+\end{equation}
+The derivative $\nabla_{\vec{r}}$ operates on the single electronic coordinate $\vec{r}$, which parameterizes the $n-1$ electronic state vectors.
+The resolution of the identity in the Hilbert space $\mathcal{H}^{(n-1)}(\vec{r})$ is
+\begin{equation}
+\mathbbm{1}^{(n-1)}(\vec{r}) = \sum_{K}^{\infty} \sum_{L}^{\infty} \vert K^{(n-1)}(\vec{r}) \rangle \left(\m{D}^{-1}(\vec{r}) \right)_{KL} \langle L^{(n-1)}(\vec{r}) \vert \label{eqn:eqn:resolution_of_identity}
+\end{equation}
+Now we select an $N$-dimensional subspace, called $\mathcal{H}^{(n-1)}_N(\vec{r})$, which is spanned by the state vectors $\left\{\vert L^{(n-1)}(\vec{r}) \right\}_{L=1,\ldots,N}$. The identity in this subspace is
+\begin{equation}
+\mathbbm{1}^{(n-1)}(\vec{r}) = \sum_{K}^{N} \sum_{L}^{N} \vert K^{(n-1)}(\vec{r}) \rangle \left(\m{D}^{-1}(\vec{r}) \right)_{KL} \langle L^{(n-1)}(\vec{r}) \vert \label{eqn:resolution_of_identity_subspace}
+\end{equation}
+However, the gradient $\vert \nabla_{\vec{r}} L^{(n-1)}(\vec{r}) \rangle$ of a state vector, $\vert L^{(n-1)}(\vec{r}) \rangle \in \mathcal{H}^{(n-1)}_N(\vec{r})$, can have components that lie outside of the Hilbert subspace. The operator in Eqn.~\ref{eqn:resolution_of_identity_subspace} projects the gradient onto its components inside the Hilbert space, while everything outside is lost. This is the reason why the kinetic energy functional of Eqn.~\ref{eqn:von_Weizasecker_many_electrons} is only an approximation.
+
+Note that $\langle I^{(n-1)}(\vec{r}) \vert \nabla_{\vec{r}} J^{(n-1)}(\vec{r}) \rangle$ is not to be confused with the non-adiabatic coupling vector $\langle I \vert \nabla_{\vec{R}} J \rangle$. In the latter the gradient is with respect to a nuclear coordinate $\vec{R}$ and the integral is over all $n$ electronic degrees of freedom, whereas in the former the gradient is with respect to one electronic coordinate $\vec{r}$ and the integration is over the remaining $n-1$ electronic degrees of freedom. In the remainder of this section the argument $\vec{r}$ and the superscript $n-1$ are suppressed for clarity, so $\langle I \vert \nabla J \rangle$ is understood to mean $\langle I^{(n-1)}(\vec{r}) \vert \nabla_{\vec{r}} J^{(n-1)}(\vec{r}) \rangle$, $\int \ldots d^3\!r$ is abbreviated as $\int \ldots$ etc.
+
+The scalar product of a state vector with the gradient of another one defines a vector field
+\begin{equation}
+\vec{F}(\vec{r}) = \langle I(\vec{r}) \vert \nabla J(\vec{r}) \rangle
+\end{equation}
+with the divergence
+\begin{equation}
+\Div \vec{F} = \langle \nabla I \vert \nabla J \rangle + \langle I \vert \nabla^2 J \rangle
+\end{equation}
+With the help of Gauss's theorem the volume integral over $\Div \vec{F}$ is turned into an integral over the enclosing surface $\partial V$,
+\begin{equation}
+\int_{V} \Div \vec{F} = \int_{\partial V} \vec{F} \cdot d\vec{S}.
+\end{equation}
+The right hand side vanishes as the volume is enlarged, $V \to \infty$, since the wavefunction decays exponentially at large distance, so that $\vert \vec{F} \vert \xrightarrow[r \to \infty]{} \propto e^{-\gamma r} \xrightarrow[r \to \infty]{} 0$. $\int \Div \vec{F} = 0$ implies that the kinetic energy matrix can be calculated as
+\begin{equation}
+T_{IJ} = -\frac{1}{2} \int \langle I \vert \nabla^2 J \rangle = \frac{1}{2} \int \langle \nabla I \vert \nabla J \rangle \label{eqn:kinetic_energy_gradgrad}
+\end{equation}
+Inserting the identity of Eqn.~\ref{eqn:resolution_of_identity_subspace} into the scalar product gives
+\begin{equation}
+\int \langle \nabla I \vert \nabla J \rangle = \int \sum_K \sum_L \langle \nabla I \vert K \rangle \left( \m{D}^{-1} \right)_{KL} \langle L \vert \nabla K \rangle. \label{eqn:kinetic_energy_density_2}
+\end{equation}
+Using the fact that
+\begin{equation}
+\nabla D_{IJ}(\vec{r}) = \nabla \langle I \vert J \rangle = \langle \nabla I \vert J \rangle + \langle I \vert \nabla J \rangle
+\end{equation}
+Eqn.~\ref{eqn:kinetic_energy_density_2} can be expressed as
+\begin{equation}
+\begin{split}
+  \int \langle \nabla I \vert \nabla J \rangle
+  &= \int \sum_K \sum_L
+  \left(\nabla D_{IK} - \langle I \vert \nabla K \rangle \right)
+  \left( \m{D}^{-1} \right)_{KL}
+  \left(\nabla D_{LJ} - \langle \nabla L \vert J \rangle \right) \\
+  &= \int \sum_K \sum_L
+  \Big\{
+  \nabla D_{IK} \left(\m{D}^{-1}\right)_{KL} D_{LJ} \\
+  & \quad \quad \quad \quad \quad \quad
+  - \langle I \vert \nabla K \rangle \left(\m{D}^{-1}\right)_{KL} \langle L \vert \nabla J \rangle \\
+  & \quad \quad \quad \quad \quad \quad
+  - \langle \nabla I \vert K \rangle \left(\m{D}^{-1}\right)_{KL} \langle \nabla L \vert J \rangle \\
+  & \quad \quad \quad \quad \quad \quad
+  - \langle I \vert \nabla K \rangle \left(\m{D}^{-1}\right)_{KL} \langle \nabla L \vert J \rangle
+  \Big\}
+\end{split} \label{eqn:kinetic_energy_density_3}
+\end{equation}
+The last three lines are not yet in the right form. To show that each of them is equal to $\langle \nabla I \vert \nabla J \rangle$, one would like to prove that $\langle I \vert \nabla K \rangle = \langle \nabla I \vert K \rangle$, i.e. that the $\nabla$ operator can be moved from the ket to the bra side.
+
+To prove this, the off-diagonal (in the sense that $\vec{r} \neq \vec{r}'$) part of the (transition) density matrix is expressed in the basis of some one-particle orbitals $\phi_{\alpha}(\vec{r})$,
+\begin{equation}
+D_{IJ}(\vec{r},\vec{r}') = \int \Psi_I^*(\vec{r};\vec{r}_2,\ldots,\vec{r}_n) \Psi_J(\vec{r}';\vec{r}_2,\ldots,\vec{r}_n) d^3\!r_2 \ldots d^3\!r_n = \sum_{\alpha,\beta}^{AO} D_{IJ}^{\alpha\beta} \phi_{\alpha}(\vec{r}) \phi_{\beta}(\vec{r}').
+\end{equation}
+
+In the orbital basis the gradient with respect to the ket then becomes
+\begin{equation}
+\langle I \vert \nabla_{\vec{r}} J \rangle = \nabla_{\vec{r}'} D_{IJ}(\vec{r},\vec{r}') \Big\vert_{\vec{r}=\vec{r}'} = \sum_{\alpha,\beta} D_{IJ}^{\alpha\beta} \phi_{\alpha}(\vec{r}) \nabla \phi_{\beta}(\vec{r}).
+\end{equation}
+Similarly we get
+\begin{equation}
+\begin{split}
+  \langle \nabla_{\vec{r}} I \vert J \rangle &= \nabla_{\vec{r}} D_{IJ}(\vec{r},\vec{r}') \Big\vert_{\vec{r}=\vec{r}'} = \sum_{\alpha,\beta} D_{IJ}^{\alpha\beta} (\nabla \phi_{\alpha}(\vec{r})) \phi_{\beta}(\vec{r}) \\
+  & \stackrel{
+  \begin{smallmatrix}\textrm{rename}\\ \alpha \leftrightarrow \beta \end{smallmatrix}}{=}
+  %& \mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily rename $\alpha \leftrightarrow \beta$}}}{=}}
+  \sum_{\alpha,\beta} D_{IJ}^{\beta\alpha} \phi_{\alpha}(\vec{r}) \nabla \phi_{\beta}(\vec{r})
+\end{split}
+\end{equation}
+Assuming that the transition density matrix is symmetric in the orbital indices,
+\begin{equation}
+D_{IJ}^{\alpha\beta} = D_{IJ}^{\beta\alpha},
+\end{equation}
+one finds that
+\begin{equation}
+\langle I \vert \nabla_{\vec{r}} J \rangle = \langle \nabla_{\vec{r}} I \vert J \rangle,
+\end{equation}
+as desired.
+
+This result is used to move the $\nabla$ operator between the bra and ket. Then one can recognize a resolution of the identity and simplify Eqn.~\ref{eqn:kinetic_energy_density_3} as
+\begin{equation}
+  \begin{split}
+    \int \langle \nabla I \vert \nabla J \rangle &=
+    \int \sum_K \sum_L \nabla D_{IK} \left(\m{D}^{-1}\right)_{KL} \nabla D_{LJ}
+    -3 \int \langle \nabla I \vert \underbrace{
+      \left(\sum_{K,L} \vert K \rangle \left(\m{D}^{-1}\right)_{KL} \langle L \vert \right)
+    }_{\approx \mathbbm{1}} \vert \nabla J \rangle \\
+    &= \int \sum_K \sum_L \nabla D_{IK} \left(\m{D}^{-1}\right)_{KL} \nabla D_{LJ}
+    - 3 \int \langle \nabla I \vert \nabla J \rangle
+  \end{split}
+\end{equation}
+Bringing the $\int \langle \nabla I \vert \nabla J \rangle$ terms to the left hand side and using the definition of the kinetic energy from Eqn.~\ref{eqn:kinetic_energy_gradgrad}, finally the multi-state generalization of the kinetic von-Weizs\"{a}cker functional results,
+\begin{equation}
+T_{IJ}[\m{D}(\vec{r})] = \frac{1}{8} \int d^3\!r ~ \sum_{K}^N \sum_{L}^N \nabla D_{IK}(\vec{r}) \left( \m{D}^{-1}(\vec{r}) \right)_{KL} \nabla D_{LJ}(\vec{r}).
+\end{equation}
 
 \textbf{Multistate Thomas-Fermi kinetic functional.}
 The Thomas-Fermi model gives the kinetic energy of a free non-interacting electron gas in terms of the electron density.
@@ -446,7 +584,7 @@ The Thomas-Fermi model gives the kinetic energy of a free non-interacting electr
 \cite[6.1]{ParrYangBook}
 
 \begin{equation}
-T[\rho_{\sigma}] = \frac{3}{10} (6 \pi^2)^{2/3} \int d^3r ~ \rho(\vec{r})_{\sigma^{5/3}
+T[\rho_{\sigma}] = \frac{3}{10} (6 \pi^2)^{2/3} \int d^3r ~ \rho(\vec{r})_{\sigma}^{5/3}
 \end{equation}
 with $\sigma = \uparrow,\downarrow$.
 
