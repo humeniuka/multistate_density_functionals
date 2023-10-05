@@ -328,7 +328,7 @@ Nevertheless ground-state functionals can give some guidance.
 
 The next step is to find a multistate matrix density functional, that satisfies the above constraints and ideally reduces to some known ground state functional for $N=1$.
 \subsection{Kinetic energy functional}
-\textbf{Multistate von-Weizs\"{a}cker kinetic functional I.} We start with the von-Weizs\"{a}cker kinetic energy functional, which can be extended to multiple electronic states and is exact for one-electron systems.
+\textbf{Multistate von-Weizs\"{a}cker kinetic functional I (vW1e).} We start with the von-Weizs\"{a}cker kinetic energy functional, which can be extended to multiple electronic states and is exact for one-electron systems.
 In the following $A,B,\ldots,I,J,K,L = 1,\ldots,N$ enumerate electronic states, $\alpha,\beta=x,y,z$ denote Cartesian coordinates and partial derivatives with respect to Cartesian coordinates are abbreviated as $\partial_{\alpha} f = \frac{\partial f}{\partial_{r_\alpha}}$. 
 Let the single particle wavefunctions be denoted as $\phi_A(\vec{r})$. The matrix elements of the kinetic energy operator are
 \begin{equation}
@@ -445,7 +445,7 @@ Taking only the first two terms of the infinite series, the kinetic energy funct
 In practice $\m{T}[\m{D}(\vec{r})]$ is determined by solving Eqn.~\ref{eqn:CplusKT} for ea
 ch grid point and then integrating the kinetic energy density numerically.
 
-\textbf{Multistate von-Weizs\"{a}cker kinetic functional II.}
+\textbf{Multistate von-Weizs\"{a}cker kinetic functional II (vW).}
 For a single electron, the kinetic energy matrix-functional defined by Eqn.~\ref{eqn:solution_geometric_series} gives the exact kinetic energy matrix.
 Unfortunately the functional does not perform well for multiple electrons.
 So one has to find a different generalization of the von-Weizs\"{a}cker functional to multiple electronic states. A ground state functional can be turned in multistate functional by reusing its functional form and simply replacing occurances of the density $\rho(\vec{r})$ by the matrix density $\m{D}(\vec{r})$. For the von-Weizs\"{a}cker functional this ad-hoc prescription gives,
@@ -577,6 +577,14 @@ Bringing the $\int \langle \nabla I \vert \nabla J \rangle$ terms to the left ha
 \begin{equation}
 T_{IJ}[\m{D}(\vec{r})] = \frac{1}{8} \int d^3\!r ~ \sum_{K}^N \sum_{L}^N \nabla D_{IK}(\vec{r}) \left( \m{D}^{-1}(\vec{r}) \right)_{KL} \nabla D_{LJ}(\vec{r}).
 \end{equation}
+
+Figures \ref{fig:vW_kinetic_energy_HMI} and \ref{fig:} compare the kinetic energy densities of two von-Weizs\"{a}cker-like functionals with the exact results computed with full configuration interaction as implemented in the PySCF \cite{Sun2020} software package.
+
+\begin{figure}[h!]
+\includegraphics[width=0.8\textwidth]{figures/vW_kinetic_energy_HMI.png}
+\caption{\textbf{1-electron system.} Cut through the kinetic energy density (KED) of hydrogen molecular ion, H$_2^+$, along the bond axis for the lowest three electronic states $I,J=0,1,2$. Solid, thick lines represent the exact kinetic energy density computed as ${T_{IJ} = -\frac{1}{2} \int \nabla \phi_I(\vec{r}) \cdot \nabla \phi_J(\vec{r})}$ from a calculation with the 6-31g basis set using PySCF. Dashed, thin lines are the KEDs computed with approximate kinetic energy functionals according to Eqn.~\ref{eqn:solution_geometric_series} (\textbf{vW1e}) and Eqn.~\ref{eqn:von_Weizasecker_many_electrons} (\textbf{vW}). Diagonal state KED's $(I,I)$ are shown on the left, transition KED's $(I,J)$ on the right.}
+\label{fig:vW_kinetic_energy_HMI}
+\end{figure}
 
 \textbf{Multistate Thomas-Fermi kinetic functional.}
 The Thomas-Fermi model gives the kinetic energy of a free non-interacting electron gas in terms of the electron density.
