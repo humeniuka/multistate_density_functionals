@@ -73,7 +73,7 @@ class KineticOperatorFunctional(ABC):
         return kinetic_matrix
 
 
-class VonWeizsaeckerFunctional(KineticOperatorFunctional):
+class VonWeizsaecker1eFunctional(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.
@@ -179,7 +179,7 @@ class VonWeizsaeckerFunctional(KineticOperatorFunctional):
         return KED
 
 
-class VonWeizsaeckerAdHocFunctional(KineticOperatorFunctional):
+class VonWeizsaeckerFunctional(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.
@@ -197,8 +197,9 @@ class VonWeizsaeckerAdHocFunctional(KineticOperatorFunctional):
 
     The matrix-inverse of D is placed symmetrically between the gradients.
 
-    It is not clear how this ad-hoc functional can be derived, since it
-    does not give the exact kinetic energy matrix for 1-electron systems.
+    This functional does not give the exact kinetic energy matrix for
+    1-electron systems but it performs much better on many-electron systems
+    then :class:`~.VonWeizsaecker1eFunctional`.
     """
     def kinetic_energy_density(
             self,

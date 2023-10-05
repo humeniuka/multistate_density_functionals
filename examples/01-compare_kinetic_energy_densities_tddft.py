@@ -12,7 +12,7 @@ import pyscf.scf
 import pyscf.tddft
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaeckerAdHocFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityTDDFT
 
@@ -111,7 +111,7 @@ def compare_kinetic_energy_densities_1d(mol, nstate=2):
     coords[:,2] = r
         
     # Functionals for kinetic energy matrix.
-    kinetic_vW = VonWeizsaeckerAdHocFunctional(mol)
+    kinetic_vW = VonWeizsaeckerFunctional(mol)
     kinetic_TF = ThomasFermiFunctional(mol)
 
     # Evalute kinetic energy density along the cut ...
@@ -221,7 +221,7 @@ def compare_kinetic_energy_densities_2d(mol, nstate=2, istate=0, jstate=0):
     coords[:,2] = zgrid_2d.ravel()
         
     # Functionals for kinetic energy matrix.
-    kinetic_vW = VonWeizsaeckerAdHocFunctional(mol)
+    kinetic_vW = VonWeizsaeckerFunctional(mol)
     kinetic_TF = ThomasFermiFunctional(mol)
 
     # Evalute kinetic energy density along the cut ...

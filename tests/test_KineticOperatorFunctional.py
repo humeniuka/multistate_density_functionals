@@ -14,7 +14,7 @@ import pyscf.scf
 from tqdm import tqdm
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaeckerAdHocFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -86,7 +86,7 @@ class VonWeizsaeckerFunctionalSingleState(object):
         return kinetic_matrix
 
 
-class TestVonWeizsaeckerFunctional(unittest.TestCase):
+class TestVonWeizsaecker1eFunctional(unittest.TestCase):
     def create_test_molecules_1electron(self):
         """ dictionary with 1-electron molecules to run the tests on """
         molecules = {
@@ -162,7 +162,7 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
         assert nstate > 0, "The number of electronic states has to be > 0."
 
         # functional for kinetic operator, T[D(r)]
-        kinetic_functional = VonWeizsaeckerFunctional(mol)
+        kinetic_functional = VonWeizsaecker1eFunctional(mol)
 
         # compute D(r) from full CI
         msmd = self.create_matrix_density(mol, nstate=nstate)
@@ -195,7 +195,7 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaeckerFunctional(mol)
+                kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
                 kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
@@ -206,7 +206,7 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class TestVonWeizsaeckerAdHocFunctional(unittest.TestCase):
+class TestVonWeizsaeckerFunctional(unittest.TestCase):
     """
     NOTE: This von-Weizsaecker-like kinetic energy function is NOT exact
           for 1-electron systems but it performs better for many electron systems.
@@ -264,7 +264,7 @@ class TestVonWeizsaeckerAdHocFunctional(unittest.TestCase):
 
         return msmd
 
-    def test_von_Weizsaecker_adhoc_functional(self):
+    def test_von_Weizsaecker_functional(self):
         """
         Check that for a single electronic state the multistate kinetic energy functional
         reduces to the von Weizsäcker functional.
@@ -275,7 +275,7 @@ class TestVonWeizsaeckerAdHocFunctional(unittest.TestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaeckerAdHocFunctional(mol)
+                kinetic_functional_multi = VonWeizsaeckerFunctional(mol)
                 kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.

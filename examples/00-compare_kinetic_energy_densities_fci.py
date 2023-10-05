@@ -11,7 +11,7 @@ import pyscf.fci
 import pyscf.scf
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaeckerAdHocFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
@@ -25,7 +25,7 @@ molecules = {
         # doublet
         spin = 1),
     'hydrogen molecular ion': pyscf.gto.M(
-        atom = 'H 0 0 0; H 0 0 0.74',
+        atom = 'H 0 0 -0.37; H 0 0 0.37',
         basis = '6-31g',
         charge = 1,
         # doublet
@@ -124,21 +124,21 @@ def compare_kinetic_energy_densities(mol, nstate=2):
     coords[:,2] = r
         
     # Functionals for kinetic energy matrix.
+    kinetic_vW1e = VonWeizsaecker1eFunctional(mol)
     kinetic_vW = VonWeizsaeckerFunctional(mol)
-    kinetic_vW_adhoc = VonWeizsaeckerAdHocFunctional(mol)
     kinetic_TF = ThomasFermiFunctional(mol)
 
     # Evalute kinetic energy density along the cut ...
     # ... with the approximate functionals from the matrix density
+    KED_vW1e = kinetic_vW1e.kinetic_energy_density(msmd, coords)
     KED_vW = kinetic_vW.kinetic_energy_density(msmd, coords)
-    KED_vW_adhoc = kinetic_vW_adhoc.kinetic_energy_density(msmd, coords)
     KED_TF = kinetic_TF.kinetic_energy_density(msmd, coords)
     # ... and exactly from the wavefunction.
     KED_lap, KED_gg = msmd.kinetic_energy_density(coords)
 
     # Sum over spin.
+    KED_vW1e = numpy.sum(KED_vW1e, axis=0)
     KED_vW = numpy.sum(KED_vW, axis=0)
-    KED_vW_adhoc = numpy.sum(KED_vW_adhoc, axis=0)
     KED_TF = numpy.sum(KED_TF, axis=0)
     
     KED_lap = numpy.sum(KED_lap, axis=0)
@@ -146,7 +146,7 @@ def compare_kinetic_energy_densities(mol, nstate=2):
 
     # Plot KED(r).
     import matplotlib.pyplot as plt
-    fig, axes = plt.subplots(3,2)
+    fig, axes = plt.subplots(3,2, sharex=True)
 
     # The first row is for the von-Weizsaecker functional,
     # the second one for the Thomas-Fermi functional.
@@ -158,9 +158,9 @@ def compare_kinetic_energy_densities(mol, nstate=2):
         axes[row,1].set_ylabel(r"transition KED / Hartree")
 
     for column in [0,1]:
-        axes[0,column].set_title(r"von Weizsäcker")
-        axes[1,column].set_title(r"Thomas-Fermi")
-        axes[2,column].set_title(r"von Weizsäcker (ad-hoc)")
+        axes[0,column].set_title(r"von Weizsäcker (1e)")
+        axes[1,column].set_title(r"von Weizsäcker")
+        axes[2,column].set_title(r"Thomas-Fermi")
         
     # Plot kinetic energy density between different states.
     for istate in range(0, nstate):
@@ -197,17 +197,17 @@ def compare_kinetic_energy_densities(mol, nstate=2):
 
             # approximate KED
             axes[0,column].plot(
+                r, KED_vW1e[istate,jstate,:],
+                lw=1, color=line.get_color(),
+                ls='--', label=label+" von-Weizsäcker (1e)")
+            axes[1,column].plot(
                 r, KED_vW[istate,jstate,:],
                 lw=1, color=line.get_color(),
-                ls='--', label=label+" von-Weizsäcker")
-            axes[1,column].plot(
+                ls="-.", label=label+" von-Weizsäcker")
+            axes[2,column].plot(
                 r, KED_TF[istate,jstate,:],
                 lw=1, color=line.get_color(),
                 ls="-.", label=label+" Thomas-Fermi")
-            axes[2,column].plot(
-                r, KED_vW_adhoc[istate,jstate,:],
-                lw=1, color=line.get_color(),
-                ls="-.", label=label+" von-Weizsäcker (ad-hoc)")
 
     for row in [0,1,2]:
         for column in [0,1]:
@@ -217,8 +217,8 @@ def compare_kinetic_energy_densities(mol, nstate=2):
 
 
 if __name__ == "__main__":
-    #compare_kinetic_energy_densities(molecules['hydrogen molecular ion'], nstate=2)
+    compare_kinetic_energy_densities(molecules['hydrogen molecular ion'], nstate=3)
     #compare_kinetic_energy_densities(molecules['hydrogen molecule'], nstate=2)
     #compare_kinetic_energy_densities(molecules['lithium hydride'], nstate=3)
-    compare_kinetic_energy_densities(molecules['lithium diatomic'], nstate=3)
+    #compare_kinetic_energy_densities(molecules['lithium diatomic'], nstate=3)
     #compare_kinetic_energy_densities(molecules['water'], nstate=4)
