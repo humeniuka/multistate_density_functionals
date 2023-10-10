@@ -2,7 +2,7 @@
 # coding: utf-8
 """
 compare kinetic energy densities KED(r) computed with the von-Weizsaecker functionals
-for the hydrogen molecular ion, H2^+.
+for the lithium hydride molecule.
 """
 import matplotlib.pyplot as plt
 import numpy
@@ -97,6 +97,9 @@ def compare_vW_kinetic_energy_densities(mol, nstate=2):
         axes[row,1].yaxis.set_label_position("right")
         axes[row,1].yaxis.tick_right()
 
+        # State KED can be quite large, so make the axis logarithmic.
+        axes[row,0].set_yscale('log')
+        
     for column in [0,1]:
         #axes[0,column].set_title(r'von Weizsäcker 1-electron (\textbf{vW1e})')
         #axes[1,column].set_title(r'von Weizsäcker (\textbf{vW})')
@@ -160,18 +163,17 @@ def compare_vW_kinetic_energy_densities(mol, nstate=2):
     plt.tight_layout()
     plt.subplots_adjust(wspace=0, hspace=0)
     
-    #plt.savefig("vW_kinetic_energy_HMI.png", dpi=300)
+    #plt.savefig("vW_kinetic_energy_LiH.png", dpi=300)
     plt.show()
 
 
 if __name__ == "__main__":
-    # The hydrogen molecular ion, a 1-electron system.
+    # lithium hydride LiH
     mol = pyscf.gto.M(
-        atom = 'H 0 0 -0.37; H 0 0 0.37',
+        atom = 'Li 0 0 -0.79745; H 0 0 0.79745',
         basis = '6-31g',
-        charge = 1,
-        # doublet
-        spin = 1)
+        # singlet
+        spin = 0)
 
     plt.style.use('./latex.mplstyle')
-    compare_vW_kinetic_energy_densities(mol, nstate=3)
+    compare_vW_kinetic_energy_densities(mol, nstate=4)
