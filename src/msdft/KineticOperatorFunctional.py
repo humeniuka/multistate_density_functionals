@@ -53,6 +53,8 @@ class KineticOperatorFunctional(ABC):
         :param available_memory: The amount of memory (in bytes) that can be
            allocated for the kinetic energy density. If more memory is needed,
            the KED is evaluated in multiple chunks. (1<<30 corresponds to 1Gb)
+           Since more memory is needed for intermediate quantities, this limit
+           is only a rough estimate.
         :type available_memory: int
 
         :return kinetic_matrix: The kinetic energy matrix Tᵢⱼ in the subspace
@@ -67,10 +69,10 @@ class KineticOperatorFunctional(ABC):
         kinetic_matrix = numpy.zeros((nstate,nstate))
 
         # If the resulting array that holds the kinetic energy density
-        # exceeds 1 GB, the KED is evaluated on smaller chunks of the grid
-        # and summed into the kinetic matrix at the end.
-        needed_memory = kinetic_matrix.itemsize * ncoord
-        number_of_chunks = max(1, needed_memory // available_memory)
+        # exceeds `available_memory`, the KED is evaluated on smaller chunks
+        # of the grid and summed into the kinetic matrix at the end.
+        needed_memory = 50 * 2 * kinetic_matrix.itemsize * nstate**2 * ncoord
+        number_of_chunks = max(1, (needed_memory + available_memory) // available_memory)
         # There cannot be more chunks than grid points.
         number_of_chunks = min(ncoord, number_of_chunks)
 
