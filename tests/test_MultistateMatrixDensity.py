@@ -166,7 +166,7 @@ class BaseTestMultistateMatrixDensity(ABC):
         """
         msmd = self.create_matrix_density(mol)
         # Compute the kinetic energy matrix exactly
-        kinetic_matrix_exact = msmd.exact_1e_operator(intor='int1e_kin')
+        kinetic_matrix_exact = msmd.exact_kinetic_energy()
 
         # Generate the multicenter integration grid.
         grids = pyscf.dft.gen_grid.Grids(mol)

@@ -214,7 +214,7 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
     def create_test_molecules(self):
         """ dictionary with molecules to run the tests on """
         molecules = {
-                # H2
+            # H2
             'hydrogen molecule': pyscf.gto.M(
                 atom = 'H 0 0 -0.375; H 0 0 0.375',
                 basis = '6-31g',
@@ -284,6 +284,31 @@ class TestVonWeizsaeckerFunctional(unittest.TestCase):
 
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
+
+    def check_chunk_size(self, mol):
+        """
+        Compute kinetic matrix with different chunk sizes.
+        """
+        kinetic_functional = VonWeizsaecker1eFunctional(mol, level=1)
+        msmd = self.create_matrix_density(mol, nstate=3)
+        # Tij with default chunk size
+        kinetic_matrix_ref = kinetic_functional(msmd)
+        # Increase the number of chunks by reducing the available memory
+        # per chunk to 8 or 64 bytes.
+        for memory in [8, 64]:
+            kinetic_matrix = kinetic_functional(msmd, available_memory=memory)
+
+            numpy.testing.assert_almost_equal(
+                kinetic_matrix, kinetic_matrix_ref)
+
+    def test_chunk_size(self):
+        """
+        Check that the kinetic energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
 
 
 class ThomasFermiFunctionalSingleState(object):

@@ -34,7 +34,8 @@ class KineticOperatorFunctional(ABC):
 
     def __call__(
             self,
-            msmd : MultistateMatrixDensity):
+            msmd : MultistateMatrixDensity,
+            available_memory=1<<30):
         """
         compute the matrix of the kinetic energy operator in the subspace
         of electronic states by evaluating the kinetic energy functional T[D(r)]
@@ -49,6 +50,11 @@ class KineticOperatorFunctional(ABC):
            for which the kinetic energy functional should be evaluated.
         :type msmd: :class:`~.MultistateMatrixDensity`
 
+        :param available_memory: The amount of memory (in bytes) that can be
+           allocated for the kinetic energy density. If more memory is needed,
+           the KED is evaluated in multiple chunks. (1<<30 corresponds to 1Gb)
+        :type available_memory: int
+
         :return kinetic_matrix: The kinetic energy matrix Tᵢⱼ in the subspace
            of the electronic states i,j=1,...,nstate
         :rtype kinetic_matrix: numpy.ndarray of shape (nstate,nstate)
@@ -60,15 +66,28 @@ class KineticOperatorFunctional(ABC):
         # matrix element of the kinetic energy operator <i|Top|j>
         kinetic_matrix = numpy.zeros((nstate,nstate))
 
-        # Evaluate the kinetic energy density on the grid.
-        KED = self.kinetic_energy_density(msmd, self.grids.coords)
+        # If the resulting array that holds the kinetic energy density
+        # exceeds 1 GB, the KED is evaluated on smaller chunks of the grid
+        # and summed into the kinetic matrix at the end.
+        needed_memory = kinetic_matrix.itemsize * ncoord
+        number_of_chunks = max(1, needed_memory // available_memory)
+        # There cannot be more chunks than grid points.
+        number_of_chunks = min(ncoord, number_of_chunks)
 
-        # The matrix of the kinetic energy operator in the subspace is obtained
-        # by integration T_{i,j}(r) over space and spin
-        #
-        #   Tᵢⱼ = ∫ KEDᵢⱼ(r) dr
-        #
-        kinetic_matrix = numpy.einsum('r,sijr->ij', self.grids.weights, KED)
+        # Loop over chunks of grid points and associated integration weights.
+        for coords, weights in zip(
+                numpy.array_split(self.grids.coords, number_of_chunks),
+                numpy.array_split(self.grids.weights, number_of_chunks)):
+
+            # Evaluate the kinetic energy density on the grid.
+            KED = self.kinetic_energy_density(msmd, coords)
+
+            # The matrix of the kinetic energy operator in the subspace is obtained
+            # by integration T_{i,j}(r) over space and spin
+            #
+            #   Tᵢⱼ = ∫ KEDᵢⱼ(r) dr
+            #
+            kinetic_matrix += numpy.einsum('r,sijr->ij', weights, KED)
 
         return kinetic_matrix
 

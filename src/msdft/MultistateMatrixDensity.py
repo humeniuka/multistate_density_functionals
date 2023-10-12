@@ -79,6 +79,18 @@ class MultistateMatrixDensity(ABC):
 
         return matrix_elements
 
+    def exact_kinetic_energy(self):
+        """
+        compute the exact matrix elements of the kinetic energy operator
+
+          Tᵢⱼ = <Ψᵢ|∑ₙ ∇²ₙ|Ψⱼ>
+
+        :return kinetic_matrix: The matrix elements of the kinetic energy
+           in the basis of the many-electron states in the subspace.
+        :rtype kinetic_matrix: numpy.ndarray of shape (nstate,nstate)
+        """
+        return self.exact_1e_operator(intor='int1e_kin')
+
     def exact_coulomb_energy(self):
         """
         Compute the Coulomb integrals for all possible combinations of
