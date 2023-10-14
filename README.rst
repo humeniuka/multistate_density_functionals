@@ -9,8 +9,15 @@ Requirements
 
 Required python packages:
 
- * numpy, matplotlib
+ * matplotlib, numpy, scipy, tqdm
  * pyscf
+
+A conda environment with the required packaged can be created with
+
+.. code-block:: bash
+
+   $ conda env create -f environment.yml
+   $ conda activate msdft
 
 Installation
 ------------
