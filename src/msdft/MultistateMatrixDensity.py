@@ -160,8 +160,8 @@ class MultistateMatrixDensity(ABC):
         lapl_D = numpy.zeros((nspin,nstate,nstate,ncoord))
 
         # Evaluate atomic orbitals 𝛘ₐ(r) on the grid.
-        # The orbital values and their gradients are returned in a single
-        # array of shape (4,ncoord,norb).
+        # The orbital values and their gradients and Laplacian are returned in a single
+        # array of shape (10,ncoord,norb).
         ao_value_all = numint.eval_ao(self.mol, coords, deriv=2)
         # value AO(r)
         ao_value = ao_value_all[0,:,:]
