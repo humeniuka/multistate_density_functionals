@@ -12,10 +12,11 @@
 %% extensions are not currently available on the ACS conversion
 %% servers.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\usepackage[version=3]{mhchem} % Formula subscripts using \ce{}
+\usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{xcolor}
 \usepackage{bbm}
+\usepackage{placeins}
+\usepackage{xcolor}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% If issues arise when submitting your manuscript, you may want to
@@ -602,6 +603,101 @@ The Thomas-Fermi model gives the kinetic energy of a free non-interacting electr
 T[\rho_{\sigma}] = \frac{3}{10} (6 \pi^2)^{2/3} \int d^3r ~ \rho(\vec{r})_{\sigma}^{5/3}
 \end{equation}
 with $\sigma = \uparrow,\downarrow$.
+
+\appendix
+\FloatBarrier
+\section{Gradient-Augmented Basis Sets}
+
+Typical atom-center basis sets used in quantum chemistry are very far from being complete and spanning $\mathbb{R}^3$. Therefore, if the basis consists of $n_B$ functions,
+\begin{equation}
+\mathcal{B} = \{ \chi_1(\vec{r}), \chi_2(\vec{r}), \ldots \chi_{n_B}(\vec{r}) \},
+\end{equation}
+there is no guarantee that the gradients of those functions, $\nabla_{\vec{r}} \chi_i(\vec{r})$,
+can also be represented accurately in the same basis set $\mathcal{B}$.
+Orbital gradients appear in the kinetic energy density, $\frac{1}{2} \nabla \chi_i(\vec{r}) \cdot \nabla \chi_j(\vec{r})$, so that a large basis set error in those terms affects the accuracy of the kinetic energy functional.
+
+Increasing the basis set until it is complete is not a feasible strategy. Instead on can add only those functions that are needed to span the vector space of the orbital gradients.
+In the gradient-augmented basis set the orbital gradients of $\mathcal{B}$ can be represented exactly.
+
+A normalized, primitive, Cartesian Gaussian (PGF) function centered at the origin is characterized by its exponent $\alpha$ and the powers $\vec{n} = (n_x, n_y, n_z)$ of the Cartesian coordinates $\vec{r}=(x,y,z)$,
+\begin{equation}
+  \text{PGF}(\alpha,\vec{n}; \vec{r}) =
+  N(\alpha,n_x) N(\alpha,n_y) N(\alpha,n_z) x^{n_x} y^{n_y} z^{n_z} e^{-\alpha (x^2+y^2+z^2)},
+  \label{eqn:PGF}
+\end{equation}
+with the normalization constants \cite{Obara1986}
+\begin{equation}
+N(\alpha,n) = \left(\frac{2 \alpha}{\pi} \right)^{1/4} \left[\frac{(4 \alpha)^n}{(2 n - 1)!!} \right]^{1/2}.
+\end{equation}
+
+Taking the derivative of a PGF with respect to one coordinate (let's say $x$) gives
+\begin{align}
+  \partial_x & \text{PGF}(\alpha,n_x,n_y,n_z; \vec{r}) =
+  N(\alpha,n_x) N(\alpha,n_y) N(\alpha,n_z) \left(n_x x^{n_x-1} y^{n_y} z^{n_z} - 2 \alpha x^{n_x+1} y^{n_y} z^{n_z} \right) e^{-\alpha r^2} \\
+  &= x_n \frac{N(\alpha,n_x)}{N(\alpha,n_x-1)} \text{PGF}(\alpha,n_x-1,n_y,n_z; \vec{r})
+    -2\alpha \frac{N(\alpha,n_x)}{N(\alpha,n_x+1)} \text{PGF}(\alpha,n_x+1,n_y,n_z; \vec{r})
+\end{align}
+
+Since the prefactors containing ratios of the normalization constants can be simplified as
+\begin{equation}
+  n_x \frac{N(\alpha,n_x)}{N(\alpha,n_x-1)} = \frac{2 n_x}{\sqrt{2 n_x-1}} \sqrt{\alpha}
+\end{equation}
+and
+\begin{equation}
+ -2 \alpha \frac{N(\alpha,n_x)}{N(\alpha,n_x+1)} = -\sqrt{2 n_x + 1} \sqrt{\alpha},
+\end{equation}
+we can express the derivative of a PGF with angular momentum $L$ as the sum of two PGF's with angular momenta $L-1$ and $L+1$,
+\begin{equation}
+   \partial_x \text{PGF}(\alpha,n_x,n_y,n_z; \vec{r}) = \frac{2 n_x}{\sqrt{2 n_x-1}} \sqrt{\alpha} ~ \text{PGF}(\alpha,n_x-1,n_y,n_z; \vec{r}) - \sqrt{2 n_x + 1} \sqrt{\alpha} ~ \text{PGF}(\alpha,n_x+1,n_y,n_z; \vec{r}) \label{eqn:gradient_PGF}
+\end{equation}
+
+A contraction (CGF) is a linear combination of normalized, primitive Cartesian Gaussian functions\cite{Hehre1969} with coefficients $c_i$ and different exponents $\alpha_i$.
+\begin{equation}
+  \text{CGF}(\vec{n};\vec{r}) = \sum_i c_i ~ \text{PGF}(\alpha_i,\vec{n};\vec{r})
+  \label{eqn:CGF}
+\end{equation}
+
+Basis functions with the same angular momentum $L=n_x+n_y+n_z$ are grouped into shells, which share the same radial functions. Therefore the data tabulated in the basis set files consists of the angular momentum $L$ of the shell and the exponents $\alpha_i$ and coefficients $c_i$ in the contraction:
+\begin{equation}
+L, (\alpha_1, c_1), (\alpha_2, c_2), \ldots
+\end{equation}
+
+The gradient of a contraction becomes (using Eqn.~\ref{eqn:gradient_PGF}):
+\begin{equation}
+\begin{split}
+  \partial_x & \text{CGF}(n_x,n_y,n_z; \vec{r}) = \\
+    & \frac{2 n_x}{\sqrt{2 n_x - 1}} \sum_i \underbrace{c_i \sqrt{\alpha_i}}_{c_i'} ~ \text{PGF}(\alpha_i, n_x-1,n_y,n_z; \vec{r}) - \sqrt{2 n_x + 1} \sum_i \underbrace{c_i \sqrt{\alpha_i}}_{c_i'} ~ \text{PGF}(\alpha_i, n_x+1,n_y,n_z; \vec{r})
+\end{split}
+\end{equation}
+
+The gradients of the PGF in a contraction give rise to two new contractions where the coefficients are scaled by the square-root of the exponent:
+\begin{eqnarray}
+  \text{CGF} & & \text{CGF'} \\
+  L, \{\alpha_i, c_i\}_{i=1,\ldots} & \longrightarrow & L, \{\alpha_i, \sqrt{\alpha_i} c_i\}_{i=1,\ldots}
+\end{eqnarray}
+
+To get the gradient-augmented basis, we have to add contractions $\text{CGF'}$ with angular momenta $L-1$ and $L+1$ for each contraction $\text{CGF}$ with angular momentum $L$,
+
+\begin{equation}
+  (L, \{\alpha_i, c_i\}_{i=1,\ldots}) \longrightarrow
+         (L, \{\alpha_i, c_i\}_{i=1,\ldots})
+      \cup (L-1, \{\alpha_i, \sqrt{\alpha_i} c_i\}_{i=1,\ldots})
+      \cup (L+1, \{\alpha_i, \sqrt{\alpha_i} c_i\}_{i=1,\ldots})
+\end{equation}
+
+A gradient-augmented basis set is at least three times larger than the original basis set. However, this is still much smaller than a complete basis set. The resolution of identity
+\begin{equation}
+\m{I} = \sum_{m,n} \vert m \rangle S^{-1}_{m,n} \langle n \vert,
+\end{equation}
+where $\zeta_m(\vec{r})$ and $\zeta_n(\vec{r})$ are basis functions from the gradient-augmented basis set, is exact on the vector space spanned by the orbitals $\chi_i(\vec{r})$ and their gradients $\nabla \chi_i(\vec{r})$. This is demonstrated in Fig.~\ref{fig:projected_orbital_gradients}, where the orbital gradients $\partial_z \chi_i(\vec{r})$ are compared with their projections onto the gradient-augmented basis,
+\begin{equation}
+\partial_z \chi_i(\vec{r})^{\text{proj}} = \sum_{m,n} \langle \vec{r} \vert m \rangle S^{-1}_{m,n} \langle n \vert \partial_z \chi_i \rangle.
+\end{equation}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.5\linewidth]{figures/projected_orbital_gradients.png}
+  \caption{\label{fig:projected_orbital_gradients} Gradients of atomic orbitals of the 6-31g basis set of Li in Li$_2$ (solid) and their projections on the gradient-augmented basis set (dashed). The z-component of the orbital gradient, $\partial_z \text{AO}(0,0,z)$ is shown along the z-axis. No wavefuntion amplitude is lost during the projection.}
+\end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The "Acknowledgement" section can be given in all manuscript
