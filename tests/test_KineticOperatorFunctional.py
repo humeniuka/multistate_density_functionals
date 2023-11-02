@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctionalII
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI

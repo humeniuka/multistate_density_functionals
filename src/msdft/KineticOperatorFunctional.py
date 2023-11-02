@@ -271,7 +271,7 @@ class VonWeizsaeckerFunctional(KineticOperatorFunctional):
             # inverse of matrix density, D⁻¹ₖₗ(r) at each grid point
             invD = numpy.zeros_like(D[s,...])
             for r in range(0, ncoord):
-                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r])
+                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r], rtol=1.0e-10)
             #
             # KED_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
             #
@@ -338,7 +338,7 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             # (pseudo) inverse of matrix density, D⁻¹ₖₗ(r) at each grid point
             invD = numpy.zeros_like(D[s,...])
             for r in range(0, ncoord):
-                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r])
+                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r], rtol=1.0e-10)
             #
             # KED^{vW}_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
             #
@@ -359,7 +359,7 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             C = 4.0/N * KED_vW
 
             # For each grid point we have to solve the linear equation
-            #  (1 - K)·T = C
+            #  (1 - K)·T = C   <=>  T = (1 - K)⁻¹.C
             # where T_{i,j}(r) and C_{i,j}(r) are interpreted as vectors in ℂ^{Mstate x Mstate}
             dim2 = nstate*nstate
             # identity matrix
@@ -390,12 +390,15 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             Id = numpy.eye(dim2)
             for r in range(0, ncoord):
                 Cvec = C[:,:,r].flatten()
-                Tvec = numpy.linalg.solve(Id - K[:,:,r], Cvec)
+                # The matrix might be singular, so we have to solve
+                # the equation in a least-square sense.
+
+                Tvec, _, _, _ = numpy.linalg.lstsq(Id - K[:,:,r], Cvec, rcond=None)
                 # Reinterpret the vector Tvec as a square matrix.
                 KED[s,:,:,r] = numpy.reshape(Tvec, (nstate,nstate))
 
             # WARNING: For some reason the KED has to be multiplied by (N(r)+1)/2.
-            #          I don't know how to derive that factor.
+            #          I don't know yet how to derive this factor.
             KED[s,...] *= (N+1.0)/2.0
 
         return KED
