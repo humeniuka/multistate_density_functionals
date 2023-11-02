@@ -268,10 +268,10 @@ class VonWeizsaeckerFunctional(KineticOperatorFunctional):
                 # There are no electrons with spin projection s
                 # that could contribute to the kinetic energy.
                 continue
-            # inverse of matrix density, D⁻¹ₖₗ(r) at each grid point
+            # (pseudo) inverse of matrix density, D⁻¹ₖₗ(r) at each grid point
             invD = numpy.zeros_like(D[s,...])
             for r in range(0, ncoord):
-                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r], rtol=1.0e-10)
+                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r], rtol=1.0e-12)
             #
             # KED_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
             #
@@ -338,7 +338,7 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             # (pseudo) inverse of matrix density, D⁻¹ₖₗ(r) at each grid point
             invD = numpy.zeros_like(D[s,...])
             for r in range(0, ncoord):
-                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r], rtol=1.0e-10)
+                invD[:,:,r] = scipy.linalg.pinv(D[s,:,:,r], rtol=1.0e-12)
             #
             # KED^{vW}_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
             #
