@@ -355,30 +355,38 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             # can be smaller than the number of electronic states `nstate`.
             N = numpy.einsum('iir->r', I)
 
-            # C_{i,j}(r) = 4/N(r) KED_vW(r)
-            C = 4.0/N * KED_vW
+            # The left hand side in the system of linear equations
+            #  T⁰ = M.T
+            # is the uncorrected von-Weizsaecker kinetic energy density.
+            T0 = KED_vW
 
             # For each grid point we have to solve the linear equation
-            #  (1 - K)·T = C   <=>  T = (1 - K)⁻¹.C
-            # where T_{i,j}(r) and C_{i,j}(r) are interpreted as vectors in ℂ^{Mstate x Mstate}
+            #  T = M.T⁰   <=>  T = M⁻¹.T⁰
+            # where T⁰_{i,j}(r) and T_{i,j}(r) are interpreted as vectors in ℝ^{Nstate x Nstate}
             dim2 = nstate*nstate
             # identity matrix
             delta = numpy.eye(nstate)
-            # K_{i,j;m,n} =  (-1/N(r)) *
-            #   [ I_{m,j} delta_{n,i} + D_{i,j} D⁻¹_{m,n} + I_{i,m} delta_{n,j} ]
-            K = numpy.zeros((dim2,dim2,ncoord))
-            # ij is a multiindex that runs over all combinations of (i,j) (rows of K)
+            # The matrix M relates T to T⁰ at each grid point
+            # and has dimensions ℝ^{Nstate^2 x Nstate^2}.
+            M = numpy.zeros((dim2,dim2,ncoord))
+
+            # ij is a multiindex that runs over all combinations of (i,j) (rows of M)
             ij = 0
             for i in range(0, nstate):
                 for j in range(0, nstate):
-                    # mn is a multiindex that runs over all combinations of (m,n) (columns of K)
-                    mn = 0
-                    for m in range(0, nstate):
-                        for n in range(0, nstate):
-                            K[ij,mn,:] = (-1.0/N) * (
-                                I[m,j,:]*delta[n,i] + D[s,i,j,:]*invD[m,n,:] + I[i,m,:]*delta[n,j])
+                    # kl is a multiindex that runs over all combinations of (k,l) (columns of M)
+                    kl = 0
+                    for k in range(0, nstate):
+                        for l in range(0, nstate):
+                            #   M_{i,j;k,l}(r) =
+                            #     1/4 * [ N(r) δₖᵢδₗⱼ + Iₖⱼ(r) δᵢₗ + Iₖᵢ(r) δₗⱼ + Dᵢⱼ(r) D⁻¹ₗₖ(r) ]
+                            M[ij,kl,:] = 1.0/4.0 * (
+                                N[:] * delta[k,i] * delta[l,j] +
+                                I[k,j,:] * delta[i,l] +
+                                I[k,i,:] * delta[l,j] +
+                                D[s,i,j,:] * invD[l,k,:])
                             # increase column counter
-                            mn += 1
+                            kl += 1
                     # increase row counter
                     ij += 1
 
@@ -386,14 +394,14 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             #
             #  KEDᵢⱼ(r) = 1/2 ∇ϕᵢ*(r) ∇ϕⱼ(r)
             #
-            # is obtained by solving (1 - K).T = C for each grid point
+            # is obtained by solving M(r).T(r) = T⁰(r) for each grid point r
             Id = numpy.eye(dim2)
             for r in range(0, ncoord):
-                Cvec = C[:,:,r].flatten()
+                T0vec = T0[:,:,r].flatten()
                 # The matrix might be singular, so we have to solve
                 # the equation in a least-square sense.
+                Tvec, _, _, _ = numpy.linalg.lstsq(M[:,:,r], T0vec, rcond=None)
 
-                Tvec, _, _, _ = numpy.linalg.lstsq(Id - K[:,:,r], Cvec, rcond=None)
                 # Reinterpret the vector Tvec as a square matrix.
                 KED[s,:,:,r] = numpy.reshape(Tvec, (nstate,nstate))
 

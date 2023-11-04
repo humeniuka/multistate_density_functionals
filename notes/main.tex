@@ -632,25 +632,28 @@ Using the definitions for $\m{T}^{0}$, $\mathcal{I}(\vec{r})$ and $\mathcal{N(\v
 T^0_{IJ}(\vec{r}) = \frac{1}{4} \sum_K T_{IK} \mathcal{I}_{KJ} + \frac{1}{4} D_{IJ} \sum_{K,L} D^{-1}_{KL} T_{LK} + \frac{1}{4} \mathcal{N} T_{IJ} + \frac{1}{4} \sum_K T_{JK} \mathcal{I}_{KI} \label{eqn:T0_lhs}
 \end{equation}
 
-This consistutes a system of linear equations for the exact kinetic energy matrix of the form, $\m{T} = \m{C} + \mathcal{K} \m{T}$, namely
+This consistutes a system of linear equations for the exact kinetic energy matrix of the form, $\m{T}_0 = \mathcal{M} \m{T}$, where $\m{T}(\vec{r})$ is interpreted as a vector in $\mathbb{R}^{N \times N}$, namely
 \begin{equation}
- T_{IJ}(\vec{r}) = \underbrace{\frac{4}{\mathcal{N(\vec{r})}} T^{0}_{IJ}(\vec{r})}_{C_{IJ}(\vec{r})} + \sum_{K,L} \underbrace{\left(-\frac{1}{\mathcal{N(\vec{r})}} \right) \left( \mathcal{I}_{KJ}(\vec{r}) \delta_{IL} + D_{IJ}(\vec{r}) D^{-1}_{LK}(\vec{r}) + \mathcal{I}_{KI}(\vec{r}) \delta_{LJ} \right)}_{\mathcal{K}_{IJ,KL}(\vec{r})} T_{KL}(\vec{r})
+  T_{IJ}^0(\vec{r}) = \sum_{K=1}^N \sum_{L=1}^N \underbrace{\frac{1}{4} \left(
+  \mathcal{N}(\vec{r}) \delta_{KI} \delta_{LJ} +
+  \mathcal{I}_{KJ}(\vec{r}) \delta_{IL} +
+  \mathcal{I}_{KI}(\vec{r}) \delta_{LJ} +
+  D_{IJ}(\vec{r}) D^{-1}_{LK}(\vec{r}) \right)}_{\mathcal{M}_{IJ,KL}} T_{KL}(\vec{r}).
 \end{equation}
 
-Comparing the resulting kinetic energy matrix, $\m{T} = (1 - \mathcal{K})^{-1} \m{C}$, with the exact values for a number of systems with one or more electrons, one finds that ${\m{T}}$ is too small by a factor of exactly $(\mathcal{N}+1)/2$.  The corrected kinetic energy matrix is then
+Comparing the resulting kinetic energy matrix, $\m{T} = \mathcal{M}^{-1} \m{T}^0$, with the exact values for a number of systems with one or more electrons, one finds that ${\m{T}}$ is too small by a factor of exactly $(\mathcal{N}+1)/2$.  The corrected kinetic energy  density matrix is then
 \begin{equation}
- \m{T} = \frac{\mathcal{N}+1}{2} (1 - \mathcal{K})^{-1} \m{C} \label{eqn:von_Weizasecker_many_electrons_corrected}
+ \m{T}(\vec{r}) = \frac{\mathcal{N}+1}{2} \mathcal{M}^{-1}(\vec{r}) \m{T}^0(\vec{r}) \label{eqn:von_Weizasecker_many_electrons_corrected}
 \end{equation}
 For a single electron, since $(\mathcal{N}+1)/2 = 1$ (remember $\mathcal{N}$ is not the number of electrons, but the local number of states), the additional factor does not change anything.
 Figure \ref{fig:vW_kinetic_energy_HMI_II} demonstrates that the corrected functional is now exact for 1-electron systems.
+Unfortunately the agreement gets worse for many-electron systems. The \textbf{vW1eII} KED around its maximum deviates more from the exact KED, as shown for the LiH example in Fig.~\ref{fig:vW_kinetic_energy_LiH_II_at_maximum}.
 
 \begin{figure}[h!]
 \includegraphics[width=0.8\textwidth]{figures/vW_kinetic_energy_HMI_II.png}
 \caption{\textbf{1-electron system.} Cut through the kinetic energy density (KED) of hydrogen molecular ion, H$_2^+$, along the bond axis for the lowest three electronic states $I,J=0,1,2$. Solid, thick lines represent the exact kinetic energy density computed as ${T_{IJ} = -\frac{1}{2} \int \nabla \phi_I(\vec{r}) \cdot \nabla \phi_J(\vec{r})}$ from a calculation with the 6-31g basis set using PySCF. Dashed, thin lines are the KEDs computed with approximate kinetic energy functionals according to Eqn.~\ref{eqn:von_Weizasecker_many_electrons} (\textbf{vW}) and Eqn.~\ref{eqn:von_Weizasecker_many_electrons_corrected} (\textbf{vW1eII}). Diagonal state KED's $(I,I)$ are shown on the left, transition KED's $(I,J)$ on the right.}
 \label{fig:vW_kinetic_energy_HMI_II}
 \end{figure}
-
-Unfortunately the agreement gets worse for many-electron systems. The \textbf{vW1eII} KED around its maximum deviates more from the exact KED, as shown for the LiH example in Fig.~\ref{fig:vW_kinetic_energy_LiH_II_at_maximum}.
 
 \begin{figure}[h!]
 \includegraphics[width=0.8\textwidth]{figures/vW_kinetic_energy_LiH_II_at_maximum.png}
