@@ -52,3 +52,7 @@ jobs:
         working-directory: tests
         run: |
           python test_GradientAugmentedBasis.py
+      - name: Test LinearAlgebra module
+        working-directory: tests
+        run: |
+          python test_LinearAlgebra.py
