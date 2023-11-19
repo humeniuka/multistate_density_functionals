@@ -5,6 +5,7 @@ import numpy
 import pyscf.dft
 import scipy.linalg
 
+from msdft.LinearAlgebra import eigensystem_derivatives
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
@@ -491,5 +492,146 @@ class ThomasFermiFunctional(KineticOperatorFunctional):
                 assert numpy.sum(abs(ked_r.imag)) < 1.0e-10
 
                 KED[s,:,:,r] = ked_r.real
+
+        return KED
+
+
+class EigendecompositionKineticFunctional(KineticOperatorFunctional):
+    """
+    This kinetic energy functional is based on an eigenvalue decomposition
+    of the matrix density D(r).
+
+    Let λₐ(r) and Uᵢₐ(r) be the eigenvalues and eigenvectors of the matrix
+    density D(r) at each position,
+
+      ∑ⱼ Dᵢⱼ(r) Uⱼₐ(r) = λₐ(r) Uᵢₐ(r),
+
+    then the kinetic energy matrix is approximated as
+
+      Tᵢⱼ = ∫ 1/2 ∑ₐ ∇(λₐ¹ᐟ² Uᵢₐ)·∇(λₐ¹ᐟ² Uⱼₐ)
+
+    """
+    @staticmethod
+    def eigen_decomposition(D, grad_D):
+        """
+        Compute the eigenvalues Λ(r) and eigenvectors U(r) of the
+        multistate matrix density D(r) and their derivatives ∇Λ(r)
+        and ΛU(r). The orthogonal matrix U(r) diagonalizes D(r) and
+        depends on the grid point r.
+
+           U(r)ᵀ.D(r).U(r) = Λ(r)
+
+        For each spin component, the matrix density is diagonalized separately.
+
+        :param D: (transition) matrix density D(r) at each grid point
+           D[s,i,j,:] is the (transition) density matrix between state i and j
+           for electrons with spin projection s=0 (up) or s=1 (down).
+        :type D: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+
+        :param grad_D: gradient of (transition) matrix density ∇D(r) at each
+           grid point. grad_D[s,i,j,xyz,:] is the first-order
+           derivative dD_ij(r)/dq (q=0(x), 1(y), 2(z)) for spin s.
+        :type grad_D: numpy.ndarray of shape (2,Mstate,Mstate,3,Ncoord)
+
+        Mstate is the number of electronic states
+        Ncoord is the number of grid points.
+
+        :return:
+            L, U, grad_L, grad_U
+        :rtype: tuple of numpy.ndarray
+           `L` has shape (2,Mstate,Ncoord), L[s,j,:] is the j-th eigenvalue of D(r) for spin s.
+           `U` has shape (2,Mstate,Mstate,Ncoord), U[s,i,j,:] is the i-th component of the j-th
+            eigenvector of D(r) for spin s.
+           `grad_L` has shape (2,Mstate,3,Ncoord), grad_L[s,j,xyz,:] is the derivative of the
+            j-th eigenvalue of D for spin s, dΛ_j(r)/dq (q=0(x), 1(y), 2(z))
+           `grad_U` has shape (2,Mstate,Mstate,3,Ncoord), grad_U[s,i,j,xyz,:] is the derivative
+            of the i-th component of the j-th eigenvector of D for spin s,
+            dU_ij(r)/dq (q=0(x), 1(y), 2(z)).
+        """
+        # number of spins, number of states, number of grid points
+        nspin, nstate, _, ncoord = D.shape
+        # Check dimensions of input arrays
+        assert D.shape == (2, nstate, nstate, ncoord)
+        assert grad_D.shape == (2, nstate, nstate, 3, ncoord)
+
+        # Λ(r), reserve space for eigenvalues of D
+        L = numpy.zeros((nspin, nstate, ncoord))
+        # U(r), reserve space for eigenvectors of D(r)
+        U = numpy.zeros((nspin, nstate, nstate, ncoord))
+
+        # ∇Λ(r), reserve space for gradients of eigenvalues of D(r)
+        grad_L = numpy.zeros((nspin, nstate, 3, ncoord))
+        # ∇U(r), reserver space for gradients of eigenvectors of D(r)
+        grad_U = numpy.zeros((nspin, nstate, nstate, 3, ncoord))
+
+        # Diagonalize D(r) and compute gradients for each spin and grid point separately.
+        for spin in range(0, nspin):
+            for r in range(0, ncoord):
+                L[spin,:,r], U[spin,:,:,r], grad_L[spin,:,:,r], grad_U[spin,:,:,:,r] = \
+                    eigensystem_derivatives(D[spin,:,:,r], grad_D[spin,:,:,:,r])
+
+        return L, U, grad_L, grad_U
+
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           KED[s,i,j,r] is the kinetic energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(coords)
+
+        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
+        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
+        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(D, grad_D)
+
+        # reserve space for kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((nspin,nstate,nstate,ncoord))
+
+        # a enumerates non-zero eigenvalues
+        #
+        # KEDᵢⱼ(r) = ∑ₐ { 1/8 (∇λₐ·∇λₐ)/λₐ Uᵢₐ Uⱼₐ + 1/2 λₐ ∇Uᵢₐ·∇Uⱼₐ
+        #                 + 1/4 Uᵢₐ (∇λₐ·∇Uⱼₐ) + 1/4 Uⱼₐ (∇λₐ·∇Uᵢₐ) }
+
+        # compute (∇λ·∇λ)
+        grad_L_product = numpy.einsum('sadr,sadr->sar', grad_L, grad_L)
+        # compute (∇λ¹ᐟ²·∇λ¹ᐟ²) = 1/4 (∇λ·∇λ)/λ
+        grad_sqrtL_product = numpy.zeros_like(L)
+        # Avoid dividing by zero for λ=0
+        # Non-zero eigenvalues, for which division is not problematic.
+        good = abs(L) > 0.0
+        grad_sqrtL_product[good] = 1.0/4.0 * grad_L_product[good] / L[good]
+
+        # ∑ₐ 1/2 (∇λₐ¹ᐟ²·∇λₐ¹ᐟ²) Uᵢₐ Uⱼₐ
+        KED += 1.0/2.0 * numpy.einsum('sar,siar,sjar->sijr', grad_sqrtL_product, U, U)
+        # ∑ₐ 1/2 λₐ ∇Uᵢₐ·∇Uⱼₐ
+        KED += 1.0/2.0 * numpy.einsum('sar,saidr,sajdr->sijr', L, grad_U, grad_U)
+        # ∑ₐ 1/4 Uᵢₐ (∇λₐ·∇Uⱼₐ)
+        KED += 1.0/4.0 * numpy.einsum('siar,sadr,sjadr->sijr', U, grad_L, grad_U)
+        # ∑ₐ 1/4 Uⱼₐ (∇λₐ·∇Uᵢₐ)
+        KED += 1.0/4.0 * numpy.einsum('sjar,sadr,siadr->sijr', U, grad_L, grad_U)
 
         return KED
