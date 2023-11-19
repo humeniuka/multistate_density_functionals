@@ -632,7 +632,7 @@ Using the definitions for $\m{T}^{0}$, $\mathcal{I}(\vec{r})$ and $\mathcal{N(\v
 T^0_{IJ}(\vec{r}) = \frac{1}{4} \sum_K T_{IK} \mathcal{I}_{KJ} + \frac{1}{4} D_{IJ} \sum_{K,L} D^{-1}_{KL} T_{LK} + \frac{1}{4} \mathcal{N} T_{IJ} + \frac{1}{4} \sum_K T_{JK} \mathcal{I}_{KI} \label{eqn:T0_lhs}
 \end{equation}
 
-This consistutes a system of linear equations for the exact kinetic energy matrix of the form, $\m{T}_0 = \mathcal{M} \m{T}$, where $\m{T}(\vec{r})$ is interpreted as a vector in $\mathbb{R}^{N \times N}$, namely
+This consistutes a system of linear equations for the exact kinetic energy matrix of the form, $\m{T}_0 = \mathcal{M} \m{T}$, where $\m{T}(\vec{r})$ is interpreted as a vector in $\mathbb{R}^{N^2}$, namely
 \begin{equation}
   T_{IJ}^0(\vec{r}) = \sum_{K=1}^N \sum_{L=1}^N \underbrace{\frac{1}{4} \left(
   \mathcal{N}(\vec{r}) \delta_{KI} \delta_{LJ} +
@@ -640,12 +640,16 @@ This consistutes a system of linear equations for the exact kinetic energy matri
   \mathcal{I}_{KI}(\vec{r}) \delta_{LJ} +
   D_{IJ}(\vec{r}) D^{-1}_{LK}(\vec{r}) \right)}_{\mathcal{M}_{IJ,KL}} T_{KL}(\vec{r}).
 \end{equation}
+While $\m{D}$, its pseudoinverse $\m{D}^{-1}$, $\mathcal{I}$ and $\m{T}^{0}$ are all \emph{symmetric} matrices in $\mathbb{R}^{N \times N}$, which are interpreted as vectors of length $N^2$,
+$\mathcal{M}$ is a \emph{non-symmetric} matrix in $\mathbb{R}^{N^2 \times N^2}$ (i.e. $\mathcal{M}_{IJ,KL} \neq \mathcal{M}_{KL,IJ}$).
 
+\textcolor{red}{
 Comparing the resulting kinetic energy matrix, $\m{T} = \mathcal{M}^{-1} \m{T}^0$, with the exact values for a number of systems with one or more electrons, one finds that ${\m{T}}$ is too small by a factor of exactly $(\mathcal{N}+1)/2$.  The corrected kinetic energy  density matrix is then
 \begin{equation}
  \m{T}(\vec{r}) = \frac{\mathcal{N}+1}{2} \mathcal{M}^{-1}(\vec{r}) \m{T}^0(\vec{r}) \label{eqn:von_Weizasecker_many_electrons_corrected}
 \end{equation}
 For a single electron, since $(\mathcal{N}+1)/2 = 1$ (remember $\mathcal{N}$ is not the number of electrons, but the local number of states), the additional factor does not change anything.
+}
 Figure \ref{fig:vW_kinetic_energy_HMI_II} demonstrates that the corrected functional is now exact for 1-electron systems.
 Unfortunately the agreement gets worse for many-electron systems. The \textbf{vW1eII} KED around its maximum deviates more from the exact KED, as shown for the LiH example in Fig.~\ref{fig:vW_kinetic_energy_LiH_II_at_maximum}.
 
