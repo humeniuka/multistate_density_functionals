@@ -134,8 +134,10 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
 
     # Uᵀ.D'.U
     UtD1U = numpy.einsum('ki,klp,lj->ijp', U, D_deriv1, U)
-    # Uᵀ.D''.U
-    UtD2U = numpy.einsum('ki,klp,lj->ijp', U, D_deriv2, U)
+
+    if D_deriv2 is not None:
+        # Uᵀ.D''.U
+        UtD2U = numpy.einsum('ki,klp,lj->ijp', U, D_deriv2, U)
 
     # Compute Cᵢⱼ = 1/(λᵢ-λⱼ) ∑ₖ,ₗ Uₖᵢ D'ₖₗ Uₗⱼ   for i ≠ j and λᵢ ≠ λⱼ.
     # Since eigenvectors are normalized, C is an antisymmetric matrix,
