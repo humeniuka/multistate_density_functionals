@@ -628,7 +628,7 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         # ∑ₐ 1/2 (∇λₐ¹ᐟ²·∇λₐ¹ᐟ²) Uᵢₐ Uⱼₐ
         KED += 1.0/2.0 * numpy.einsum('sar,siar,sjar->sijr', grad_sqrtL_product, U, U)
         # ∑ₐ 1/2 λₐ ∇Uᵢₐ·∇Uⱼₐ
-        KED += 1.0/2.0 * numpy.einsum('sar,saidr,sajdr->sijr', L, grad_U, grad_U)
+        KED += 1.0/2.0 * numpy.einsum('sar,siadr,sjadr->sijr', L, grad_U, grad_U)
         # ∑ₐ 1/4 Uᵢₐ (∇λₐ·∇Uⱼₐ)
         KED += 1.0/4.0 * numpy.einsum('siar,sadr,sjadr->sijr', U, grad_L, grad_U)
         # ∑ₐ 1/4 Uⱼₐ (∇λₐ·∇Uᵢₐ)
