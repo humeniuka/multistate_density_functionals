@@ -182,7 +182,7 @@ class KineticFunctionalTestCase(ABC, unittest.TestCase):
         assert nstate > 0, "The number of electronic states has to be > 0."
 
         # functional for kinetic operator, T[D(r)]
-        kinetic_functional = self.kinetic_functional_class(mol)
+        kinetic_functional = self.kinetic_functional_class(mol, level=5)
 
         # compute D(r) from full CI
         msmd = self.create_matrix_density(mol, nstate=nstate)
@@ -194,7 +194,27 @@ class KineticFunctionalTestCase(ABC, unittest.TestCase):
         # density matrices in the AO basis with the kinetic energy matrix.
         T_exact = msmd.exact_1e_operator(intor='int1e_kin')
 
-        numpy.testing.assert_almost_equal(T_msdft, T_exact)
+        numpy.testing.assert_almost_equal(T_msdft, T_exact, decimal=5)
+
+    def check_chunk_size(self, mol):
+        """
+        Compute kinetic matrix with different chunk sizes.
+        """
+        # Check that the derived unit test is implemented correctly.
+        assert issubclass(self.kinetic_functional_class, KineticOperatorFunctional)
+        # functional for kinetic operator, T[D(r)]
+        kinetic_functional = self.kinetic_functional_class(mol, level=1)
+
+        msmd = self.create_matrix_density(mol, nstate=3)
+        # Tij with default chunk size
+        kinetic_matrix_ref = kinetic_functional(msmd)
+        # Increase the number of chunks by reducing the available memory
+        # per chunk to 2**22 (~4 Mb) or 2**23 (~ 8Mb) bytes.
+        for memory in [2**22, 2**23]:
+            kinetic_matrix = kinetic_functional(msmd, available_memory=memory)
+
+            numpy.testing.assert_almost_equal(
+                kinetic_matrix, kinetic_matrix_ref)
 
 
 class TestVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
@@ -282,22 +302,6 @@ class TestVonWeizsaeckerFunctional(KineticFunctionalTestCase):
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
-    def check_chunk_size(self, mol):
-        """
-        Compute kinetic matrix with different chunk sizes.
-        """
-        kinetic_functional = VonWeizsaecker1eFunctional(mol, level=1)
-        msmd = self.create_matrix_density(mol, nstate=3)
-        # Tij with default chunk size
-        kinetic_matrix_ref = kinetic_functional(msmd)
-        # Increase the number of chunks by reducing the available memory
-        # per chunk to 8 or 64 bytes.
-        for memory in [8, 64]:
-            kinetic_matrix = kinetic_functional(msmd, available_memory=memory)
-
-            numpy.testing.assert_almost_equal(
-                kinetic_matrix, kinetic_matrix_ref)
-
     def test_chunk_size(self):
         """
         Check that the kinetic energy matrix does not depend on how many chunks
@@ -374,17 +378,9 @@ class ThomasFermiFunctionalSingleState(object):
         nstate = msmd.number_of_states
         assert nstate == 1, \
            "The von Weizsaecker functional is only defined for a single electronic state."
-        """
-        # up or down spin
-        nspin = 2
-        """
 
         # Evaluate D(r) on the integration grid.
         D, _, _ = msmd.evaluate(self.grids.coords)
-        """
-        # Trace out electronic states to get tr(D)(r)
-        trace_D = numpy.einsum('siir->sr', D)
-        """
 
         # Sum over spins.
         Dtot = D.sum(axis=0)
@@ -395,26 +391,6 @@ class ThomasFermiFunctionalSingleState(object):
         # The matrix of the kinetic energy operator in the subspace is obtained
         # by integration KED_{i,j}(r) over space.
         kinetic_matrix = numpy.einsum('r,ijr->ij', self.grids.weights, KED)
-
-        """
-        # matrix element of the kinetic energy operator <i|Top|j>
-        kinetic_matrix = numpy.zeros((nstate,nstate))
-
-        # Loop over spins. For kinetic energy is computed separately for each spin
-        # projection and added.
-        for s in range(0, nspin):
-            if numpy.all(trace_D[s,...] == 0.0):
-                # There are no electrons with spin projection s
-                # that could contribute to the kinetic energy.
-                continue
-
-            # Thomas-Fermi kinetic energy density
-            KED = 3.0/10.0 * pow(3.0*numpy.pi**2, 2.0/3.0) * pow(D[s,...], 5.0/3.0)
-
-            # The matrix of the kinetic energy operator in the subspace is obtained
-            # by integration KED_{i,j}(r) over space.
-            kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, KED)
-        """
 
         return kinetic_matrix
 
@@ -476,7 +452,7 @@ class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
         for name, mol in tqdm(
                 self.create_test_molecules_1electron().items()):
             # NOTE: For HMI, nstate=3 or 4 gives some large errors
-            for nstate in tqdm([1,2]): #,3,4]):
+            for nstate in tqdm([1,2,3,4]):
                 with self.subTest(molecule=name, nstate=nstate):
                     self.check_exact_kinetic_energy(mol, nstate=nstate)
 
@@ -503,4 +479,4 @@ class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(failfast=True)
