@@ -9,6 +9,7 @@ from abc import ABC
 
 import numpy
 import scipy.linalg
+import scipy.special
 
 from pyscf.dft import numint
 
@@ -189,6 +190,109 @@ class MultistateMatrixDensity(ABC):
                         )
 
         return D, grad_D, lapl_D
+
+    def evaluate_derivatives(self, coords, deriv=2):
+        """
+        evaluate the derivatives of the multistate matrix density D(r) on a grid.
+
+        The partial derivatives of order n=0,...,`deriv` are calculated along
+        the x-, y- and z-axes:
+
+          ∂ⁿ/∂xⁿ D(x,y,z), ∂ⁿ/∂yⁿ D(x,y,z) and ∂ⁿ/∂zⁿ D(x,y,z)
+
+        Mixed derivatives such as ∂²/∂x∂y D(x,y,z) are left out.
+
+        Mstate is the number of electronic states
+        Ncoord is the number of grid points.
+
+        :param coords: The Cartesian coordinates of the grid r
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param deriv: maximum order of derivatives
+        :type deriv: int >= 0
+
+        :return: D_deriv
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,3,deriv+1,Ncoord)
+          D_deriv[s,i,j,:,n,c] are the order n partial derivatives of the the (i,j)
+          element of the (transition) matrix density Dˢᵢⱼ(x,y,z) with spin projection s (0=up, 1=down),
+          [∂ⁿ/∂xⁿ Dˢᵢⱼ, ∂ⁿ/∂yⁿ Dˢᵢⱼ, ∂ⁿ/∂zⁿ Dˢᵢⱼ], evaluated at the grid point (x,y,z) = coords[c,:].
+
+          Note that D_deriv[s,i,j,:,0,c] (the 0-order derivatives) is just the matrix density Dˢᵢⱼ(r)
+          repeated for x, y and z.
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states
+        nstate = self.number_of_states
+        # number of spins (up and down)
+        nspin = 2
+
+        # Evaluate atomic orbitals 𝛘ₐ(r) on the grid.
+        # The orbital values and their derivatives are returned in a single array.
+        ao_derivs = numint.eval_ao(self.mol, coords, deriv=deriv)
+        # The partial derivatives are ordered as follows:
+        #
+        # deriv=1:   ['x', 'y', 'z']
+        # deriv=2:   ['xx', 'xy', 'xz', 'yy', 'yz', 'zz']
+        # deriv=3:   ['xxx', 'xxy', 'xxz', 'xyy', 'xyz', 'xzz', 'yyy', 'yyz', 'yzz', 'zzz']
+        #
+        # The ordering for the general case deriv=n can be found with
+        # >>> list(map(lambda s: ''.join(s), list(itertools.combinations_with_replacement('xyz', n))))
+        #
+
+        # We are only interested in the partial derivatives along the same axis,
+        # i.e. x, xx, xxx, ...
+        #      y, yy, yyy, ...
+        #      z, zz, zzz, ...
+        # `index_into_derivatives[k,:]` gives the indeces at with the derivatives
+        # ∂ᵏ/∂xᵏ, ∂ᵏ/∂yᵏ and ∂ᵏ/∂zᵏ can be found in the array of partial derivatives returned by pyscf.
+        index_into_derivatives = numpy.zeros((deriv+1, 3), dtype=int)
+        offset = 0
+        for k in range(0, deriv+1):
+            # The derivatives of degree k contribute k*(k+1)/2 components in `ao_derivs`
+            offset += (k*(k+1))//2
+            # x-derivatives ∂ᵏ/∂xᵏ 𝛘 are stored at the index offset+0 of `ao_derivs`
+            index_into_derivatives[k, 0] = offset + 0
+            # y-derivatives ∂ᵏ/∂yᵏ 𝛘 are stored at the index offset+k*(k+1)/2 of `ao_derivs`
+            index_into_derivatives[k, 1] = offset + (k*(k+1))//2
+            # z-derivatives ∂ᵏ/∂zᵏ 𝛘 are stored at the index offset+(k+1)*(k+2)/2-1 of `ao_derivs`
+            index_into_derivatives[k, 2] = offset + ((k+1)*(k+2))//2-1
+
+        # Allocate memory for the derivatives
+        D_derivs = numpy.zeros((nspin,nstate,nstate,3,deriv+1,ncoord))
+
+        # Evaluate the derivatives of the matrix density Dˢᵢⱼ(x,y,z) on the grid.
+        # Loop over spins
+        for spin in range(0, nspin):
+            # Loop over electronic states (bra)
+            for i in range(0, nstate):
+                # Loop over electronic state (ket)
+                for j in range(0, nstate):
+                    # (transition) density Pⁱʲ_{a,b} in AO basis.
+                    dao_ij = self.density_matrices[spin,i,j,:,:]
+                    # Since Dᵢⱼ(r) = ∑_{a,b} Pⁱʲ_{a,b} 𝛘a(r) 𝛘b(r),
+                    # the derivatives of D(r) are obtained by applying the product rule repeatedly,
+                    # which gives rise to Leibniz' rule:
+                    #   ∂ⁿ/∂xⁿ Dᵢⱼ = ∑_{k=0}^n binom(n,k)
+                    #                    ∑_{a,b} Pⁱʲ_{a,b} [∂ⁿ⁻ᵏ/∂xⁿ⁻ᵏ 𝛘a] [∂ᵏ/∂xᵏ 𝛘b]
+                    for n in range(0, deriv+1):
+                        # ∑_{k=0}^n
+                        for k in range(0, n+1):
+                            # Loop over x,y and z axis.
+                            for xyz in [0,1,2]:
+                                D_derivs[spin,i,j,xyz,n,:] += (
+                                    scipy.special.binom(n,k) *
+                                    # ∑_{a,b}
+                                    numpy.einsum('ab,ra,rb->r',
+                                        # Pⁱʲ_{a,b}
+                                        dao_ij,
+                                        # ∂ⁿ⁻ᵏ/∂xⁿ⁻ᵏ 𝛘a(r)
+                                        ao_derivs[index_into_derivatives[n-k, xyz],:,:],
+                                        # ∂ᵏ/∂xᵏ 𝛘b(r)
+                                        ao_derivs[index_into_derivatives[k,   xyz],:,:])
+                                    )
+
+        return D_derivs
 
     def kinetic_energy_density(
             self,

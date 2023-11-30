@@ -87,7 +87,7 @@ class BaseTestMultistateMatrixDensity(ABC):
             with self.subTest(molecule=name):
                 self.check_integrals(mol)
 
-    def check_derivatives(self, mol):
+    def check_gradient_and_laplacian(self, mol):
         """
         compare analytical gradients ∇D(r) and ∇tr(D)(r) and the Laplacian ∇²D(r)
         with numerical ones from finite differences
@@ -152,6 +152,78 @@ class BaseTestMultistateMatrixDensity(ABC):
             self.assertLess(relative_error, 1.0e-3)
             numpy.testing.assert_almost_equal(lapl_D, lapl_D_numerical, decimal=2)
 
+    def test_gradient_and_laplacian(self):
+        """ Compare numerical and analytical gradient ∇D(r) and Laplacian ∇²D(r) for all test molecules """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_gradient_and_laplacian(mol)
+
+    def check_derivatives(self, mol, deriv=2):
+        """
+        compare analytical derivatives ∂ⁿ/∂xⁿ D(x,y,z), ∂ⁿ/∂yⁿ D(x,y,z) and ∂ⁿ/∂zⁿ D(x,y,z)
+        for n=1,2,..,deriv with numerical ones from finite differences
+
+        :param mol: test molecule that provides the matrix density
+        :type mol: pyscf.gto.Mole
+
+        :param deriv: maximum order of derivatives
+        :type deriv: int >= 0
+        """
+        # Example density.
+        msmd = self.create_matrix_density(mol)
+        # Derivatives are checked at random coordinates.
+        ncoord = 100
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run.
+        random_number_generator = numpy.random.default_rng(seed=1234)
+        coords = 5.0*(random_number_generator.random((ncoord,3)) - 0.5)
+
+        # Analytical derivatives
+        D_derivs = msmd.evaluate_derivatives(coords, deriv=deriv)
+
+        # Numerical derivatives of D
+        D_derivs_numerical = numpy.zeros_like(D_derivs)
+
+        # The numerical derivatives of order n are computed from the finite
+        # difference quotient of the derivatives of order n-1,
+        #   ∂ⁿ/∂xⁿ D(x) = [∂ⁿ⁻¹/∂xⁿ⁻¹ D(x+h) - ∂ⁿ⁻¹/∂xⁿ⁻¹ D(x-h)]/(2h)
+
+        # Step size for finite difference quotient.
+        h = 0.001
+        for xyz in [0,1,2]:
+            # Unit vector in the x,y or z-direction.
+            unit_vector = numpy.zeros(3)
+            unit_vector[xyz] = 1.0
+
+            # ∂ⁿ/∂xⁿ D(x+h)
+            D_derivs_plus = msmd.evaluate_derivatives(coords + h*unit_vector, deriv=deriv)
+            # ∂ⁿ/∂xⁿ D(x-h)
+            D_derivs_minus = msmd.evaluate_derivatives(coords - h*unit_vector, deriv=deriv)
+
+            # finite difference quotients
+            for n in range(1, deriv+1):
+                # ∂ⁿ/∂xⁿ D(x) = [∂ⁿ⁻¹/∂xⁿ⁻¹ D(x+h) - ∂ⁿ⁻¹/∂xⁿ⁻¹ D(x-h)]/(2h)
+                D_derivs_numerical[:,:,:,xyz,n,:] = (
+                    D_derivs_plus[:,:,:,xyz,n-1,:] - D_derivs_minus[:,:,:,xyz,n-1,:])/(2*h)
+
+        # Compare the matrix density.
+        D, _, _ = msmd.evaluate(coords)
+        for xyz in [0,1,2]:
+            # The 0-th derivatives ∂⁰/∂x⁰ D(x), ∂⁰/∂y⁰ D(x), ∂⁰/∂z⁰ D(x) are just equal to D(r).
+            numpy.testing.assert_almost_equal(D, D_derivs[:,:,:,xyz,0,:])
+
+        # Compare analytical and numerical derivatives of order n=1,...,deriv
+        for n in range(1, deriv+1):
+            for xyz in [0,1,2]:
+                with self.subTest(f"derivative ∂ⁿ/∂xyzⁿ D(x) of order n={n} xyz={xyz} (0-x, 1-y, 2-z)"):
+                    numpy.testing.assert_almost_equal(
+                        D_derivs_numerical[:,:,:,:,n,:], D_derivs[:,:,:,:,n,:], decimal=4)
+                    # relative error |∂ⁿ/∂xⁿ D(x) - ∂ⁿ/∂xⁿ D(x)(numerical)|/|∂ⁿ/∂xⁿ D(x)(numerical)|
+                    relative_error = (
+                        la.norm(D_derivs_numerical[:,:,:,:,n,:] - D_derivs[:,:,:,:,n,:]) /
+                        la.norm(D_derivs_numerical[:,:,:,:,n,:])
+                    )
+                    self.assertLess(relative_error, 1.0e-4)
 
     def test_derivatives(self):
         """ Compare numerical and analytical derivatives of D(r) for all test molecules """
