@@ -512,7 +512,10 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
 
     """
     @staticmethod
-    def eigen_decomposition(D, grad_D):
+    def eigen_decomposition(
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray,
+            epsilon=1.0e-12):
         """
         Compute the eigenvalues Λ(r) and eigenvectors U(r) of the
         multistate matrix density D(r) and their derivatives ∇Λ(r)
@@ -523,15 +526,17 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
 
         For each spin component, the matrix density is diagonalized separately.
 
-        :param D: (transition) matrix density D(r) at each grid point
-           D[s,i,j,:] is the (transition) density matrix between state i and j
-           for electrons with spin projection s=0 (up) or s=1 (down).
-        :type D: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+        :param msmd: The multistate matrix density in the electronic subspace
+           which the eigenvalues, eigenvectors and their derivatives should be
+           determined for.
+        :type msmd: :class:`~.MultistateMatrixDensity`
 
-        :param grad_D: gradient of (transition) matrix density ∇D(r) at each
-           grid point. grad_D[s,i,j,xyz,:] is the first-order
-           derivative dD_ij(r)/dq (q=0(x), 1(y), 2(z)) for spin s.
-        :type grad_D: numpy.ndarray of shape (2,Mstate,Mstate,3,Ncoord)
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param epsilon: Threshold for treating eigenvalues as zero.
+        :type epsilon: float
 
         Mstate is the number of electronic states
         Ncoord is the number of grid points.
@@ -548,11 +553,19 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
             of the i-th component of the j-th eigenvector of D for spin s,
             dU_ij(r)/dq (q=0(x), 1(y), 2(z)).
         """
-        # number of spins, number of states, number of grid points
-        nspin, nstate, _, ncoord = D.shape
-        # Check dimensions of input arrays
-        assert D.shape == (2, nstate, nstate, ncoord)
-        assert grad_D.shape == (2, nstate, nstate, 3, ncoord)
+        # Evaluate D(r) and its 1st and 2nd order derivatives on the grid.
+        D_derivs = msmd.evaluate_derivatives(coords, deriv=2)
+
+        # The shape of D_derivs is (2,Mstate,Mstate,3,deriv+1,Ncoord).
+        # D(x,y,z)
+        D = D_derivs[:,:,:,0,0,:]
+        # gradient ∇D(r) = [∂/∂x D, ∂/∂y D, ∂/∂z D]
+        D_deriv1 = D_derivs[:,:,:,:,1,:]
+        # second derivatives [∂²/∂x², ∂²/∂y² D, ∂²/∂z²]
+        D_deriv2 = D_derivs[:,:,:,:,2,:]
+
+        # number of spins, number of states, ,..., number of grid points
+        nspin, nstate, _, _, _, ncoord = D_derivs.shape
 
         # Λ(r), reserve space for eigenvalues of D
         L = numpy.zeros((nspin, nstate, ncoord))
@@ -568,14 +581,23 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         for spin in range(0, nspin):
             for r in range(0, ncoord):
                 L[spin,:,r], U[spin,:,:,r], grad_L[spin,:,:,r], grad_U[spin,:,:,:,r] = \
-                    eigensystem_derivatives(D[spin,:,:,r], grad_D[spin,:,:,:,r])
+                    eigensystem_derivatives(
+                        # D
+                        D[spin,:,:,r],
+                        # D'
+                        D_deriv1[spin,:,:,:,r],
+                        # D'' is needed if there are repeated eigenvalues.
+                        D_deriv2[spin,:,:,:,r],
+                        # Eigenvalues |λₛ-λₜ| <= `epsilon` are treated as identical.
+                        epsilon=epsilon)
 
         return L, U, grad_L, grad_U
 
     def kinetic_energy_density(
             self,
             msmd : MultistateMatrixDensity,
-            coords : numpy.ndarray):
+            coords : numpy.ndarray,
+            epsilon=1.0e-12):
         """
         compute the kinetic energy density
 
@@ -589,24 +611,27 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
            density is calculated.
         :type coords: numpy.ndarray of shape (Ncoord,3)
 
+        :param epsilon: Threshold for neglecting singular eigenvalues.
+        :type epsilon: float
+
         :return: KEDᵢⱼ(r), kinetic energy density
         :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
            KED[s,i,j,r] is the kinetic energy density with spin s,
            between the electronic states i and j at position coords[r,:].
         """
+        # Eigenvalues |λₐ| <= epsilon are treated as zero.
+        epsilon = 1.0e-12
+
+        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
+        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
+        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(msmd, coords, epsilon=epsilon)
+
         # number of grid points
         ncoord = coords.shape[0]
         # number of electronic states in the subspace
         nstate = msmd.number_of_states
         # up or down spin
         nspin = 2
-
-        # Evaluate D(r) and ∇D(r) on the integration grid.
-        D, grad_D, _ = msmd.evaluate(coords)
-
-        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
-        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
-        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(D, grad_D)
 
         # reserve space for kinetic energy density KEDᵢⱼ(r)
         KED = numpy.zeros((nspin,nstate,nstate,ncoord))
@@ -622,7 +647,7 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         grad_sqrtL_product = numpy.zeros_like(L)
         # Avoid dividing by zero for λ=0
         # Non-zero eigenvalues, for which division is not problematic.
-        good = abs(L) > 0.0
+        good = abs(L) > epsilon
         grad_sqrtL_product[good] = 1.0/4.0 * grad_L_product[good] / L[good]
 
         # ∑ₐ 1/2 (∇λₐ¹ᐟ²·∇λₐ¹ᐟ²) Uᵢₐ Uⱼₐ

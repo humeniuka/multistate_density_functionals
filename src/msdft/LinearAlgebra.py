@@ -167,6 +167,15 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
                 # Adjacent eigenvalues in the sorted array have to differ by more than EPSILON
                 difference = eigenvalue_deriv1_sorted[1:] - eigenvalue_deriv1_sorted[:-1]
                 if not numpy.all(difference > epsilon):
+                    # If the repeated eigenvalues belonging to the repeated
+                    # eigenvalue derivatives are zero, we don't care about the
+                    # correct eigenvector derivatives, since zero eigenvalues do
+                    # not contribute to the kinetic energy density.
+                    if numpy.all(abs(L[group]) <= epsilon):
+                        # Zero eigenvalues can be ignored.
+                        continue
+                    # Repeated eigenvalues and eigenvalue derivatives cannot be treated correctly
+                    # by this implementation.
                     raise LinearAlgebraException(
                         "Derivatives of repeated eigenvalues have to be distinct.")
 
