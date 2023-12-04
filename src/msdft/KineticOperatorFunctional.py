@@ -658,3 +658,106 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         KED += 1.0/4.0 * numpy.einsum('sjar,sadr,siadr->sijr', U, grad_L, grad_U)
 
         return KED
+
+class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
+    """
+    This kinetic energy functional is based on an eigenvalue decomposition
+    of the matrix density D(r).
+
+    Let λₐ(r) and Uᵢₐ(r) be the eigenvalues and eigenvectors of the matrix
+    density D(r) at each position,
+
+      ∑ⱼ Dᵢⱼ(r) Uⱼₐ(r) = λₐ(r) Uᵢₐ(r),
+
+    then the kinetic energy matrix is approximated as
+
+      T[D]ᵢⱼ = ∑ₐ ∫ 1/8 ∑ₖ∑ₗ ∇Dᵃᵢₖ Dᵃ⁻¹ₖₗ ∇Dᵃₗⱼ
+
+    where Dᵃᵢⱼ = λₐ(r) Uᵢₐ(r) Uⱼₐ(r) is the part of the density matrix
+    belonging to eigenvalue a. Effectively density matrix is projected
+    onto its eigenvectors and the von Weizsaecker functional is applied
+    to each part.
+    """
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray,
+            epsilon=1.0e-12):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param epsilon: Threshold for neglecting singular eigenvalues.
+           Eigenvalues |λₐ| <= epsilon are treated as zero.
+        :type epsilon: float
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           KED[s,i,j,r] is the kinetic energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
+        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
+        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(msmd, coords, epsilon=epsilon)
+
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # reserve space for kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((nspin,nstate,nstate,ncoord))
+
+        # Non-zero eigenvalues, for which division is not problematic.
+        good = abs(L) > epsilon
+
+        # Eigendecomposition of density matrix
+        # Dᵃᵢⱼ = λₐ(r) Uᵢₐ(r) Uⱼₐ(r)
+        D_eigen = numpy.einsum('sar,siar,sjar->asijr', L, U, U)
+        # its gradient
+        # ∇Dᵃᵢⱼ = ∇λₐ(r) Uᵢₐ(r) Uⱼₐ(r) + λₐ(r) ∇Uᵢₐ(r) Uⱼₐ(r) + λₐ(r) Uᵢₐ(r) ∇Uⱼₐ(r)
+        grad_D_eigen = (
+            numpy.einsum('sadr,siar,sjar->asijdr', grad_L, U, U) +
+            numpy.einsum('sar,siadr,sjar->asijdr', L, grad_U, U) +
+            numpy.einsum('sar,siar,sjadr->asijdr', L, U, grad_U)
+        )
+
+        # kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((nspin,nstate,nstate,ncoord))
+
+        # Trace over electronic states to get tr(Dᵃ)(r)
+        # `trace_D` has shape (nstate,2,Ncoord,), trace_D[eigval,spin,:] = sum_i D[eigval,spin,i,i,:]
+        trace_D_eigen = numpy.einsum('asiir->asr', D_eigen)
+
+        # Loop over eigenvalues
+        for a in range(0, nstate):
+            # Loop over spins. The kinetic energy is computed separately for each spin
+            # projection and added.
+            for s in range(0, nspin):
+                if numpy.all(trace_D_eigen[a,s,...] == 0.0):
+                    # There are no electrons with spin projection s
+                    # that could contribute to the kinetic energy.
+                    continue
+                # (pseudo) inverse of matrix density, Dᵃ⁻¹ₖₗ(r) at each grid point
+                invD_eigen = numpy.zeros_like(D_eigen[a,s,...])
+                for r in range(0, ncoord):
+                    invD_eigen[:,:,r] = scipy.linalg.pinv(D_eigen[a,s,:,:,r], rtol=1.0e-12)
+                #
+                # KED_{i,j}(r) += 1/8 ∑ₖ∑ₗ ∇Dᵃ_{i,k} Dᵃ⁻¹_{k,l} ·∇Dᵃ_{l,j}
+                #
+                KED[s,...] += 1.0/8.0 * numpy.einsum(
+                    'ikdr,klr,ljdr->ijr',
+                    grad_D_eigen[a,s,...], invD_eigen, grad_D_eigen[a,s,...])
+
+        return KED
