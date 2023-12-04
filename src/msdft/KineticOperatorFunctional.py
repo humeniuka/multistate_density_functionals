@@ -612,6 +612,7 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         :type coords: numpy.ndarray of shape (Ncoord,3)
 
         :param epsilon: Threshold for neglecting singular eigenvalues.
+           Eigenvalues |λₐ| <= epsilon are treated as zero.
         :type epsilon: float
 
         :return: KEDᵢⱼ(r), kinetic energy density
@@ -619,9 +620,6 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
            KED[s,i,j,r] is the kinetic energy density with spin s,
            between the electronic states i and j at position coords[r,:].
         """
-        # Eigenvalues |λₐ| <= epsilon are treated as zero.
-        epsilon = 1.0e-12
-
         # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
         # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
         L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(msmd, coords, epsilon=epsilon)
