@@ -719,9 +719,6 @@ class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
         # reserve space for kinetic energy density KEDᵢⱼ(r)
         KED = numpy.zeros((nspin,nstate,nstate,ncoord))
 
-        # Non-zero eigenvalues, for which division is not problematic.
-        good = abs(L) > epsilon
-
         # Eigendecomposition of density matrix
         # Dᵃᵢⱼ = λₐ(r) Uᵢₐ(r) Uⱼₐ(r)
         D_eigen = numpy.einsum('sar,siar,sjar->asijr', L, U, U)
@@ -759,5 +756,124 @@ class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
                 KED[s,...] += 1.0/8.0 * numpy.einsum(
                     'ikdr,klr,ljdr->ijr',
                     grad_D_eigen[a,s,...], invD_eigen, grad_D_eigen[a,s,...])
+
+        return KED
+
+
+class MatrixSquareRootKineticFunctional(KineticOperatorFunctional):
+    """
+    This kinetic energy functional uses the gradient of the square root D¹ᐟ²(r)
+    of the matrix density D. The kinetic energy matrix is approximated as
+
+      T[D]ᵢⱼ = ∫ 1/2 ∑ₖ ∇(D¹ᐟ²)ᵢₖ ∇(D¹ᐟ²)ₖⱼ
+
+    The calculation of the gradient of D¹ᐟ² is not trivial. To obtain the square
+    root of a matrix, one first has to calculate its eigenvalues and eigenvectors.
+
+    Let λₐ(r) and Uᵢₐ(r) be the eigenvalues and eigenvectors of the matrix
+    density D(r) at each position r,
+
+      ∑ⱼ Dᵢⱼ(r) Uⱼₐ(r) = λₐ(r) Uᵢₐ(r),
+
+    The matrix density can be decomposed into its eigenvectors
+
+      D = U Λ Uᵀ    with Λ = diag(...,λₐ,...)
+
+    Then the square root of D is obtained by taking the square root of the
+    eigenvalues, while the eigenvectors remain the same, so
+
+      D¹ᐟ² = U Λ¹ᐟ² Uᵀ
+
+    ∇D¹ᐟ² is obtained by applying the chain rule to the above equation:
+
+      ∇D¹ᐟ² = ∇U Λ¹ᐟ² Uᵀ + 1/2 U Λ⁻¹ᐟ² ∇Λ Uᵀ + U Λ¹ᐟ² ∇Uᵀ
+
+    which requires the gradients of the eigenvalues and eigenvectors of D.
+    If there are repeated eigenvalues, ∇U does not only depend on ∇D but
+    also on higher derivatives of D.
+
+    For a single state, the functional reduces to the von Weizsaecker functional.
+
+    Note that, since ∇D and D do not commute, 1/2 ∇D¹ᐟ² ∇D¹ᐟ² and 1/8 ∇D D ∇D
+    are not the same, unlike for the single state von Weizsaecker functional.
+    """
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray,
+            epsilon=1.0e-12):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param epsilon: Threshold for neglecting singular eigenvalues.
+           Eigenvalues |λₐ| <= epsilon are treated as zero.
+        :type epsilon: float
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           KED[s,i,j,r] is the kinetic energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
+        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
+        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(msmd, coords, epsilon=epsilon)
+
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # reserve space for kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((nspin,nstate,nstate,ncoord))
+
+        # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+        assert numpy.all(L > -epsilon), "Eigenvalues of matrix density D are expected to be positive."
+        # Square root of eigenvalues, Λ¹ᐟ²
+        L_square_root = numpy.sqrt(abs(L))
+
+        # Matrix square root of matrix density, D¹ᐟ² = U Λ¹ᐟ² Uᵀ
+        D_square_root = numpy.einsum('siar, sar, sjar->sijr', U, L_square_root, U)
+
+        # Allocate memory for ∇Λ¹ᐟ² = 1/2 Λ⁻¹ᐟ² ∇Λ.
+        grad_L_square_root = numpy.zeros_like(grad_L)
+        # To avoid dividing by zero for λ=0, the gradient is only computed for
+        # non-zero eigenvalues, for which division is not problematic.
+        good = abs(L) > epsilon
+        # Loop over components of gradient d/dx, d/dy, d/dz
+        for xyz in [0,1,2]:
+            # dΛ/dx (xyz=0), dΛ/dy (xyz=1) or dΛ/dz (xyz=2)
+            dL = grad_L[:,:,xyz,:]
+            # dΛ¹ᐟ²/dx, dΛ¹ᐟ²/dy or dΛ¹ᐟ²/dz
+            dL_square_root = numpy.zeros_like(L)
+            # dΛ¹ᐟ²/dx = 1/2 Λ⁻¹ᐟ² dΛ/dx etc.
+            dL_square_root[good] = 1.0/2.0 * 1.0/L_square_root[good] * dL[good]
+            # Copy x,y or z component into gradient vector ∇Λ¹ᐟ².
+            grad_L_square_root[:,:,xyz,:] = dL_square_root
+
+        # Eigendecomposition of ∇D¹ᐟ² = ∇U Λ¹ᐟ² Uᵀ + U ∇Λ¹ᐟ² Uᵀ + U Λ¹ᐟ² ∇Uᵀ
+        grad_D_square_root = (
+            # ∇U Λ¹ᐟ² Uᵀ
+            numpy.einsum('siadr,sar,sjar->sijdr', grad_U, L_square_root, U) +
+            # U ∇Λ¹ᐟ² Uᵀ
+            numpy.einsum('siar,sadr,sjar->sijdr', U, grad_L_square_root, U) +
+            # U Λ¹ᐟ² ∇Uᵀ
+            numpy.einsum('siar,sar,sjadr->sijdr', U, L_square_root, grad_U)
+        )
+
+        # kinetic energy density
+        # KEDᵢⱼ(r) = 1/2 ∑ₖ ∇(D¹ᐟ²)ᵢₖ ∇(D¹ᐟ²)ₖⱼ
+        KED = 0.5 * numpy.einsum('sikdr,skjdr->sijr', grad_D_square_root, grad_D_square_root)
 
         return KED
