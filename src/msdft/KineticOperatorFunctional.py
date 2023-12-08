@@ -486,8 +486,14 @@ class ThomasFermiFunctional(KineticOperatorFunctional):
             #    = 2 tₛₚᵢₙ
             prefactor = 3.0/10.0 * pow(6.0*numpy.pi**2, 2.0/3.0)
             for r in range(0, ncoord):
-                ked_r = prefactor * scipy.linalg.fractional_matrix_power(
-                    D[s,:,:,r], 5.0/3.0)
+                # Compute eigenvalues Λ and eigenvectors U of the symmetric
+                # matrix D.
+                L, U = numpy.linalg.eigh(D[s,:,:,r])
+                # The fractional matrix power is obtained from the eigenvalue decomposition
+                # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
+                D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(L, 5.0/3.0), U)
+                # Thomas-Fermi kinetic energy density
+                ked_r = prefactor * D_matrix_power
                 # Check that the kinetic energy density is real.
                 assert numpy.sum(abs(ked_r.imag)) < 1.0e-10
 
