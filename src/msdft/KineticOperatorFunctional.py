@@ -760,6 +760,123 @@ class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
         return KED
 
 
+class EigendecompositionKineticFunctionalII(KineticOperatorFunctional):
+    """
+    This kinetic energy functional is based on an eigenvalue decomposition
+    of the matrix density D(r).
+
+    Let λₐ(r) and Uᵢₐ(r) be the eigenvalues and eigenvectors of the matrix
+    density D(r) at each position,
+
+      ∑ⱼ Dᵢⱼ(r) Uⱼₐ(r) = λₐ(r) Uᵢₐ(r),
+
+    then the kinetic energy matrix is approximated as
+
+      Tᵢⱼ = ∫ 1/2 ∑ₐ ∇φᵢₐ·∇φⱼₐ + ∫ 1/2 ∑ᵤ∑ᵥ∑ₖ (∇φᵢᵤ φⱼᵥ - φᵢᵤ ∇φⱼᵥ) Uₖᵤ∇Uₖᵥ
+
+    with
+
+       φᵢₐ = λₐ¹ᐟ² Uᵢₐ
+
+    For a one-electron system the second term cancels and the functional gives
+    the exact kinetic energy.
+    """
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray,
+            epsilon=1.0e-12):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param epsilon: Threshold for neglecting singular eigenvalues.
+           Eigenvalues |λₐ| <= epsilon are treated as zero.
+        :type epsilon: float
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           KED[s,i,j,r] is the kinetic energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
+        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
+        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(msmd, coords, epsilon=epsilon)
+
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+        assert numpy.all(L > -epsilon), "Eigenvalues of matrix density D are expected to be positive."
+        # Square root of eigenvalues, Λ¹ᐟ²
+        L_square_root = numpy.sqrt(abs(L))
+
+        # Allocate memory for ∇Λ¹ᐟ² = 1/2 Λ⁻¹ᐟ² ∇Λ.
+        grad_L_square_root = numpy.zeros_like(grad_L)
+        # To avoid dividing by zero for λ=0, the gradient is only computed for
+        # non-zero eigenvalues, for which division is not problematic.
+        good = abs(L) > epsilon
+        # Loop over components of gradient d/dx, d/dy, d/dz
+        for xyz in [0,1,2]:
+            # dΛ/dx (xyz=0), dΛ/dy (xyz=1) or dΛ/dz (xyz=2)
+            dL = grad_L[:,:,xyz,:]
+            # dΛ¹ᐟ²/dx, dΛ¹ᐟ²/dy or dΛ¹ᐟ²/dz
+            dL_square_root = numpy.zeros_like(L)
+            # dΛ¹ᐟ²/dx = 1/2 Λ⁻¹ᐟ² dΛ/dx etc.
+            dL_square_root[good] = 1.0/2.0 * 1.0/L_square_root[good] * dL[good]
+            # Copy x,y or z component into gradient vector ∇Λ¹ᐟ².
+            grad_L_square_root[:,:,xyz,:] = dL_square_root
+
+        # "Wavefunctions" φᵢₐ = λₐ¹ᐟ² Uᵢₐ
+        wavefunctions = numpy.einsum('sar,siar->siar', L_square_root, U)
+        # and their gradients ∇φᵢₐ = ∇λₐ¹ᐟ² Uᵢₐ + λₐ¹ᐟ² ∇Uᵢₐ
+        grad_wavefunctions = (
+            # ∇λₐ¹ᐟ² Uᵢₐ
+            numpy.einsum('sadr,siar->siadr', grad_L_square_root, U) +
+            # λₐ¹ᐟ² ∇Uᵢₐ
+            numpy.einsum('sar,siadr->siadr', L_square_root, grad_U))
+
+        # Any scale factor can be used, since the additional term
+        #  scale * ....
+        # disappear for one-electron systems.
+        scale = 1.0
+
+        #
+        # KEDᵢⱼ(r) =
+        #    1/2 ∑ₐ ∇φᵢₐ·∇φⱼₐ + 1/2 ∑ᵤ∑ᵥ∑ₖ (∇φᵢᵤ φⱼᵥ - φᵢᵤ ∇φⱼᵥ) Uₖᵤ ∇Uₖᵥ
+        KED = (
+            # 1/2 ∑ₐ ∇φᵢₐ·∇φⱼₐ
+            0.5 * numpy.einsum('siadr,sjadr->sijr', grad_wavefunctions, grad_wavefunctions) +
+            # 1/2 ∑ᵤ∑ᵥ∑ₖ ∇φᵢᵤ φⱼᵥ Uₖᵤ ∇Uₖᵥ
+            scale * 0.5 * numpy.einsum('siudr,sjvr,skur,skvdr->sijr',
+                grad_wavefunctions, wavefunctions, U, grad_U) -
+            # - 1/2 ∑ᵤ∑ᵥ∑ₖ φᵢᵤ ∇φⱼᵥ) Uₖᵤ ∇Uₖᵥ
+            scale * 0.5 * numpy.einsum('siur,sjvdr,skur,skvdr->sijr',
+                wavefunctions, grad_wavefunctions, U, grad_U)
+            # If the following term is added, the functional KED becomes
+            # identical to KED = 1/2 ∇D¹ᐟ² ∇D¹ᐟ²
+            #
+            #+ 0.5 * numpy.einsum('uv,siur,sjvr,skudr,skvdr->sijr',
+            #    offdiagonal, wavefunctions, wavefunctions, grad_U, grad_U)
+            #
+        )
+
+        return KED
+
+
 class MatrixSquareRootKineticFunctional(KineticOperatorFunctional):
     """
     This kinetic energy functional uses the gradient of the square root D¹ᐟ²(r)

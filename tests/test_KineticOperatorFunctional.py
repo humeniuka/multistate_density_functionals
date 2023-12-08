@@ -16,6 +16,7 @@ import pyscf.scf
 from tqdm import tqdm
 
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
+from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctionalII
 from msdft.KineticOperatorFunctional import KineticOperatorFunctional
 from msdft.KineticOperatorFunctional import MatrixSquareRootKineticFunctional
 from msdft.KineticOperatorFunctional import ThomasFermiFunctional
@@ -447,6 +448,42 @@ class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
     def kinetic_functional_class(self):
         """ The functional to be tested. """
         return EigendecompositionKineticFunctional
+
+    def test_1electron_systems(self):
+        """ Check that the kinetic energy functional is exact for one-electron systems """
+        for name, mol in tqdm(
+                self.create_test_molecules_1electron().items()):
+            for nstate in tqdm([1,2,3,4]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_exact_kinetic_energy(mol, nstate=nstate)
+
+    def test_von_Weizsaecker_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the von Weizsäcker functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for kinetic operator, T[D(r)]
+                kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
+                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state vW functionals.
+                kinetic_matrix_multi = kinetic_functional_multi(msmd)
+                kinetic_matrix_single = kinetic_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
+
+
+class TestEigendecompositionKineticFunctionalII(KineticFunctionalTestCase):
+    @property
+    def kinetic_functional_class(self):
+        """ The functional to be tested. """
+        return EigendecompositionKineticFunctionalII
 
     def test_1electron_systems(self):
         """ Check that the kinetic energy functional is exact for one-electron systems """
