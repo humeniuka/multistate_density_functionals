@@ -308,6 +308,13 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
                 basis = 'sto-3g',
                 # singlet
                 spin = 0),
+            # effective core potential which removes the 1s orbital of oxygen
+            'oxygen (ECP)': pyscf.gto.M(
+                atom = 'O  0 0 0',
+                basis = {'O': 'crenbl'},
+                ecp = {'O': 'crenbl'},
+                # triplet
+                spin = 2),
         }
         return molecules
 
@@ -361,6 +368,13 @@ class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest
             'water': pyscf.gto.M(
                 atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
                 basis = 'sto-3g',
+                # singlet
+                spin = 0),
+            # effective core potential which removes the 1s orbital of oxygen
+            'water (ECP)': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = {'O': 'crenbl', 'H': 'sto-3g'},
+                ecp = {'O': 'crenbl'},
                 # singlet
                 spin = 0),
         }
