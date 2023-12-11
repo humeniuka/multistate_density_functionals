@@ -489,9 +489,12 @@ class ThomasFermiFunctional(KineticOperatorFunctional):
                 # Compute eigenvalues Λ and eigenvectors U of the symmetric
                 # matrix D.
                 L, U = numpy.linalg.eigh(D[s,:,:,r])
+                # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+                assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
+
                 # The fractional matrix power is obtained from the eigenvalue decomposition
                 # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
-                D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(L, 5.0/3.0), U)
+                D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 5.0/3.0), U)
                 # Thomas-Fermi kinetic energy density
                 ked_r = prefactor * D_matrix_power
                 # Check that the kinetic energy density is real.
