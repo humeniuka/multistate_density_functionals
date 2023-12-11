@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Matrix elements of the electron-repulsion operator between two
+n-electron wavefunctions Ψᵢ and Ψⱼ
+
+   Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+
+with xᵦ=(rᵦ,σᵦ), are approximated a matrix functional of the matrix density,
+i.e. C[D(r)].
+"""
 try:
     import becke
 except ImportError as err:
@@ -7,6 +16,8 @@ except ImportError as err:
     Solution of the Poisson equation requires the `becke` module
     which can be obtained from
        `https://github.com/humeniuka/becke_multicenter_integration`
+    or can be installed from PyPI via
+       pip install becke-multicenter-integration
     """)
     raise err
 

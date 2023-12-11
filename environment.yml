@@ -8,3 +8,4 @@ dependencies:
     - pyscf>=2.3.0
     - scipy>=1.4.1
     - tqdm>=4.42.1
+    - becke-multicenter-integration>=0.0.1

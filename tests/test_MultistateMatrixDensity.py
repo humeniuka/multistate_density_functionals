@@ -347,6 +347,23 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
 
         return msmd
 
+    def test_exact_electron_repulsion(self):
+        """
+        If there is only a single electron, the matrix elements for the
+        electron-electron repulsion operator should be zero.
+        """
+        # Hydrogen molecular ion.
+        mol = pyscf.gto.M(
+            atom = 'H 0 0 0; H 0 0 0.74',
+            basis = '6-31g',
+            charge = 1,
+            spin = 1)
+        msmd = self.create_matrix_density(mol)
+        # electron-electron repulsion
+        repulsion_matrix = msmd.exact_electron_repulsion()
+        # No electron-electron repulsion.
+        numpy.testing.assert_almost_equal(numpy.zeros_like(repulsion_matrix), repulsion_matrix)
+
 
 class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):
     def create_test_molecules(self):

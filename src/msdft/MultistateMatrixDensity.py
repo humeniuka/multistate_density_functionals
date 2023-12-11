@@ -18,6 +18,7 @@ class MultistateMatrixDensity(ABC):
     def __init__(
             self,
             mol,
+            eigenenergies,
             density_matrices):
         """
         This class holds the multistate matrix density and can evaluate
@@ -30,9 +31,15 @@ class MultistateMatrixDensity(ABC):
         :param mol: molecule with atomic coordinates, basis set and spin
         :type mol: pyscf.gto.Mole
 
+        :param eigenenergies:
+           eigenenergies[i] is the total energy of state i. Since the 2-particle density
+           matrix is not available, the electron repulsion is calculated as the difference
+           of the eigenenergies and the other terms in the Hamiltonian.
+        :type eigenenergies: numpy.ndarray of shape (nstate,)
+
         :param density_matrices:
-           density_matrices[spin,i,j,:,:] is the (transition) density matrix between
-           the electronic states i and j in the AO basis.
+           density_matrices[spin,i,j,:,:] is the 1-particle (transition) density matrix
+           between the electronic states i and j in the AO basis.
         :type density_matrices: numpy.ndarray of shape (2,nstate,nstate,nao,nao)
            nstate - number of electronic states
            nao - number of atomic orbitals
@@ -47,6 +54,9 @@ class MultistateMatrixDensity(ABC):
 
         # Number of electronic states.
         self.number_of_states = nstate1
+        # Save total energy, which includes nuclei-nuclei repulsion, kinetic energy,
+        # nuclei-electrons attraction and electrons-electrons repulsion.
+        self.eigenenergies = eigenenergies
         # Save (transition) density matrices.
         self.density_matrices = density_matrices
 
@@ -126,6 +136,35 @@ class MultistateMatrixDensity(ABC):
             dm_spin_trace)
 
         return coulomb_integrals
+
+    def exact_electron_repulsion(self):
+        """
+        Compute the matrix elements of the electron-repulsion operator between
+        eigenfunctions Ψᵢ and Ψⱼ,
+
+          Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn),
+
+        exactly. Since the eigenfunctions diagonalize the Hamiltonian, the
+        electron repulsion can be obtained from the eigenenergies E, the nuclear
+        repulsion energy N, the kinetic energy T and the external potential
+        (electron-nuclear attraction) V,
+
+          Cᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ
+
+        :return repulsion_matrix: The matrix elements of the electron repulsion
+           in the basis of the many-electron states in the subspace.
+        :rtype repulsion_matrix: numpy.ndarray of shape (nstate,nstate)
+        """
+        # T
+        kinetic_matrix = self.exact_1e_operator(intor='int1e_kin')
+        # V
+        nuclear_matrix = self.exact_1e_operator(intor='int1e_nuc')
+        # (Eᵢ - N) δᵢⱼ
+        electronic_energies = numpy.diag(self.eigenenergies - self.mol.energy_nuc())
+        # Cᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ - N
+        electron_repulsion_matrix = electronic_energies - kinetic_matrix - nuclear_matrix
+
+        return electron_repulsion_matrix
 
     def evaluate(self, coords):
         """
@@ -438,7 +477,7 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
                     density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
 
         # Initialize base class.
-        super().__init__(mol, density_matrices)
+        super().__init__(mol, cisolver.e_tot, density_matrices)
 
 
 class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
@@ -633,4 +672,4 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
                     density_matrices[1,i,j,:,:] = 0.5*tdm1_ao
 
         # Initialize base class.
-        super().__init__(mol, density_matrices)
+        super().__init__(mol, tddft.e_tot, density_matrices)
