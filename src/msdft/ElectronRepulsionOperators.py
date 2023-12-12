@@ -9,6 +9,8 @@ n-electron wavefunctions Ψᵢ and Ψⱼ
 with xᵦ=(rᵦ,σᵦ), are approximated a matrix functional of the matrix density,
 i.e. C[D(r)].
 """
+from abc import ABC, abstractmethod
+
 try:
     import becke
 except ImportError as err:
@@ -27,6 +29,7 @@ import numpy.linalg as la
 import pyscf.dft
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+
 
 class HartreeLikeOperatorFunctional(object):
     def __init__(self, mol, level=8):
@@ -162,3 +165,198 @@ class HartreeLikeOperatorFunctional(object):
             V)
 
         return hartree_like_matrix
+
+
+class ExchangeCorrelationLikeFunctional(ABC):
+    def __init__(self, mol, level=8):
+        """
+        The abstract base class for multi-state exchange/correlation functionals.
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    @abstractmethod
+    def energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        pass
+
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity,
+            available_memory=1<<30):
+        """
+        compute the exchange/correlation-like contribution to the electron repulsion operator
+        in the subspace of electronic states by evaluating the exchange/correlation energy
+        functional XC[D(r)] on the matrix density D(r):
+
+          XCᵢⱼ = XC[D(r)]ᵢⱼ = ∫ xc[D]ᵢⱼ(r) dr,
+
+        where Dᵢⱼ(r) is the electronic density of the state Ψᵢ, Dᵢᵢ(r) = ρᵢ(r),
+        or the transition density between the states Ψᵢ and Ψⱼ, Dᵢⱼ(r).
+        xc[D](r) is a local approximation of the exchange/correlation energy density (XCED).
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the exchange energy functional should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param available_memory: The amount of memory (in bytes) that can be
+           allocated for the exchange/correlation energy density. If more memory is needed,
+           the XED is evaluated in multiple chunks. (1<<30 corresponds to 1Gb)
+           Since more memory is needed for intermediate quantities, this limit
+           is only a rough estimate.
+        :type available_memory: int
+
+        :return xc_like_matrix: The exchange/correlation energy matrix XCᵢⱼ in the subspace
+           of the electronic states i,j=1,...,nstate
+        :rtype xc_like_matrix: numpy.ndarray of shape (nstate,nstate)
+        """
+        # number of grid points
+        ncoord = self.grids.coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # matrix element of the exchange/correlation-like part of the electron repulsion operator.
+        xc_like_matrix = numpy.zeros((nstate,nstate))
+
+        # If the resulting array that holds the exchange/correlation energy density
+        # exceeds `available_memory`, the XCED is evaluated on smaller chunks
+        # of the grid and summed into the kinetic matrix at the end.
+        needed_memory = 50 * 2 * xc_like_matrix.itemsize * nstate**2 * ncoord
+        number_of_chunks = max(1, (needed_memory + available_memory) // available_memory)
+        # There cannot be more chunks than grid points.
+        number_of_chunks = min(ncoord, number_of_chunks)
+
+        # Loop over chunks of grid points and associated integration weights.
+        for coords, weights in zip(
+                numpy.array_split(self.grids.coords, number_of_chunks),
+                numpy.array_split(self.grids.weights, number_of_chunks)):
+
+            # Evaluate the exchange/correlation energy density on the grid.
+            XCED = self.energy_density(msmd, coords)
+
+            # The matrix of the exchange/correlation-like part of the electron-repulsion
+            # operator in the subspace is obtained by integration of XEDᵢⱼ(r) over space and spin
+            #
+            #   XCᵢⱼ = ∫ XCEDᵢⱼ(r) dr
+            #
+            xc_like_matrix += numpy.einsum('r,sijr->ij', weights, XCED)
+
+        return xc_like_matrix
+
+
+class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
+    # Cₓ = (3/4) (3/pi)¹ᐟ³ = 0.738 from Dirac's exchange-energy, Eqn. (6.1.20) in [Parr&Yang]
+    Cx_Dirac = 0.7386
+    # Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
+    Cx_Gaussian = 0.7937
+
+    def __init__(self, mol, level=8):
+        """
+        Multi-state exchange energy according to the local-spin density approximation
+        (eqn. 8.2.16 in Ref. [Yang&Parr]),
+
+        K[D(r)] = 2¹ᐟ³ Cₓ ∫ [ Dᵅ(r)⁴ᐟ³ + Dᵝ(r)⁴ᐟ³ ] dr
+
+        D(r)⁴ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
+
+        The value of the prefactor Cₓ = 0.7937 is taken from the "Gaussian" approximation in
+        Eqn. (6.5.25) of chapter 6 in Ref. [Yang&Parr]
+
+        References
+        ----------
+        [Yang&Parr] Parr & Yang (1989), "Density Functional Theory of Atoms and Molecules".
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the energy density for the exchange-like part of the electron-electron
+        repulsion operator in the subspace of electronic states,
+
+          XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ [D(r)⁴ᐟ³]ᵢⱼ
+
+        NOTE: At odds with the usual definition of the exchange energy density,
+        (εₓ,ᵢⱼ(r) ∝ ρ(r)¹ᐟ³), XED contains an additional factor of D(r)
+        (XED(r) ∝ D(r)⁴ᐟ³), since the exchange energy is calculated
+        as K[D] = ∫ XED(r) dr rather than K[ρ] = ∫ ρ(r) εₓ(r) dr.
+
+        :param msmd: The multistate matrix density in the electronic subspace
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: XEDᵢⱼ(r), exchange energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           XED[s,i,j,r] is the exchange energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # exchange-energy density  XED[Dᵅ]ᵢⱼ(r) = 2¹ᐟ³ Cₓ [Dᵅ(r)⁴ᐟ³]ᵢⱼ
+        XED = numpy.zeros((nspin,nstate,nstate,ncoord))
+
+        # Evaluate D(r) on the integration grid.
+        D, _, _ = msmd.evaluate(coords)
+
+        # Trace over electronic states to get tr(D)(r).
+        # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
+        trace_D = numpy.einsum('siir->sr', D)
+
+        # Loop over spins. The exchange energy is computed separately for each spin
+        # projection and added.
+        for s in range(0, nspin):
+            if numpy.all(trace_D[s,...] == 0.0):
+                # There are no electrons with spin projection s
+                # that could contribute to the exchange energy.
+                continue
+
+            # Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
+            Cx = LSDAExchangeLikeFunctional.Cx_Gaussian
+            prefactor = pow(2.0, 1.0/3.0) * Cx
+            for r in range(0, ncoord):
+                # Compute eigenvalues Λ and eigenvectors U of the symmetric matrix D.
+                L, U = numpy.linalg.eigh(D[s,:,:,r])
+                # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+                assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
+
+                # The fractional matrix power is obtained from the eigenvalue decomposition
+                # as D⁴ᐟ³(r) = U(r) Λ⁴ᐟ³(r) Uᵀ(r)
+                D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 4.0/3.0), U)
+                # LSDA exchange energy density
+                exchange_energy_r = prefactor * D_matrix_power
+                # Check that the exchange energy density is real.
+                assert numpy.sum(abs(exchange_energy_r.imag)) < 1.0e-10
+
+                XED[s,:,:,r] = exchange_energy_r
+
+        return XED

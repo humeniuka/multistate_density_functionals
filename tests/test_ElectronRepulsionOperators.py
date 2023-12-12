@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
+from abc import ABC, abstractmethod
+
 import numpy
 import numpy.linalg as la
 import numpy.testing
@@ -12,8 +14,12 @@ import pyscf.scf
 from tqdm import tqdm
 import unittest
 
+from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
+from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
+from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
+
 
 class TestHartreeLikeOperatorFunctional(unittest.TestCase):
     def create_test_molecules(self):
@@ -113,6 +119,205 @@ class TestHartreeLikeOperatorFunctional(unittest.TestCase):
             for nstate in tqdm([1,2]):
                 with self.subTest(molecule=name, nstate=nstate):
                     self.check_exact_hartree_energy(mol, nstate=nstate)
+
+
+class ExchangeCorrelationFunctionalTestCase(ABC, unittest.TestCase):
+    """
+    Abstract base class for all exchange/correlation energy functional tests.
+    It contains functions needed by all tests.
+    """
+    @property
+    @abstractmethod
+    def xc_functional_class(self):
+        """
+        The subclass of :class:`~.ExchangeCorrelationLikeFunctional` for which
+        the respective unit test is written.
+        """
+        pass
+
+    def create_test_molecules_1electron(self):
+        """ dictionary with 1-electron molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            'hydrogen atom (large basis set)': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = 'aug-cc-pvdz',
+                # doublet
+                spin = 1),
+            'hydrogen molecular ion': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 1,
+                # doublet
+                spin = 1),
+        }
+        return molecules
+
+    def create_closed_shell_test_molecules(self):
+        """ dictionary with closed-shell many-electron molecules to run the tests on """
+        molecules = {
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0)
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+
+        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        cisolver.nroots = nstate+1
+        fci_energies, fcivecs = cisolver.kernel()
+        # Remove the additional state again. For small basis sets,
+        # there can be fewer states than requested.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
+
+        return msmd
+
+    def check_chunk_size(self, mol):
+        """
+        Compute exchange/correlation matrix with different chunk sizes.
+        """
+        # Check that the derived unit test is implemented correctly.
+        assert issubclass(self.xc_functional_class, ExchangeCorrelationLikeFunctional)
+        # functional for exchange/correlation part of electron-repulsion operator, XC[D(r)]
+        exchange_correlation_functional = self.xc_functional_class(mol, level=1)
+
+        msmd = self.create_matrix_density(mol, nstate=3)
+        # XCij with default chunk size
+        xc_matrix_ref = exchange_correlation_functional(msmd)
+        # Increase the number of chunks by reducing the available memory
+        # per chunk to 2**22 (~4 Mb) or 2**23 (~ 8Mb) bytes.
+        for memory in [2**22, 2**23]:
+            xc_matrix = exchange_correlation_functional(msmd, available_memory=memory)
+
+            numpy.testing.assert_almost_equal(
+                xc_matrix, xc_matrix_ref)
+
+
+class LDAExchangeFunctionalSingleState(object):
+    """
+    Exchange energy in the local-density approximation for a closed-shell
+    ground state density:
+
+        Eₓ[ρ] = Cₓ ∫ ρ(r)⁴ᐟ³ dr
+    """
+    def __init__(self, mol, level=8):
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity):
+        """
+        Compute the exchange-energy for the density of a single electronic state.
+
+        :param msmd: A multistate density matrix with only a single electronic state.
+           The density should belong to a closed-shell electronic state.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :return exchange_energy: A 1x1 matrix with the scalar exchange energy.
+        :rtype exchange_energy: numpy.ndarray of shape (1,1)
+        """
+        # number of electronic states
+        nstate = msmd.number_of_states
+        assert nstate == 1, \
+           "The LDA exchange functional is only defined for a single electronic state."
+
+        # Evaluate D(r) on the integration grid.
+        D, _, _ = msmd.evaluate(self.grids.coords)
+        # Trace out spin and electronic states (there is only one state) to get ρ(r)
+        rho = numpy.einsum('siir->r', D)
+
+        # prefactor Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
+        Cx = LSDAExchangeLikeFunctional.Cx_Gaussian
+        # t[ρ] = Cₓ ρ(r)⁴ᐟ³
+        exchange_energy_density = Cx * pow(rho, 4.0/3.0)
+
+        # Integrate over space, Eₓ[ρ] = ∫ t[ρ] dr = Cₓ ∫ ρ(r)⁴ᐟ³ dr
+        exchange_energy = numpy.einsum('r,r->', self.grids.weights, exchange_energy_density)
+
+        # Reshape energy as a 1x1 matrix.
+        exchange_matrix = numpy.array([[exchange_energy]])
+
+        return exchange_matrix
+
+
+class TestLSDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+    @property
+    def xc_functional_class(self):
+        """ The functional to be tested. """
+        return LSDAExchangeLikeFunctional
+
+    def test_chunk_size(self):
+        """
+        Check that the exchange energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
+
+    def test_local_density_exchange_functional(self):
+        """
+        Check that for a single closed-shell electronic state the multistate LSDA exchange energy
+        functional to the LSDA functional.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for exchange energy, K[D(r)]
+                exchange_functional_multi = self.xc_functional_class(mol)
+                exchange_functional_single = LDAExchangeFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state exchange functionals.
+                exchange_matrix_multi = exchange_functional_multi(msmd)
+                exchange_matrix_single = exchange_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    exchange_matrix_multi, exchange_matrix_single)
+
 
 if __name__ == "__main__":
     unittest.main()

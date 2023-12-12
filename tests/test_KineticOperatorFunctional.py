@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-import unittest
-
 from abc import ABC, abstractmethod
 
 import numpy
@@ -14,6 +12,7 @@ import pyscf.gto
 import pyscf.scf
 
 from tqdm import tqdm
+import unittest
 
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctionalII
@@ -52,7 +51,7 @@ class VonWeizsaeckerFunctionalSingleState(object):
         :param msmd: A multistate density matrix with only a single electronic state
         :type msmd: :class:`~.MultistateMatrixDensity`
 
-        :return kinetic_matrix: A 1x1 matrix with the scalar kinetic energy.
+        :return kinetic_energy: A 1x1 matrix with the scalar kinetic energy.
         :rtype kinetic_energy: numpy.ndarray of shape (1,1)
         """
         # number of electronic states
