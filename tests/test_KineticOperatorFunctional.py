@@ -143,26 +143,9 @@ class KineticFunctionalTestCase(ABC, unittest.TestCase):
         :return: multistate matrix density
         :rtype: MultistateMatrixDensity
         """
-        assert nstate > 0
-        hf = pyscf.scf.RHF(mol)
-        # supress printing of SCF energy
-        hf.verbose = 0
-        # compute self-consistent field
-        hf.kernel()
-
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
-        # Solve for one state more than requested to avoid
-        # problems when nstate == 1.
-        cisolver.nroots = nstate+1
-        fci_energies, fcivecs = cisolver.kernel()
-        # Remove the additional state again. For small basis sets,
-        # there can be fewer states than requested.
-        if len(fcivecs) == nstate+1:
-            fcivecs = fcivecs[:-1]
-
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
-
-        return msmd
+        # call static method
+        return MultistateMatrixDensityFCI.create_matrix_density(
+            mol, nstate=nstate, spin_symmetry=False, raise_error=False)
 
     def check_exact_kinetic_energy(self, mol, nstate=1):
         """

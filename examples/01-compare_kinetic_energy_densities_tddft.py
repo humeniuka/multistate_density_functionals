@@ -63,33 +63,6 @@ molecules = {
         spin = 0).build()
 }
 
-def create_matrix_density(mol, nstate=4):
-    """
-    Compute multistate matrix density for the lowest few excited
-    singlet states of a small molecule using TD-DFT.
-
-    :param mol: A test molecule with even number of electrons
-    :type mol: gto.Mole
-
-    :param nstate: number of electronic states to calculate
-    :type nstate: positive int
-
-    :return: multistate matrix density
-    :rtype: MultistateMatrixDensity
-    """
-    rks = pyscf.scf.RKS(mol)
-    # compute self-consistent field
-    rks.kernel()
-    
-    tddft = pyscf.tddft.TDDFT(rks)
-    # number of excited states (i.e. excluding the ground state)
-    tddft.nstates = nstate-1
-    tddft.kernel()
-
-    msmd = MultistateMatrixDensityTDDFT(mol, rks, tddft)
-
-    return msmd
-
 
 def compare_kinetic_energy_densities_1d(mol, nstate=2):
     """
@@ -101,7 +74,7 @@ def compare_kinetic_energy_densities_1d(mol, nstate=2):
     :type nstate: int > 0
     """
     # compute D(r) from full TD-DFT
-    msmd = create_matrix_density(mol, nstate=nstate)
+    msmd = MultistateMatrixDensityTDDFT.create_matrix_density(mol, nstate=nstate)
     
     # Plot T(0,0,z), cut along z-axis
     Ncoord = 5000
@@ -207,7 +180,7 @@ def compare_kinetic_energy_densities_2d(mol, nstate=2, istate=0, jstate=0):
     :type istate, jstate: int
     """
     # compute D(r) from full TD-DFT
-    msmd = create_matrix_density(mol, nstate=nstate)
+    msmd = MultistateMatrixDensityTDDFT.create_matrix_density(mol, nstate=nstate)
     
     # Plot T(0,y,z) in the yz plane.
     ny = 200

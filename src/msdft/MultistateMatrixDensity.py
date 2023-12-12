@@ -5,13 +5,16 @@ The multistate matrix density D(r) for a subspace of N-electronic states an N x 
 matrix with the state densities on the diagonal and the transition densities on the
 off-diagonal.
 """
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import numpy
 import scipy.linalg
 import scipy.special
 
 from pyscf.dft import numint
+import pyscf.fci
+import pyscf.scf
+import pyscf.tddft
 
 
 class MultistateMatrixDensity(ABC):
@@ -51,6 +54,7 @@ class MultistateMatrixDensity(ABC):
         assert nspin == 2, "Density matrix needs components for spin-up and spin-down."
         assert nstate1 == nstate2, "Matrix density has to be square"
         assert nao1 == nao2, "AO density matrix has to be square"
+        assert len(eigenenergies) == nstate1, "len(eigenenergies) has to equal number of states"
 
         # Number of electronic states.
         self.number_of_states = nstate1
@@ -402,6 +406,25 @@ class MultistateMatrixDensity(ABC):
 
         return KED_laplacian, KED_gradgrad
 
+    @staticmethod
+    @abstractmethod
+    def create_matrix_density(mol, nstate=4):
+        """
+        Compute the multistate matrix density for the lowest few excited states
+        of a small molecule using the respective electronic structure method
+        of the derived class.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        pass
+
 
 class MultistateMatrixDensityFCI(MultistateMatrixDensity):
     def __init__(
@@ -476,8 +499,62 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
                     # for spin-down
                     density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
 
+        # It is possible that more states were solved for than needed,
+        # for instance if nstate = 1, 2 states are calculated.
+        eigenenergies = cisolver.e_tot[:nstate]
+
         # Initialize base class.
-        super().__init__(mol, cisolver.e_tot, density_matrices)
+        super().__init__(mol, eigenenergies, density_matrices)
+
+    @staticmethod
+    def create_matrix_density(mol, nstate=4, spin_symmetry=True, raise_error=True):
+        """
+        Compute the multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :param spin_symmetry: use of spin symmetry in the CI calculation
+        :type spin_symmetry: bool
+
+        :param raise_error: Raise an error if the CI space is smaller
+          than the number of requested states `nstate`.
+        :type raise_error: bool
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+
+        # singlet=True enables the use of spin symmetry in the CI calculation.
+        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff, singlet=spin_symmetry)
+
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        cisolver.nroots = nstate+1
+        fci_energies, fcivecs = cisolver.kernel()
+        # Remove the additional state again. For small basis sets,
+        # there can be fewer states than requested.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+
+        if len(fcivecs) < nstate and raise_error:
+            raise RuntimeError(
+                f"Size of full CI space ({len(fcivecs)}) is smaller "
+                f"than number of requested states ({nstate})")
+
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
+
+        return msmd
 
 
 class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
@@ -671,5 +748,43 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
                     # for spin-down
                     density_matrices[1,i,j,:,:] = 0.5*tdm1_ao
 
+        # Total energies of electronic states (electronic energy plus nuclear repulsion)
+        eigenenergies = numpy.zeros(nstate)
+        # ground state energy
+        eigenenergies[0] = rks.e_tot
+        # excited state energies
+        eigenenergies[1:] = tddft.e_tot
+
         # Initialize base class.
-        super().__init__(mol, tddft.e_tot, density_matrices)
+        super().__init__(mol, eigenenergies, density_matrices)
+
+    @staticmethod
+    def create_matrix_density(mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited
+        singlet states of a small molecule using TD-DFT.
+
+        :param mol: A test molecule with even number of electrons
+        :type mol: gto.Mole
+
+        :param nstate: number of electronic states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 1, "At least one excited state has to be calculated with TD-DFT"
+        rks = pyscf.scf.RKS(mol)
+        # supress printing of SCF energy
+        rks.verbose = 0
+        # compute self-consistent field
+        rks.kernel()
+
+        tddft = pyscf.tddft.TDDFT(rks)
+        # number of excited states (i.e. excluding the ground state)
+        tddft.nstates = nstate-1
+        tddft.kernel()
+
+        msmd = MultistateMatrixDensityTDDFT(mol, rks, tddft)
+
+        return msmd

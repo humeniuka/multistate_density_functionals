@@ -29,7 +29,8 @@ class BaseTestMultistateMatrixDensity(ABC):
     def create_matrix_density(self, mol, nstate=4):
         """
         Compute multistate matrix density for the lowest few excited states
-        of a small molecule using full configuration interaction.
+        of a small molecule using the electronic structure method of the
+        derived MultistateMatrixDensity class that is to be tested.
 
         :param mol: A test molecule
         :type mol: gto.Mole
@@ -319,33 +320,9 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
         return molecules
 
     def create_matrix_density(self, mol, nstate=4):
-        """
-        Compute multistate matrix density for the lowest few excited states
-        of a small molecule using full configuration interaction.
-
-        :param mol: A test molecule
-        :type mol: gto.Mole
-
-        :param nstate: number of electronic states to calculate
-        :type nstate: positive int
-
-        :return: multistate matrix density
-        :rtype: MultistateMatrixDensity
-        """
-        rhf = pyscf.scf.RHF(mol)
-        # supress printing of SCF energy
-        rhf.verbose = 0
-        # compute self-consistent field
-        rhf.kernel()
-
-        cisolver = pyscf.fci.FCI(mol, rhf.mo_coeff)
-        cisolver.nroots = nstate
-        fci_energies, fcivecs = cisolver.kernel()
-
-        fcivecs = numpy.asarray(fcivecs)
-        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs)
-
-        return msmd
+        # call the static method
+        return MultistateMatrixDensityFCI.create_matrix_density(
+            mol, nstate=nstate, spin_symmetry=False, raise_error=False)
 
     def test_exact_electron_repulsion(self):
         """
@@ -363,6 +340,13 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
         repulsion_matrix = msmd.exact_electron_repulsion()
         # No electron-electron repulsion.
         numpy.testing.assert_almost_equal(numpy.zeros_like(repulsion_matrix), repulsion_matrix)
+
+    def test_create_matrix_density(self):
+        """ check that matrix densities can be created for 1 or more states """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            for nstate in [1,2]:
+                with self.subTest(nstate=nstate):
+                    self.create_matrix_density(mol, nstate=nstate)
 
 
 class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):
@@ -398,33 +382,8 @@ class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest
         return molecules
 
     def create_matrix_density(self, mol, nstate=4):
-        """
-        Compute multistate matrix density for the lowest few excited
-        singlet states of a small molecule using TD-DFT
-
-        :param mol: A test molecule with even number of electrons
-        :type mol: gto.Mole
-
-        :param nstate: number of electronic states to calculate
-        :type nstate: positive int
-
-        :return: multistate matrix density
-        :rtype: MultistateMatrixDensity
-        """
-        rks = pyscf.scf.RKS(mol)
-        # supress printing of SCF energy
-        rks.verbose = 0
-        # compute self-consistent field
-        rks.kernel()
-
-        tddft = pyscf.tddft.TDDFT(rks)
-        # number of excited states (i.e. excluding the ground state)
-        tddft.nstates = nstate-1
-        tddft.kernel()
-
-        msmd = MultistateMatrixDensityTDDFT(mol, rks, tddft)
-
-        return msmd
+        # call the static method
+        return MultistateMatrixDensityTDDFT.create_matrix_density(mol, nstate=nstate)
 
     def check_cis_coefficients_normalization(self, mol):
         """

@@ -15,41 +15,6 @@ from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
-def create_matrix_density(mol, nstate=4):
-    """
-    Compute multistate matrix density for the lowest few excited states
-    of a small molecule using full configuration interaction.
-    
-    :param mol: A test molecule
-    :type mol: gto.Mole
-
-    :param nstate: number of excited states to calculate
-    :type nstate: positive int
-
-    :return: multistate matrix density
-    :rtype: MultistateMatrixDensity
-    """
-    assert nstate > 0
-    hf = pyscf.scf.RHF(mol)
-    # supress printing of SCF energy
-    hf.verbose = 0
-    # compute self-consistent field
-    hf.kernel()
-
-    cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
-    # Solve for one state more than requested to avoid
-    # problems when nstate == 1.
-    cisolver.nroots = nstate+1
-    fci_energies, fcivecs = cisolver.kernel()
-    # Remove the additional state again. For small basis sets,
-    # there can be fewer states than requested.
-    if len(fcivecs) == nstate+1:
-        fcivecs = fcivecs[:-1]
-            
-    msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
-
-    return msmd
-
 
 def compare_vW_kinetic_energy_densities(mol, nstate=2):
     """
@@ -61,7 +26,8 @@ def compare_vW_kinetic_energy_densities(mol, nstate=2):
     :type nstate: int > 0
     """
     # compute D(r) from full CI
-    msmd = create_matrix_density(mol, nstate=nstate)
+    msmd = MultistateMatrixDensityFCI.create_matrix_density(
+        mol, nstate=nstate, spin_symmetry=False, raise_error=False)
     
     # Plot T(0,0,z), cut along z-axis
     Ncoord = 5000
