@@ -264,6 +264,48 @@ class BaseTestMultistateMatrixDensity(ABC):
             with self.subTest(molecule=name):
                 self.check_kinetic_energy_density(mol)
 
+    def check_align_phases(self, mol):
+        """
+        Check that the arbitrary global phases of the eigenfunctions can be removed
+        by aligning with a reference.
+        """
+        # The reference D'
+        msmd_ref = self.create_matrix_density(mol)
+        # Make a copy of the wavefunctions and multiply them by some random signs.
+        msmd = self.create_matrix_density(mol)
+        signs = numpy.sign(numpy.random.rand(msmd.number_of_states)-0.5)
+        msmd.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, msmd.density_matrices)
+
+        if numpy.max(signs) != numpy.min(signs):
+            # Signs are not all the same.
+            with numpy.testing.assert_raises(AssertionError):
+                # After applying the signs the density matrices differ, so this line
+                # should raise an exception, which is caught.
+                numpy.testing.assert_almost_equal(msmd_ref.density_matrices, msmd.density_matrices)
+
+        # After aligning the phases with the reference,
+        # the matrix densities should be the same again.
+        msmd.align_phases(msmd_ref)
+
+        # For comparison, the matrix densities are evaluated on a coarse grid.
+        # The density matrices in the AO basis might still differ in some irrelevant
+        # signs, therefore it is better to compare D and D' on a grid.
+        grids = pyscf.dft.gen_grid.Grids(mol)
+        grids.level = 1
+        grids.build()
+
+        # D'ᵢⱼ(r)
+        D_ref, _, _ = msmd_ref.evaluate(grids.coords)
+        # σᵢσⱼ Dᵢⱼ(r), i.e. Dᵢⱼ(r) after aligning the phases with D'ᵢⱼ(r)
+        D_aligned, _, _ = msmd_ref.evaluate(grids.coords)
+        numpy.testing.assert_almost_equal(D_ref, D_aligned)
+
+    def test_align_phases(self):
+        """ Check that global phases can be found and removed. """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_align_phases(mol)
+
 
 class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
     def create_test_molecules(self):

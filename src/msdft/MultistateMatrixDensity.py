@@ -421,9 +421,61 @@ class MultistateMatrixDensity(ABC):
         :type nstate: positive int
 
         :return: multistate matrix density
-        :rtype: MultistateMatrixDensity
+        :rtype: :class:`~.MultistateMatrixDensity`
         """
         pass
+
+    def align_phases(
+            self,
+            msmd_ref):
+        """
+        Wavefunctions are only uniquely defined up to a global phase. Multiplying each
+        eigenstate Ψᵢ by an arbitrary sign σᵢ = ±1 does not change any observable.
+        However, the signs of the off-diagonal matrix elements of the matrix density are
+        changed:
+
+             Ψᵢ → σᵢΨᵢ  leads to  Dᵢⱼ(r) → σᵢσⱼDᵢⱼ(r)
+
+        Eigensolvers produce essentially eigenvectors with arbitrary phases. In order to
+        have the matrix density change continuously as a function of some external parameter
+        such as the nuclear coordinates, the phases between neighbouring D'ᵢⱼ and Dᵢⱼ have
+        to be aligned such that ||D'ᵢⱼ - σᵢσⱼ Dᵢⱼ|| is minimized.
+
+        This function finds the phases σᵢ that align the matrix density Dᵢⱼ of `self`
+        with a reference density D'ᵢⱼ of `msdm_ref`.
+        The signs are applied in place to the matrix density Dᵢⱼ.
+
+        :param msmd_ref: reference matrix density
+        :type msmd_ref: :class:`~.MultistateMatrixDensity`
+        """
+        # Evaluate the matrix densities on a coarse grid
+        grids = pyscf.dft.gen_grid.Grids(self.mol)
+        grids.level = 1
+        grids.build()
+        # D(r)
+        D, _, _ = self.evaluate(grids.coords)
+        # The reference D'(r)
+        D_ref, _, _ = msmd_ref.evaluate(grids.coords)
+        # Similarity between D and D' is measured by the
+        # scalar product <D,D'> = ∫ Dᵢⱼ(r) D'ᵢⱼ(r) dr
+        overlap = numpy.einsum('r,sijr,sijr->ij', grids.weights, D, D_ref)
+        # The similarity is normalized by the norm squared of reference
+        # ||D'||² = <D',D'> = ∫ D'ᵢⱼ(r) D'ᵢⱼ(r) dr
+        norm_squared = numpy.einsum('r,sijr,sijr->ij', grids.weights, D_ref, D_ref)
+        # If D and D' are similar and have the same phases (σᵢ=1),
+        # the matrix Sᵢⱼ = <D,D'>/<D',D'> = σᵢσⱼ should be a matrix that has ones everywhere.
+        similarity = overlap / norm_squared
+        # To extract the vector of phases σᵢ from the product Sᵢⱼ = σᵢσⱼ, an eigenvalue
+        # decomposition is performed. If D and D' differ only by the signs, there should
+        # be only a single non-zero eigenvalue and the corresponding eigenvector is just σᵢ.
+        eigvals, eigvecs = scipy.linalg.eigh(similarity)
+        # The last eigenvector.
+        signs = numpy.sign(eigvecs[:,-1])
+        # The largest eigenvalue should be close to `number_of_states` and all
+        # other eigenvalues should be approximately zero.
+
+        # Apply the sign to the one-particle (transition) density matrices.
+        self.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, self.density_matrices)
 
 
 class MultistateMatrixDensityFCI(MultistateMatrixDensity):
@@ -526,7 +578,7 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
         :type raise_error: bool
 
         :return: multistate matrix density
-        :rtype: MultistateMatrixDensity
+        :rtype: :class:`~.MultistateMatrixDensity`
         """
         assert nstate > 0
         hf = pyscf.scf.RHF(mol)
@@ -771,7 +823,7 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
         :type nstate: positive int
 
         :return: multistate matrix density
-        :rtype: MultistateMatrixDensity
+        :rtype: :class:`~.MultistateMatrixDensity`
         """
         assert nstate > 1, "At least one excited state has to be calculated with TD-DFT"
         rks = pyscf.scf.RKS(mol)
