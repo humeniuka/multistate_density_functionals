@@ -470,7 +470,7 @@ class MultistateMatrixDensity(ABC):
         # be only a single non-zero eigenvalue and the corresponding eigenvector is just σᵢ.
         eigvals, eigvecs = scipy.linalg.eigh(similarity)
         # The last eigenvector.
-        signs = numpy.sign(eigvecs[:,-1])
+        signs = numpy.sign(eigvecs[:,-1]).astype(int)
         # The largest eigenvalue should be close to `number_of_states` and all
         # other eigenvalues should be approximately zero.
 

@@ -273,7 +273,7 @@ class BaseTestMultistateMatrixDensity(ABC):
         msmd_ref = self.create_matrix_density(mol)
         # Make a copy of the wavefunctions and multiply them by some random signs.
         msmd = self.create_matrix_density(mol)
-        signs = numpy.sign(numpy.random.rand(msmd.number_of_states)-0.5)
+        signs = numpy.sign(numpy.random.rand(msmd.number_of_states)-0.5).astype(int)
         msmd.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, msmd.density_matrices)
 
         if numpy.max(signs) != numpy.min(signs):
