@@ -1,0 +1,98 @@
+#!/usr/bin/env python
+# coding: utf-8
+"""
+plot the exact matrix elements of the electron repulsion operator
+
+  Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+
+and their multi-state local-density approximation
+
+  Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+
+for the diagonal (i=j) and off-diagonal (i!=j) elements for all
+scan geometries.
+"""
+import json
+import matplotlib.lines
+import matplotlib.pyplot as plt
+
+import numpy
+
+if __name__ == "__main__":
+    plt.style.use('./latex.mplstyle')
+    # Load scan data
+    with open('electron_repulsion_energies_water_bond_breaking.json', 'r') as filehandle:
+        scan_data = json.load(filehandle)
+
+    # Bond lengths are in Angstrom.
+    bond_length = numpy.array(scan_data['bond_length'])
+    # All energies are in Hartree.
+    eigenenergies = numpy.array(scan_data['eigenenergies'])
+    C_exact = numpy.array(scan_data['C_exact'])
+    C_approximate = numpy.array(scan_data['C_approximate'])
+    J_Hartree = numpy.array(scan_data['J_Hartree'])
+    K_LSDA = numpy.array(scan_data['K_LSDA'])
+
+    # number of electronic states
+    nstate = C_exact[0].shape[0]
+
+    # Figure, axes, labels
+    fig, axes = plt.subplots(1,2, figsize=(10,5))
+
+    # Diagonal elements of electron repulsion operator
+    # (~ classical Coulomb energies of electronic states)
+    axes[0].set_ylabel(r"electron repulsion $C_{ii}$ / $E_h$")
+    axes[0].set_xlabel(r"bond length $r(OH_{1})$ / $\AA$")
+
+    for i in range(0, nstate):
+        line, = axes[0].plot(
+            bond_length, C_exact[:,i,i],
+            lw=2, alpha=0.5,
+            label=rf"$C_{{{i},{i}}}$")
+        axes[0].plot(
+            bond_length, C_approximate[:,i,i],
+            ls="--", color=line.get_color())
+
+    axes[0].legend(title="$\mathbf{(a)}$ diagonal")
+
+    # Off-diagonal elements of electron repulsion operator
+    axes[1].set_ylabel(r"electron repulsion $C_{ij}$ / $E_h$")
+    axes[1].set_xlabel(r"bond length $r(OH_{1})$ / $\AA$")
+
+    for i in range(0, nstate):
+        for j in range(i+1, nstate):
+            line, = axes[1].plot(
+                bond_length, C_exact[:,i,j],
+                lw=2, alpha=0.5,
+                label=rf"$C_{{{i},{j}}}$")
+            axes[1].plot(
+                bond_length, C_approximate[:,i,j],
+                ls="--", color=line.get_color())
+
+    axes[1].yaxis.set_label_position("right")
+    axes[1].yaxis.set_ticks_position("right")
+    axes[1].legend(title="$\mathbf{(b)}$ off-diagonal")
+
+    # Create the invisible solid and dashed
+    # black lines that are shown in the figure legend.
+    solid_line = matplotlib.lines.Line2D([], [], ls="-", color="black")
+    dashed_line = matplotlib.lines.Line2D([], [], ls="--", color="black")
+    fig.legend(
+        [solid_line, dashed_line],
+        [
+            r"$C_{ij} = \langle \Psi_i \vert \sum_{m < n} 1/r_{mn} \vert \Psi_j \rangle$ (exact)",
+            r"$C_{ij} = J_{ij}[\mathbf{D}] - K^{LSDA}_{ij}[\mathbf{D}]$"
+        ],
+        fontsize='large',
+        frameon=False,
+        loc='outside upper center',
+        ncol=2
+    )
+
+    # Otherwise the x-labels are partly cut off.
+    plt.subplots_adjust(bottom=0.15)
+
+    #plt.savefig("electron_repulsion_energies_water_bond_breaking.svg")
+    #plt.savefig("electron_repulsion_energies_water_bond_breaking.png", dpi=300)
+
+    plt.show()
