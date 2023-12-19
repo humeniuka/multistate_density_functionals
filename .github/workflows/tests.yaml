@@ -56,3 +56,7 @@ jobs:
         working-directory: tests
         run: |
           python test_LinearAlgebra.py
+      - name: Test SelfInteractionCorrection module
+        working-directory: tests
+        run: |
+          python test_SelfInteractionCorrection.py
