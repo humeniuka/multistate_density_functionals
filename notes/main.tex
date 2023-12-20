@@ -15,7 +15,9 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{bbm}
+\usepackage{booktabs}
 \usepackage{placeins}
+\usepackage{siunitx}
 \usepackage{xcolor}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -35,6 +37,8 @@
 \DeclareMathOperator{\tr}{tr}
 \DeclareMathOperator{\Span}{span}
 \DeclareMathOperator{\Div}{div}
+\DeclareMathOperator{\Diag}{diag}
+
 % bold matrix
 \newcommand\m[1]{\mathbf{#1}}
 % bold vector
@@ -127,6 +131,13 @@
 
 \subsection{Properties of the density matrix functional.}
 
+% Start with a gentle introduction:
+%  1) What is a function? f(x): x --> f(x)
+%  2) What is a functional? f[x(t)] --> for instance f[x] = \int x(t) dt
+%  3) What is a matrix function? M(x)
+%  4) What is an analytic function? --> admits a Taylor expansion
+%  5) Now define the analytic matrix functional
+
 \textbf{$\mathcal{F}[\m{D}(r)]$ is an analytic matrix functional.}
 Since $\m{D}(\vec{r})$ is the projection of $\hat{\rho}(\vec{r})$ into the subspace $\mathbb{V}^{N}$, while ${\mathcal{H}[\m{D}(\vec{r})] = \mathcal{F}[\m{D}(\vec{r})] + \int d^3r ~ v(\vec{r}) \m{D}(\vec{r})}$ is the projection of the Hamiltonian $\hat{H}$, the matrix density functional has to transform under an arbitrary basis transformation $\m{L} : \mathbb{C}^{N \times N} \to \mathbb{C}^{N \times N}$ as \cite{Lu2022JPCL}
 \begin{equation}
@@ -213,7 +224,8 @@ Because of the large distance $R$, the transition densities between states local
     0 & \m{D}^{(N)}(\vec{r}-\vec{R})
   \end{pmatrix}
 \end{equation}
-As the distance between the two molecules is increased ($R \to \infty$), the matrix elements of the Hamiltonian vanishes, $\langle \Psi_{A} \vert \hat{H} \vert \Psi_{B} \rangle \to 0$, if the wavefunctions $\Psi_A$ and $\Psi_B$ are localized on different molecules. The matrix elements of the kinetic energy decrease exponentially, $\langle \Psi_{A} \vert \hat{T} \vert \Psi_{B} \rangle \propto \exp(-\alpha R)$, for the Coulomb operator the decrease is like $\langle \Psi_{A} \vert \hat{W} \vert \Psi_{B} \rangle \propto \frac{1}{R}$. Therefore, in the limit $R \to \infty$, the universal part of the Hamiltonian in the subspace $\mathbb{V}^{(2 N)}$ is just block-diagonal, $\hat{H}^{(2N)}_0 = \hat{H}^{(N)} \oplus \hat{H}^{(N)}$. The projection of $\hat{H}_0$ into the combined subspace $\mathbb{V}^{(2N)}$ is a functional of the matrix density $\m{D}^{(2N)}$, and the Hamiltonians in the individual subspaces $\mathbb{V}^{(N)}_{\vec{O}}$ and $\mathbb{V}^{(N)}_{\vec{R}}$ are functionals of the matrix densities $\m{D}^{(N)}(\vec{r})$ and $\m{D}^{(N)}(\vec{r}-\vec{R})$, respectively. Furthermore the universal functional should be translationally invariant, so that $\mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r}-\vec{R})] = \mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r})] = \m{H}^{(N)}_0$. Therefore the following relation holds between the functionals $\mathcal{F}^{(2N)}$ and $\mathcal{F}^{(N)}$:
+As the distance between the two molecules is increased ($R \to \infty$), the matrix elements of the Hamiltonian vanishes, $\langle \Psi_{A} \vert \hat{H} \vert \Psi_{B} \rangle \to 0$, if the wavefunctions $\Psi_A$ and $\Psi_B$ are localized on different molecules. The matrix elements of the kinetic energy decrease exponentially, $\langle \Psi_{A} \vert \hat{T} \vert \Psi_{B} \rangle \propto \exp(-\alpha R)$, for the Coulomb operator the decrease is like $\langle \Psi_{A} \vert \hat{W} \vert \Psi_{B} \rangle \propto \frac{1}{R}$.
+Therefore, in the limit $R \to \infty$, the universal part of the Hamiltonian in the subspace $\mathbb{V}^{(2 N)}$ is just block-diagonal, $\hat{H}^{(2N)}_0 = \hat{H}^{(N)} \oplus \hat{H}^{(N)}$. The projection of $\hat{H}_0$ into the combined subspace $\mathbb{V}^{(2N)}$ is a functional of the matrix density $\m{D}^{(2N)}$, and the Hamiltonians in the individual subspaces $\mathbb{V}^{(N)}_{\vec{O}}$ and $\mathbb{V}^{(N)}_{\vec{R}}$ are functionals of the matrix densities $\m{D}^{(N)}(\vec{r})$ and $\m{D}^{(N)}(\vec{r}-\vec{R})$, respectively. Furthermore the universal functional should be translationally invariant, so that $\mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r}-\vec{R})] = \mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r})] = \m{H}^{(N)}_0$. Therefore the following relation holds between the functionals $\mathcal{F}^{(2N)}$ and $\mathcal{F}^{(N)}$:
 \begin{equation}
   \mathcal{F}^{(2N)}
   \left[
@@ -681,7 +693,10 @@ T[\rho_{\sigma}] = \frac{3}{10} (6 \pi^2)^{2/3} \int d^3r ~ \rho(\vec{r})_{\sigm
 \end{equation}
 with $\sigma = \uparrow,\downarrow$.
 
-\appendix
+Overall the multi-state kinetic energy functionals are not sufficiently accurate. This is not surprising,
+given that so far no kinetic functional for the ground state has been found that could compete
+with the Kohn-Sham method, either.
+
 \FloatBarrier
 \section{Gradient-Augmented Basis Sets}
 
@@ -778,6 +793,161 @@ where $\zeta_m(\vec{r})$ and $\zeta_n(\vec{r})$ are basis functions from the gra
   \includegraphics[width=0.5\linewidth]{figures/projected_orbital_gradients.png}
   \caption{\label{fig:projected_orbital_gradients} Gradients of atomic orbitals of the 6-31g basis set of Li in Li$_2$ (solid) and their projections on the gradient-augmented basis set (dashed). The z-component of the orbital gradient, $\partial_z \text{AO}(0,0,z)$ is shown along the z-axis. No wavefuntion amplitude is lost during the projection.}
 \end{figure}
+
+\section{Electron Repulsion}
+The matrix element of the electron repulsion operator, $\sum_{a < b}^{n} 1/\vert \vec{r}_a - \vec{r}_b \vert$,
+between two electronic states $\Psi_I$ and $\Psi_J$ with $n$ electrons is
+\begin{equation}
+ C_{IJ} = 
+\int dx_1 \int dx_2 \ldots \int dx_n ~ \Psi_{I}^*(\vec{x}_1, \vec{x}_2, \ldots, \vec{x}_n)
+\sum_{a < b}^{n} \frac{1}{\vert \vec{r}_a - \vec{r}_b \vert}
+\Psi_{J}(\vec{x}_1, \vec{x}_2, \ldots, \vec{x}_n), \label{eqn:electron_repulsion_exact}
+\end{equation}
+where $\vec{x}_a = (\vec{r}_a, \sigma_a)$ are the spatial and spin coordinates of electron $a$.
+According to the theorem by Lu and Gao \cite{Lu2022JPCL}, which is the multi-state equivalent of the Hohenberg-Kohn theorem,
+$C_{IJ}$ is a functional of the matrix density $\m{D}(\vec{r})$.
+In the Thomas-Fermi-Dirac (TFD) model \cite[chapter 6]{ParrYangBook} the electron-electron repulsion consists of the
+classical electrostatic energy of the total electronic charge $\rho = \rho^{\alpha} + \rho^{\beta}$ ($\alpha$ denotes spin up, $\beta$ spin down) and the exchange energy 
+\begin{equation}
+U_{ee}^{\text{TFD}}[\rho] = \frac{1}{2} \int \int' \frac{\rho(\vec{r}) \rho(\vec{r}')}{\vert \vec{r}-\vec{r}' \vert} d^3r d^3r'
+ - 2^{1/3} C_x \int [\rho^{\alpha}(\vec{r})]^{4/3} + [\rho^{\beta}(\vec{r})]^{4/3} ~ d^3r.
+\end{equation}
+The value of the prefactor $C_x = 0.7937$ is taken from the "Gaussian" approximation in
+Eqn.~(6.5.25) of chapter 6 of the textbook by Parr \& Yang \cite{ParrYangBook}. Since $C_{IJ}[\m{D}]$ is an \emph{analytical} matrix functional,
+the Thomas-Fermi-Dirac functional for the ground state can be turned into a multistate functional by keeping the same functional form
+and replacing $\rho$ with the matrix density $\m{D}$. This process is not unique, since the single-state
+functional does not contain the complete information about the multi-state functional.
+\footnote{For instance, the density product $\rho(\vec{r}') \rho(\vec{r})$ could become either the matrix product $\m{D}(\vec{r}) \m{D}(\vec{r}')$
+or $\tr(\m{D}) \m{D}$, since for a single state both options are identical.}
+However, the simplest choice is to replace scalar multiplication with matrix multiplication, so that the multistate extension
+of the electron repulsion energy becomes
+\begin{equation}
+C[\m{D}]_{IJ} = 
+\frac{1}{2} \sum_{K} \int \int' \frac{D_{IK}(\vec{r}) D_{KJ}(\vec{r}')}{\vert \vec{r}' - \vec{r} \vert} ~ d^3r d^3r'
+- 2^{1/3} C_x \int [\m{D}^{\alpha}]^{4/3}(\vec{r})_{IJ} + [\m{D}^{\beta}]^{4/3}(\vec{r})_{IJ} ~ d^3r
+\end{equation}
+Because of the requirement that $C[\m{D}]_{IJ}$ is an analytical matrix functional, the Hartree-like term 
+\begin{equation}
+\m{J}[\m{D}] = \frac{1}{2} \int \int' \frac{\m{D}(\vec{r}) \m{D}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
+\end{equation}
+contains a matrix product that mixes the electron density of a single state,
+$D_{II}(\vec{r})$ with the transition densities $D_{IJ}(\vec{r}')$ ($I \neq J$).
+The electrostatic energy of a single excited state, which has a classical interpretation, cannot be calculated in
+isolation. It depends on the transition densities, which have no classical analogue.
+Only if the transition densities to other states in the selected subspace vanish everywhere, can the state be
+treated in isolation. This situation might occur for a doubly excited state that is dark.
+Multistate density functional theory thus provides a justification for the applicability of the $\Delta SCF$ method.
+
+The exchange-like term
+\begin{equation}
+\m{K}[\m{D}] = 2^{1/3} C_x \int (\m{D}^{\alpha})^{4/3} + (\m{D}^{\beta})^{4/3}
+\end{equation}
+involves a fractional matrix power of the matrix density, $\m{D}^{4/3}$.
+It is important to stress that this different from applying the function $\bullet^{4/3}$ to
+each element of the matrix. The best way to actually compute a matrix function such as the fractional power,
+is to first do an eigendecomposition of the matrix density at each point in space. Let
+$\m{\Lambda}(\vec{r}) = \Diag\left(\lambda_1(\vec{r}),\lambda_2(\vec{r}),\ldots,\lambda_N(\vec{r}) \right)$ be the diagonal
+matrix of eigenvalues of $\m{D}(\vec{r})$, which is a function of the point in space $\vec{r}$. The corresponding orthonormalized
+eigenvectors are the columns of the orthogonal matrix $\m{U}(\vec{r})$ satisfying $\m{U}^T(\vec{r}) \m{U}(\vec{r}) = \m{I}_{N \times N}$, $\forall \vec{r}$.
+Then the eigendecomposition of $\m{D}(\vec{r})$ is
+\begin{equation}
+ \m{D}(\vec{r}) = \m{U}(\vec{r}) \m{\Lambda}(\vec{r}) \m{U}^T(\vec{r})
+\end{equation}
+Note that eigenvalues and eigenvectors are functions of space. And the fractional matrix power is 
+\begin{equation}
+  \m{D}^{4/3}(\vec{r}) = \m{U}(\vec{r}) \m{\Lambda}^{4/3}(\vec{r}) \m{U}^T(\vec{r})  
+\end{equation}
+In general any analytic scalar function $f : \mathbb{C} \mapsto \mathbb{C}$ can be converted into an analytic
+matrix function $\m{F}[\m{D}]: \mathbb{C}^{N \times N} \mapsto \mathbb{C}^{N \times N}$ by applying $f$ to
+the eigenvalues of $\m{D}$. 
+Acutally applying the ground state exchange functional element-wise is not even possible, since the transition density $D_{IJ}(\vec{r})$
+can be negative. For negative arguments the fractional power is not uniquely defined. This problem does not occur for the fractional matrix
+power, since the matrix density is positive definite, so that all eigenvalues are positive everywhere.
+
+% Lieb-Oxford bound
+
+% Eigenvalues and eigenvectors of D for analysing calculations.
+There are neither wavefunctions nor orbitals in (at least orbital-free) density functional theory,
+but only (transition) densities. For the analysis of electronic states, we need some more
+intuitive quantity to look at. The eigendecomposition might help in this regard.
+
+\subsection{Self-Interaction Error}
+The deviation between the exact electron repulsion and the DFT approximation does not depend on the geometry.
+This suggests that it is due to the oxygen core electrons, which do not participate in the bonding.
+It is known that in the core regions the self-interaction errors are particularly large (see section D in Ref. \cite{Tsuneda2014}).
+We have to subtract the unphysical interaction of a core electron with itself. An electron in a 1s spin-up ($\alpha$) core orbital $\phi^{\alpha}_{1s}(\vec{r})$
+contributes to the DFT electron repulsion the spurious interaction of the density $\rho^{\alpha}_{1s}(\vec{r}) = \vert \phi^{\alpha}_{1s}(\vec{r})\vert^2$
+with itself. There is a Hartree-like contribution,
+\begin{equation}
+J[\rho^{\alpha}_{1s}] = \frac{1}{2} \int \int' \frac{\rho^{\alpha}_{1s}(\vec{r}) \rho^{\alpha}_{1s}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert},
+\end{equation}
+and an exchange-like contribution,
+\begin{equation}
+-K[\rho^{\alpha}_{1s}] = - 2^{1/3} C_x \int \rho^{\alpha}_{1s}(\vec{r})^{4/3},
+\end{equation}
+that have to be subtracted from the diagonal elements $C_{II}[\m{D}]$. The off-diagonal elements $C_{IJ}[\m{D}]$, $I \neq J$, do not suffer from the self-intersection problem.
+The self-interaction energies from different elements (except the very light ones like hydrogen, lithium etc.) are added.
+Since core orbitals are doubly occupied, a factor two appears.
+The self-interaction correction (SIC) is supposed to cancel the self-interaction error (SIE), so there is a minus sign in front:
+\begin{equation}
+\text{SIC} = - \sum_{c}^{\text{core orbs.}} 2 \left(
+  \frac{1}{2} \int \int' \frac{\rho_{c}(\vec{r}) \rho_{c}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
+  - 2^{1/3} C_x \int \rho_c(\vec{r})^{4/3}
+ \right)
+\end{equation}
+This self-interaction correction is not a functional of the matrix density. Like its ground state counterpart,
+the multistate Thomas-Fermi-Dirac-like functional is too simplistic to cancel the self-interaction, so that a correction
+outside of the MSDFT formalism has to be employed.
+
+The self-interaction correction is a constant that only depends on the elemental composition of the molecule, but not
+on the geometry and is the same for all electronic states. So the final expression for the electron repulsion is
+\begin{equation}
+C[\m{D}]_{IJ} = J[\m{D}]_{IJ} - K^{LSDA}[\m{D}]_{IJ} + \text{SIC} ~ \delta_{IJ}. \label{eqn:electron_repulsion_msdft}
+\end{equation}
+
+\subsection{Example: Water}
+The multistate local-spin density approximation for the electron repulsion is tested on the water molecule.
+The input matrix density $\m{D}$ in the basis of the electronic eigenstates
+is taken from a full configuration interaction calculation for the lowest 4 singlet states
+with the sto-3g basis set (using PySCF \cite{Sun2020}). The electronic repulsion energies
+according to Eqn.~\ref{eqn:electron_repulsion_msdft} are compared with the exact ones in Eqn.~\ref{eqn:electron_repulsion_exact}
+along one-dimensional scans of the HOH angle and one OH bond. In the first scan the OH bonds are kept at the experimental
+equilbrium value of $r(O-H_1) = r(O-H_2)= 0.958 \AA$, while the HOH angle is varied from 90$^{\circ}$ to 180$^{\circ}$
+(see Fig.\ref{fig:electron_repulsion_energies_water_bending}).
+In the second scan one bond OH is broken by varying $r(O-H_2)$ from $0.5~\AA$ to $2.0~\AA$, while the other OH$_1$ bond and the angle
+($\angle{HOH} = 104.5^{\circ}$) remain at the equilibrium values. (see Fig.~\ref{fig:electron_repulsion_energies_water_bond_breaking}).
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bending.png}
+  \caption{\textbf{Electron repulsion in water (bending).} Diagonal (a)
+  and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
+  as function of the H-O-H angle.}
+  \label{fig:electron_repulsion_energies_water_bending}
+\end{figure}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bond_breaking.png}
+  \caption{\textbf{Electron repulsion in water (bond breaking).} Diagonal (a)
+  and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
+  as function of the O-H$_2$ bond length.}
+  \label{fig:electron_repulsion_energies_water_bond_breaking}
+\end{figure}
+
+The relative errors of the diagonal elements and the off-diagonal elements of the electron repulsion
+are less than 1\% and less than 5\%, respectively.
+The remarkable thing is that the off-diagonal elements $C_{IJ}$, which have no equivalent
+in single-state density functional theory, match well.
+
+For the oxygen atom with the sto-3g basis set the self-interaction of the 1s core electrons is SIE=0.371 Hartree.
+Shifting the diagonal electron repulsion energies from the multistate Thomas-Fermi functional
+downwards by this amount, brings them into nice agreement with the exact curves.
+
+The individual contributions of the Hartree-like and exchange-like term are shown in table \ref{tbl:water_electron_repulsion} for the angle
+$\angle(HOH) = 104.2^{\circ}$, which is the closest scan point to the experimental equilibrium structure.
+
+\input{tables/water_electron_repulsion}
+
+\FloatBarrier
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The "Acknowledgement" section can be given in all manuscript

@@ -7,11 +7,17 @@ compare the exact electron repulsion energy matrix between electronic states
 
 with the multi-state local-density approximation
 
-  Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
-      = 1/2 ∑ₖ ∫∫' Dᵢₖ(r) Dₖⱼ(r')/|r-r'| - 2¹ᐟ³ Cₓ ∫ [Dᵅ(r)⁴ᐟ³]ᵢⱼ + [Dᵝ(r)⁴ᐟ³]ᵢⱼ dr
+  Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D] + SIC δᵢⱼ
+      = 1/2 ∑ₖ ∫∫' Dᵢₖ(r) Dₖⱼ(r')/|r-r'| - 2¹ᐟ³ Cₓ ∫ [Dᵅ(r)⁴ᐟ³]ᵢⱼ + [Dᵝ(r)⁴ᐟ³]ᵢⱼ dr + SIC δᵢⱼ
 
 for a range of the water geometries with different HOH angles.
 The exact matrix density Dᵢⱼ(r) is calculated using full configuration interaction.
+
+The self-interaction correction for the core electrons is a constant that neither depends
+on the geometry nor on the electronic state.
+
+  SIC = - 2 x [ (ρ₁ₛᵅ|ρ₁ₛᵅ) - 2¹ᐟ³ Cₓ ∫ ρ₁ₛᵅ(r)⁴ᐟ³ dr ] δᵢⱼ
+
 """
 import json
 import numpy
@@ -21,8 +27,9 @@ import pyscf.scf
 
 from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
-
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
+from msdft.SelfInteractionCorrection import CoreSelfInteractionCorrection
+
 
 if __name__ == "__main__":
     print("This calculation can take a while. Please be patient ...")
@@ -38,12 +45,17 @@ if __name__ == "__main__":
         # approximate electron repulsion matrix and its constituents.
         'C_approximate': [],
         'J_Hartree': [],
-        'K_LSDA': []
+        'K_LSDA': [],
+        # The self-interaction correction for the core orbitals, a constant
+        # that does not depend on the geometry and is the same for all
+        # electronic states.
+        'self_interaction_correction': [],
     }
 
     # water
     # Compute lowest 4 singlet states.
     nstate = 4
+
     # To fix the signs of the off-diagonal elements of the matrix densities,
     # so that we can plot smooth, continuous curves, the global phases of
     # the wavefunctions have to be aligned with the phases at the previous
@@ -66,6 +78,11 @@ if __name__ == "__main__":
             # singlet
             spin = 0)
 
+        # Remove the self-interaction error (SIE) of the electrons in the core orbitals.
+        SIE = CoreSelfInteractionCorrection(mol).total_self_interaction_error()
+        # The correction should remove the self-interaction error, therefore the minus sign.
+        SIC = -SIE
+
         # Compute D(r) from full CI.
         msmd = MultistateMatrixDensityFCI.create_matrix_density(mol, nstate=nstate)
         # Align the signs of the wavefunctions with those at the privious scan point.
@@ -82,10 +99,10 @@ if __name__ == "__main__":
         # Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
         C_exact = msmd.exact_electron_repulsion()
         # approximate multi-state LSDA electron repulsion
-        # Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+        # Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D] + SIC δᵢⱼ
         J_Hartree = hartree_functional(msmd)
         K_LSDA = exchange_functional(msmd)
-        C_approximate = J_Hartree - K_LSDA
+        C_approximate = J_Hartree - K_LSDA + SIC * numpy.eye(nstate)
 
         # Compare approximate and exact electron repulsion.
         print("=== Electron Repulsion Matrices ===")
@@ -97,6 +114,8 @@ if __name__ == "__main__":
         print(J_Hartree)
         print("-K_LSDA")
         print(-K_LSDA)
+        print("self-interaction correction for core orbitals")
+        print(SIC)
 
         # relative errors
         relative_errors = abs(C_approximate - C_exact)/(abs(C_exact) + 1.0e-8)
@@ -111,6 +130,7 @@ if __name__ == "__main__":
         scan_data['C_approximate'].append(C_approximate.tolist())
         scan_data['J_Hartree'].append(J_Hartree.tolist())
         scan_data['K_LSDA'].append(K_LSDA.tolist())
+        scan_data['self_interaction_correction'].append(SIC)
 
         # This scan point becomes the reference for the next scan point.
         msmd_ref = msmd

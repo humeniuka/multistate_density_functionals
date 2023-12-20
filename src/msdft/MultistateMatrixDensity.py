@@ -165,7 +165,7 @@ class MultistateMatrixDensity(ABC):
         nuclear_matrix = self.exact_1e_operator(intor='int1e_nuc')
         # (Eᵢ - N) δᵢⱼ
         electronic_energies = numpy.diag(self.eigenenergies - self.mol.energy_nuc())
-        # Cᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ - N
+        # Cᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ
         electron_repulsion_matrix = electronic_energies - kinetic_matrix - nuclear_matrix
 
         return electron_repulsion_matrix

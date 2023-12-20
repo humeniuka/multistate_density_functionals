@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # Diagonal elements of electron repulsion operator
     # (~ classical Coulomb energies of electronic states)
-    axes[0].set_ylabel(r"electron repulsion $C_{ii}$ / $E_h$")
+    axes[0].set_ylabel(r"electron repulsion $C_{II}$ / $E_h$")
     axes[0].set_xlabel(r"bond length $r(OH_{1})$ / $\AA$")
 
     for i in range(0, nstate):
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     axes[0].legend(title="$\mathbf{(a)}$ diagonal")
 
     # Off-diagonal elements of electron repulsion operator
-    axes[1].set_ylabel(r"electron repulsion $C_{ij}$ / $E_h$")
+    axes[1].set_ylabel(r"electron repulsion $C_{IJ}$ / $E_h$")
     axes[1].set_xlabel(r"bond length $r(OH_{1})$ / $\AA$")
 
     for i in range(0, nstate):
@@ -80,8 +80,8 @@ if __name__ == "__main__":
     fig.legend(
         [solid_line, dashed_line],
         [
-            r"$C_{ij} = \langle \Psi_i \vert \sum_{m < n} 1/r_{mn} \vert \Psi_j \rangle$ (exact)",
-            r"$C_{ij} = J_{ij}[\mathbf{D}] - K^{LSDA}_{ij}[\mathbf{D}]$"
+            r"$C_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle$ (exact)",
+            r"$C_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
         ],
         fontsize='large',
         frameon=False,
@@ -93,6 +93,6 @@ if __name__ == "__main__":
     plt.subplots_adjust(bottom=0.15)
 
     #plt.savefig("electron_repulsion_energies_water_bond_breaking.svg")
-    #plt.savefig("electron_repulsion_energies_water_bond_breaking.png", dpi=300)
+    plt.savefig("electron_repulsion_energies_water_bond_breaking.png", dpi=300)
 
     plt.show()

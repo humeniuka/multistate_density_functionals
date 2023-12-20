@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     # Diagonal elements of electron repulsion operator
     # (~ classical Coulomb energies of electronic states)
-    axes[0].set_ylabel(r"electron repulsion $C_{ii}$ / $E_h$")
+    axes[0].set_ylabel(r"electron repulsion $C_{IJ}$ / $E_h$")
     axes[0].set_xlabel(r"angle $\angle{HOH}$ / $^{\circ}$")
 
     for i in range(0, nstate):
@@ -48,6 +48,10 @@ if __name__ == "__main__":
             angles, C_exact[:,i,i],
             lw=2, alpha=0.5,
             label=rf"$C_{{{i},{i}}}$")
+        # Jᵢⱼ[D] - Kᵢⱼ[D] overestimates the electron repulsion because of the
+        # self-interaction error. For a single electron, the exchange part should
+        # exactly cancel the Hartree part, but this does not happen in the
+        # density functional approximation.
         axes[0].plot(
             angles, C_approximate[:,i,i],
             ls="--", color=line.get_color())
@@ -55,7 +59,7 @@ if __name__ == "__main__":
     axes[0].legend(title="$\mathbf{(a)}$ diagonal")
 
     # Off-diagonal elements of electron repulsion operator
-    axes[1].set_ylabel(r"electron repulsion $C_{ij}$ / $E_h$")
+    axes[1].set_ylabel(r"electron repulsion $C_{IJ}$ / $E_h$")
     axes[1].set_xlabel(r"angle $\angle{HOH}$ / $^{\circ}$")
 
     for i in range(0, nstate):
@@ -79,8 +83,8 @@ if __name__ == "__main__":
     fig.legend(
         [solid_line, dashed_line],
         [
-            r"$C_{ij} = \langle \Psi_i \vert \sum_{m < n} 1/r_{mn} \vert \Psi_j \rangle$ (exact)",
-            r"$C_{ij} = J_{ij}[\mathbf{D}] - K^{LSDA}_{ij}[\mathbf{D}]$"
+            r"$C_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle$ (exact)",
+            r"$C_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
         ],
         fontsize='large',
         frameon=False,
