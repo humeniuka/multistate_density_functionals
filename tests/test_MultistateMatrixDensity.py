@@ -269,19 +269,15 @@ class BaseTestMultistateMatrixDensity(ABC):
         Check that the arbitrary global phases of the eigenfunctions can be removed
         by aligning with a reference.
         """
-        # The reference D'
+        # The reference D' is obtained by solving the RHF and Full CI and eigenvalue problems.
         msmd_ref = self.create_matrix_density(mol)
-        # Make a copy of the wavefunctions and multiply them by some random signs.
+        # Solving the same eigenvalue problem again, might give the same or different global
+        # phases in D as in D'.
         msmd = self.create_matrix_density(mol)
+        # To be sure we have different signs, the density matrices are multiplied
+        # by some random signs.
         signs = numpy.sign(numpy.random.rand(msmd.number_of_states)-0.5).astype(int)
         msmd.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, msmd.density_matrices)
-
-        if numpy.max(signs) != numpy.min(signs):
-            # Signs are not all the same.
-            with numpy.testing.assert_raises(AssertionError):
-                # After applying the signs the density matrices differ, so this line
-                # should raise an exception, which is caught.
-                numpy.testing.assert_almost_equal(msmd_ref.density_matrices, msmd.density_matrices)
 
         # After aligning the phases with the reference,
         # the matrix densities should be the same again.
