@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-plot the exact matrix elements of the electron repulsion operator
+plot the indirect part of the exact matrix elements of the electron repulsion operator
 
   Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
 
-and their multi-state local-density approximation
+i.e.
 
-  Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+  Cᵢⱼ - Jᵢⱼ[D]
+
+and compare it with the multistate Thomas-Fermi-Dirac approximation for
+exchange and correlation,
+
+  -Kᵢⱼ[D] + SIC δᵢⱼ,
 
 for the diagonal (i=j) and off-diagonal (i!=j) elements for all
 scan geometries.
@@ -32,6 +37,7 @@ if __name__ == "__main__":
     C_approximate = numpy.array(scan_data['C_approximate'])
     J_Hartree = numpy.array(scan_data['J_Hartree'])
     K_LSDA = numpy.array(scan_data['K_LSDA'])
+    SIC = numpy.array(scan_data['self_interaction_correction'])
 
     # number of electronic states
     nstate = C_exact[0].shape[0]
@@ -39,34 +45,33 @@ if __name__ == "__main__":
     # Figure, axes, labels
     fig, axes = plt.subplots(1,2, figsize=(10,5))
 
-    # Diagonal elements of electron repulsion operator
-    # (~ classical Coulomb energies of electronic states)
-    axes[0].set_ylabel(r"electron repulsion $C_{II}$ / $E_h$")
+    # Diagonal elements of indirect part of the electron repulsion operator
+    axes[0].set_ylabel(r"exchange correlation / $E_h$")
     axes[0].set_xlabel(r"bond length $r(OH_{1})$ / $\AA$")
 
     for i in range(0, nstate):
         line, = axes[0].plot(
-            bond_length, C_exact[:,i,i],
+            bond_length, C_exact[:,i,i] - J_Hartree[:,i,i],
             lw=2, alpha=0.5,
-            label=rf"$C_{{{i},{i}}}$")
+            label=rf"XC$_{{{i},{i}}}$")
         axes[0].plot(
-            bond_length, C_approximate[:,i,i],
+            bond_length, -K_LSDA[:,i,i] + SIC,
             ls="--", color=line.get_color())
 
     axes[0].legend(title="$\mathbf{(a)}$ diagonal")
 
-    # Off-diagonal elements of electron repulsion operator
-    axes[1].set_ylabel(r"electron repulsion $C_{IJ}$ / $E_h$")
+    # Off-diagonal elements of indirect part of electron repulsion operator
+    axes[1].set_ylabel(r"exchange correlation / $E_h$")
     axes[1].set_xlabel(r"bond length $r(OH_{1})$ / $\AA$")
 
     for i in range(0, nstate):
         for j in range(i+1, nstate):
             line, = axes[1].plot(
-                bond_length, C_exact[:,i,j],
+                bond_length, C_exact[:,i,j] - J_Hartree[:,i,j],
                 lw=2, alpha=0.5,
-                label=rf"$C_{{{i},{j}}}$")
+                label=rf"XC$_{{{i},{j}}}$")
             axes[1].plot(
-                bond_length, C_approximate[:,i,j],
+                bond_length, -K_LSDA[:,i,j],
                 ls="--", color=line.get_color())
 
     axes[1].yaxis.set_label_position("right")
@@ -80,19 +85,20 @@ if __name__ == "__main__":
     fig.legend(
         [solid_line, dashed_line],
         [
-            r"$C_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle$ (exact)",
-            r"$C_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
+            r"$\text{XC}_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle - \text{J}[\mathbf{D}]_{IJ}$ (exact)",
+            r"$- \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
         ],
         fontsize='large',
         frameon=False,
         loc='outside upper center',
-        ncol=2
+        ncol=2,
+        columnspacing=4.0
     )
 
     # Otherwise the x-labels are partly cut off.
     plt.subplots_adjust(bottom=0.15)
 
-    #plt.savefig("electron_repulsion_energies_water_bond_breaking.svg")
-    #plt.savefig("electron_repulsion_energies_water_bond_breaking.png", dpi=300)
+    #plt.savefig("indirect_electron_repulsion_energies_water_bond_breaking.svg")
+    #plt.savefig("indirect_electron_repulsion_energies_water_bond_breaking.png", dpi=300)
 
     plt.show()

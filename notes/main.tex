@@ -828,7 +828,7 @@ C[\m{D}]_{IJ} =
 \end{equation}
 Because of the requirement that $C[\m{D}]_{IJ}$ is an analytical matrix functional, the Hartree-like term 
 \begin{equation}
-\m{J}[\m{D}] = \frac{1}{2} \int \int' \frac{\m{D}(\vec{r}) \m{D}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
+\m{J}[\m{D}] = \frac{1}{2} \int \int' \frac{\m{D}(\vec{r}) \m{D}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert} \label{eqn:Hartree_term}
 \end{equation}
 contains a matrix product that mixes the electron density of a single state,
 $D_{II}(\vec{r})$ with the transition densities $D_{IJ}(\vec{r}')$ ($I \neq J$).
@@ -840,7 +840,7 @@ Multistate density functional theory thus provides a justification for the appli
 
 The exchange-like term
 \begin{equation}
-\m{K}[\m{D}] = 2^{1/3} C_x \int (\m{D}^{\alpha})^{4/3} + (\m{D}^{\beta})^{4/3}
+\m{K}[\m{D}] = 2^{1/3} C_x \int (\m{D}^{\alpha})^{4/3} + (\m{D}^{\beta})^{4/3} \label{eqn:exchange_term}
 \end{equation}
 involves a fractional matrix power of the matrix density, $\m{D}^{4/3}$.
 It is important to stress that this different from applying the function $\bullet^{4/3}$ to
@@ -864,16 +864,83 @@ Acutally applying the ground state exchange functional element-wise is not even 
 can be negative. For negative arguments the fractional power is not uniquely defined. This problem does not occur for the fractional matrix
 power, since the matrix density is positive definite, so that all eigenvalues are positive everywhere.
 
-% Lieb-Oxford bound
+The Hartree term (the direct part of the Coulomb energy) accounts for most of the electron repulsion.
+For the diagonal matrix elements it is almost an order of magnitude larger than the exchange-correlation term
+(the indirect part), while the off-diagonal elements are dominated almost exclusively by the direct term.
+The functional form of the Hartree term (Eqn.~\ref{eqn:Hartree_term}) for the off-diagonal elements
+can be justified qualitatively as follows:
+Suppose for simplicity that the wavefunctions $\Psi_{I},\Psi_{J},\ldots$
+in the electronic subspace are Hartree products built from a set of orthonormal orbitals $\phi_{i}(\vec{r})$.
+The electrons are assumed to be spinless and distinguishable.
+All wavefunctions have $n-1$ orbitals ($\phi_1,\ldots,\phi_{n-1}$) in common
+and differ only in the last orbital ($\phi_I$ or $\phi_J$ etc.).
+\begin{align}
+ \Psi_I &= \phi_1(\vec{r}_1) \phi_2(\vec{r}_2) \cdots \phi_{n-1}(\vec{r}_{n-1}) \phi_{I}(\vec{r}) \\
+ \Psi_J &= \underbrace{\phi_1(\vec{r}_1) \phi_2(\vec{r}_2) \cdots \phi_{n-1}(\vec{r}_{n-1})}_{\text{"inactive"}} \phi_{J}(\vec{r})
+\end{align}
+The diagonal and off-diagonal parts of the matrix density for these states are
+\begin{equation}
+ D_{II}(\vec{r}) = \sum_{1 \leq i \leq n-1} \vert \phi_i(\vec{r}) \vert^2 + \vert \phi_I(\vec{r}) \vert^2
+\end{equation}
+and
+\begin{equation}
+  D_{IJ}(\vec{r}) = \phi^*_I(\vec{r}) \phi_J(\vec{r}) \quad \quad I \neq J,
+\end{equation}
+respectively. The matrix element of the electron repulsion operator between two different states is
+\begin{equation}
+  \begin{split}
+C_{IJ} &= \int d^3r_1 \ldots \int d^3r_n ~ 
+\Psi^*_{I}(\vec{r}_1,\vec{r}_2,\ldots,\vec{r}_n)
+\sum_{1 \leq i < j \leq n} \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert}
+\Psi_{J}(\vec{r}_1,\vec{r}_2,\ldots,\vec{r}_n) \\
+&= \int d^3r_1 \ldots \int d^3r_n ~ 
+\sum_{1 \leq i < j \leq n} \frac{
+  \vert \phi_1(\vec{r}_1) \vert^2 \ldots \vert \phi_{n-1}(\vec{r}_{n-1}) \vert^2 \phi^*_I(\vec{r}_n) \phi_J(\vec{r}_n)
+  }{\vert \vec{r}_i - \vec{r}_j \vert} \\
+&= \int d^3r_1 \int d^3r_2 \left(\sum_{1 \leq i \leq n-1} \vert \phi_i(\vec{r}_1) \vert^2 \right)
+  \frac{1}{\vert \vec{r}_1 - \vec{r}_2 \vert}
+  D_{IJ}(\vec{r}_2) \label{eqn:Hartree_exact_electron_repulsion}
+  \end{split}
+\end{equation}
+The last equality follows because all terms that involve an integral over $\vec{r}_n$ vanish since $\phi_I$ and $\phi_J$ are orthogonal.
+So $C_{IJ}$ is the electrostatic interaction of the transition density with the density of the "inactive" orbitals
+that are shared by all electronic states. On the other hand, the Hartree-term in Eqn.~\ref{eqn:Hartree_term} gives
+\begin{align}
+ J[\m{D}]_{IJ} &= \frac{1}{2} \int d^3r_1 \int d^3r_2 \sum_K \frac{D_{IK}(\vec{r}_1) D_{KJ}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert} \\
+ &= \int \int \frac{1}{2} 
+  \left( D_{II}(\vec{r}_1) + D_{JJ}(\vec{r}_1) \right)
+  \frac{1}{\vert \vec{r}_1 - \vec{r}_2 \vert}
+  D_{IJ}(\vec{r}_2) +
+  \frac{1}{2} \sum_{K \neq I,J} \int \int D_{IK}(\vec{r}_1) \frac{1}{\vert \vec{r}_1 - \vec{r}_2 \vert} D_{KJ}(\vec{r}_2)
+  \label{eqn:Hartree_term_offdiagonal}
+\end{align}
+In going from the first to the second line, the terms where $K$ is equal to $I$ or $J$ were separated out.
+The first term in Eqn.~\ref{eqn:Hartree_term_offdiagonal} differs from the exact electron repulsion (Eqn.~\ref{eqn:Hartree_exact_electron_repulsion})
+only by the spurious electrostatic interaction of $D_{IJ}$ with $\frac{1}{2} (\vert \phi_I \vert^2 + \vert \phi_J \vert^2)$.
+The additional second term in Eqn.~\ref{eqn:Hartree_term_offdiagonal} involves the electrostatic interaction
+between transition densities of $I$ and $K$. It is much smaller than the first, since densitities have magnitudes
+on the order of $n$ (number of electron), while transition densities are on the order of $<1$.
+The additional term is needed to ensure that $\m{J}[\m{D}(\vec{r})]$ is a matrix functional of $\m{D}$ and transforms as
+$\m{J}[\m{U} \m{D}(\vec{r}) \m{U}^{-1}] = \m{U} \m{J}[\m{D}(\vec{r})] \m{U}^{-1}$ under a basis transformation of the electronic states.
 
-% Eigenvalues and eigenvectors of D for analysing calculations.
-There are neither wavefunctions nor orbitals in (at least orbital-free) density functional theory,
-but only (transition) densities. For the analysis of electronic states, we need some more
-intuitive quantity to look at. The eigendecomposition might help in this regard.
+% Lieb-Oxford bound
+%Justifying the multistate exchange functional $\m{K}^{LSDA}[\m{D}]$ requires more effort.
+%We will resort to some ideas employed by Lieb and Oxford to derive
+%a lower bound on the indirect part of the electron repulsion in terms of the electron density. \cite{Lieb1979,Lieb1981}
+%The proof in the original publications is written in a very dense style. Are more accessible explanation of the proof
+%for a less tight bound is given in
+%chapter 6 of E. Lieb's book "Stability of Matter in Quantum Mechanics" \cite{Lieb2010_Stability_of_Matter}.
+%We will follow the notation of the book, except for denoting
+%the Coulomb interaction between two charge densities $f(\vec{x})$ and $g(\vec{x})$ by 
+%\begin{equation}
+%  C(f,g) = \frac{1}{2} \int d^3x \int d^3y \frac{f(\vec{x}) g(\vec{y})}{\vert \vec{x} - \vec{y} \vert}
+%\end{equation}
+%(instead of $D(f,g)$) to avoid confusion with the matrix density.
 
 \subsection{Self-Interaction Error}
-The deviation between the exact electron repulsion and the DFT approximation does not depend on the geometry.
-This suggests that it is due to the oxygen core electrons, which do not participate in the bonding.
+The largest part of the deviation between the exact electron repulsion $\m{C}$ and
+the MSDFT approximation $\m{J}[\m{D}]-\m{K}^{LSDA}[\m{D}]$ does not depend on the geometry.
+This suggests that it is due to the core electrons, which do not participate in the bonding.
 It is known that in the core regions the self-interaction errors are particularly large (see section D in Ref. \cite{Tsuneda2014}).
 We have to subtract the unphysical interaction of a core electron with itself. An electron in a 1s spin-up ($\alpha$) core orbital $\phi^{\alpha}_{1s}(\vec{r})$
 contributes to the DFT electron repulsion the spurious interaction of the density $\rho^{\alpha}_{1s}(\vec{r}) = \vert \phi^{\alpha}_{1s}(\vec{r})\vert^2$
@@ -916,12 +983,14 @@ equilbrium value of $r(O-H_1) = r(O-H_2)= 0.958 \AA$, while the HOH angle is var
 (see Fig.\ref{fig:electron_repulsion_energies_water_bending}).
 In the second scan one bond OH is broken by varying $r(O-H_2)$ from $0.5~\AA$ to $2.0~\AA$, while the other OH$_1$ bond and the angle
 ($\angle{HOH} = 104.5^{\circ}$) remain at the equilibrium values. (see Fig.~\ref{fig:electron_repulsion_energies_water_bond_breaking}).
+Jumps in the curves occur when adiabatic states cross, and the \emph{diabatic} states (which have continuous curves)
+swap their \emph{adiabatic} state labels.
 
 \begin{figure}[h!]
   \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bending.png}
   \caption{\textbf{Electron repulsion in water (bending).} Diagonal (a)
   and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
-  as function of the H-O-H angle.}
+  as functions of the H-O-H angle.}
   \label{fig:electron_repulsion_energies_water_bending}
 \end{figure}
 
@@ -929,14 +998,14 @@ In the second scan one bond OH is broken by varying $r(O-H_2)$ from $0.5~\AA$ to
   \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bond_breaking.png}
   \caption{\textbf{Electron repulsion in water (bond breaking).} Diagonal (a)
   and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
-  as function of the O-H$_2$ bond length.}
+  as functions of the O-H$_2$ bond length.}
   \label{fig:electron_repulsion_energies_water_bond_breaking}
 \end{figure}
 
 The relative errors of the diagonal elements and the off-diagonal elements of the electron repulsion
 are less than 1\% and less than 5\%, respectively.
-The remarkable thing is that the off-diagonal elements $C_{IJ}$, which have no equivalent
-in single-state density functional theory, match well.
+The off-diagonal elements $C_{IJ}$, which have no equivalent
+in single-state density functional theory, also match well.
 
 For the oxygen atom with the sto-3g basis set the self-interaction of the 1s core electrons is SIE=0.371 Hartree.
 Shifting the diagonal electron repulsion energies from the multistate Thomas-Fermi functional
@@ -947,7 +1016,53 @@ $\angle(HOH) = 104.2^{\circ}$, which is the closest scan point to the experiment
 
 \input{tables/water_electron_repulsion}
 
+Most of the electron repulsion comes from the direct (or Hartree) part. To assess the qualitity of
+our model for the much smaller indirect part, which is usually called the exchange-correlation energy,
+the large direct part $\m{J}[\m{D}]$ is subtracted from the exact electron repulsion energy.
+The exact exchange-correlation (XC) energy is simply everything else that is not contained in
+the direct part,
+\begin{equation}
+\text{XC}^{\text{exact}}_{IJ} =
+\langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle - \text{J}[\mathbf{D}]_{IJ}.
+\end{equation}
+The multistate density functional approximation for the exchange-correlation (XC) energy is
+\begin{equation}
+\text{XC}_{IJ} =  -K^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}.
+\end{equation}
+The exact and approximate exchange-correlation energies are compared for the water geometry
+in Figs.~\ref{fig:indirect_electron_repulsion_energies_water_bending} and \ref{fig:indirect_electron_repulsion_energies_water_bond_breaking}.
+For the scan of the bending angle (Fig.~\ref{fig:indirect_electron_repulsion_energies_water_bending}),
+the diagonal matrix elements do not seem to agree very well, but this is an optical illusion created by the narrow plot range:
+All electronic states have exchange-correlation energies in a narrow range around $-9.2$ Hartree and differ only by approximately 1\%. 
+There is more variation in the off-diagonal elements. The curves for $-K^{LSDA}[\mathbf{D}]_{IJ}$ ($I \neq J$)
+follow the exact curves closely and have the correct sign.
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/indirect_electron_repulsion_energies_water_bending.png}
+  \caption{\textbf{Exchange-correlation energy in water (bending).} Diagonal (a)
+  and off-diagonal (b) matrix elements of the exact $\text{XC}^{\text{exact}}_{IJ}$ (solid lines)
+  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
+  as functions of the H-O-H angle.}
+  \label{fig:indirect_electron_repulsion_energies_water_bending}
+\end{figure}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/indirect_electron_repulsion_energies_water_bond_breaking.png}
+  \caption{\textbf{Exchange-correlation energy in water (bond breaking).} Diagonal (a)
+  and off-diagonal (b) matrix elements of the exact $\text{XC}^{\text{exact}}_{IJ}$ (solid lines)
+  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
+  as functions of the O-H$_2$ bond length.}
+  \label{fig:indirect_electron_repulsion_energies_water_bond_breaking}
+\end{figure}
+
+
 \FloatBarrier
+
+%%Eigenvalues and eigenvectors of D for analysing calculations.
+%There are neither wavefunctions nor orbitals in (at least orbital-free) density functional theory,
+%but only (transition) densities. For the analysis of electronic states, we need some more
+%intuitive quantity to look at. The eigendecomposition might help in this regard.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The "Acknowledgement" section can be given in all manuscript
@@ -957,7 +1072,6 @@ $\angle(HOH) = 104.2^{\circ}$, which is the closest scan point to the experiment
 \begin{acknowledgement}
 
 \end{acknowledgement}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The same is true for Supporting Information, which should use the
 %% suppinfo environment.

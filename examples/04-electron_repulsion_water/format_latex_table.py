@@ -73,7 +73,7 @@ zero-decimal-to-integer
 \end{tabular}
 
 \caption{
-\label{tbl:water_electron_repulsion}
+\label{tbl:water_electron_repulsion}    
 Electron repulsion in the lowest 4 singlet states of water ($r(OH_1)=r(OH_2)=0.958 \AA$, $\\angle(HOH) = 104.2^{\circ}$).
 Exact and multistate density functional approximation for matrix of electron repulsion operator
 in the basis of FCI eigenstates. The parts $\m{J}$, $-\m{K}$ and $\\text{SIC} \m{I}$ are shown below.
