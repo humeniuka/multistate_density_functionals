@@ -103,6 +103,11 @@ class TestLinearAlgebra(unittest.TestCase):
                 "Repeated eigenvalue derivatives are only problematic "
                 "if they belong to repeated eigenvalues.")
 
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run. Otherwise the test fails occasionally
+        # when the threshold is is too tight.
+        random_number_generator = numpy.random.default_rng(seed=6789)
+
         # In order to verify the code for derivatives of eigenvectors, we have to
         # construct a one-parameter family of symmetric, differentiable matrices S(t),
         # for which the eigenvalue derivatives and eigenvector derivatives are known.
@@ -112,7 +117,7 @@ class TestLinearAlgebra(unittest.TestCase):
         #   S(t) = U(t).diag(λ1(t), λ2(t), ...).Uᵀ(t)
 
         # Create a random antisymmetric matrix Xᵀ = -X
-        X = numpy.random.rand(dim, dim)
+        X = random_number_generator.random((dim, dim))
         X = 0.5 * (X - X.T)
 
         # function f(t) and its derivatives
