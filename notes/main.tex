@@ -38,6 +38,7 @@
 \DeclareMathOperator{\Span}{span}
 \DeclareMathOperator{\Div}{div}
 \DeclareMathOperator{\Diag}{diag}
+\DeclareMathOperator*{\argmin}{arg\,min}
 
 % bold matrix
 \newcommand\m[1]{\mathbf{#1}}
@@ -845,7 +846,7 @@ The exchange-like term
 involves a fractional matrix power of the matrix density, $\m{D}^{4/3}$.
 It is important to stress that this different from applying the function $\bullet^{4/3}$ to
 each element of the matrix. The best way to actually compute a matrix function such as the fractional power,
-is to first do an eigendecomposition of the matrix density at each point in space. Let
+is to first do a spectral decomposition of the matrix density at each point in space. Let
 $\m{\Lambda}(\vec{r}) = \Diag\left(\lambda_1(\vec{r}),\lambda_2(\vec{r}),\ldots,\lambda_N(\vec{r}) \right)$ be the diagonal
 matrix of eigenvalues of $\m{D}(\vec{r})$, which is a function of the point in space $\vec{r}$. The corresponding orthonormalized
 eigenvectors are the columns of the orthogonal matrix $\m{U}(\vec{r})$ satisfying $\m{U}^T(\vec{r}) \m{U}(\vec{r}) = \m{I}_{N \times N}$, $\forall \vec{r}$.
@@ -922,6 +923,39 @@ between transition densities of $I$ and $K$. It is much smaller than the first, 
 on the order of $n$ (number of electron), while transition densities are on the order of $<1$.
 The additional term is needed to ensure that $\m{J}[\m{D}(\vec{r})]$ is a matrix functional of $\m{D}$ and transforms as
 $\m{J}[\m{U} \m{D}(\vec{r}) \m{U}^{-1}] = \m{U} \m{J}[\m{D}(\vec{r})] \m{U}^{-1}$ under a basis transformation of the electronic states.
+
+For $I=J$ the second term in Eqn.~\ref{eqn:Hartree_term_offdiagonal} is positive, so that
+$J[\m{D}]_{II}$ is larger than the electrostatic repulsion of the state density $D_{II}$ alone. The trace of the Hartree-like
+matrix functional is larger than the sum of the Hartree energies of the individual states,
+\begin{equation}
+ \tr(J[\m{D}]) \ge \sum_{I=1}^{N} \frac{1}{2} \int \int' \frac{D_{II}(\vec{r}) D_{II}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}. \label{eqn:J_inequality}
+\end{equation}
+However, in the total electron repulsion $\m{C}[\m{D}] = \m{J}[\m{D}] - \m{K}[\m{D}]$,
+this larger direct part of the electron repulsion is partly compensated for by the
+indirect (or exchange/correlation-like) electron repulsion $\m{K}$, which on average is larger than the
+exchange-correlation energies of the individual electronic states,
+\begin{equation}
+ \tr(K[\m{D}]) = C_x \int d^3r \tr(\m{D}^{4/3}(\vec{r})) \ge \sum_{I=1}^N C_x \int d^3r ~ D_{II}(\vec{r})^{4/3}. \label{eqn:K_inequality}
+\end{equation}
+This is a result of Klein's inequality \cite{wiki:Kleins_inequality} and is proven in section \ref{sec:Kleins_inequality} below.
+
+\subsection{Klein's trace inequality}
+\label{sec:Kleins_inequality}
+Klein's inequality \cite{wiki:Kleins_inequality} \cite{Ruelle1969statistical} states that given two Hermitian, positive-definite $N \times N$ matrices $\m{A}$ and $\m{B}$ and
+a convex function $f: \mathbb{R} \mapsto \mathbb{R}$ with derivative $f'$ the following trace inequality holds,
+\begin{equation}
+\tr\left[ f(\m{A}) - f(\m{B}) - (\m{A} - \m{B}) f'(\m{B}) \right] \ge 0 \label{eqn:Kleins_inequality}.
+\end{equation}
+With $f(x) = x^{4/3}$ (so that $f'(x) = 4/3 x^{1/3}$) and $\m{A} = \m{D}$ (full matrix) and $\m{B} = \Diag(\m{D}) = \Diag(D_{00}, D_{11}, \ldots, D_{NN})$ (only diagonal elements),
+Klein's inequality becomes
+\begin{equation}
+\tr\left[ \m{D}^{4/3} - \Diag(\m{D})^{4/3} \right] \ge \tr\left[ \frac{4}{3} \left(\m{D} - \Diag(\m{D})\right) \Diag(\m{D})^{1/3}\right].
+\end{equation}
+The right hand side of this inequality is zero, since $\tr(\m{D} \Diag(\m{D})^{1/3}) = \tr(\Diag(\m{D})^{4/3})$, so that 
+\begin{equation}
+\tr(\m{D}^{4/3}(\vec{r})) \ge \sum_I D_{II}(\vec{r})^{4/3}.
+\end{equation}
+Integrating over space yields the inequality \ref{eqn:K_inequality}.
 
 % Lieb-Oxford bound
 %Justifying the multistate exchange functional $\m{K}^{LSDA}[\m{D}]$ requires more effort.
@@ -1055,6 +1089,75 @@ follow the exact curves closely and have the correct sign.
   \label{fig:indirect_electron_repulsion_energies_water_bond_breaking}
 \end{figure}
 
+\subsection{Application: Exciton Delocalization Length}
+\textcolor{red}{(THIS IS JUST AN IDEA, MAYBE IT'S NOT FEASIBLE.)}
+
+The theorem by Lu and Gao \cite{Lu2022JPCL} allows to find the lowest few electronic state by means of the variational principle.
+After choosing appropriate orthonormal trial wavefunctions and a corresponding matrix density in terms of some parameters $\vec{\zeta}$,
+the optimal value $\vec{\zeta}^*$
+is obtained by minimizing the trace of the subspace Hamiltonian with respect to $\vec{\zeta}$,
+\begin{equation}
+\vec{\zeta}^* = \argmin_{\vec{\zeta}} \tr(\m{H}[\m{D}(\vec{r};\vec{\zeta})]).
+\end{equation}
+
+We will use the variational principle to study the size of an exciton in a J-aggregate using multi-state density functional theory.
+Consider a chain of $L$ identical chromophores, with the transition dipoles of the monomeric units arranged in a head to tail manner (a J-aggregate).
+The monomers $A=1,\ldots,L$ are placed at equal distances, $\vec{R}_A = A \times \Delta \vec{R}$.
+The ground and bright, first excited state of the monomer at position $A$ are $\vert g(A) \rangle$ and $\vert e(A) \rangle$, respectively.
+The corresponding monomer ground and excited state density as well as the $g \to e$ transition density are $\rho_{gg}(\vec{r})$, $\rho_{ee}(\vec{r})$
+and $\rho_{eg}(\vec{r})$.
+In the collective ground state all monomers are in the $\vert g \rangle$ state,
+\begin{equation}
+ \vert \Psi_g \rangle = \vert g(1) \rangle \otimes \vert g(2) \rangle \otimes \cdots \otimes \vert g(L) \rangle,
+\end{equation}
+The basis states of the exciton model \cite{Kasha1965} are the direct products of the monomer states.
+The basis state $\vert \Psi_{g \to e}^A \rangle$ has exactly one excited molecule at position $A$, while all other molecules are in the ground state,
+\begin{equation}
+ \vert \Psi_{g \to e}^A \rangle = \vert g(1) \rangle \otimes \cdots \otimes \vert e(A) \rangle \otimes \cdots \otimes \vert g(L) \rangle.
+\end{equation}
+The excited states of the J-aggregate are linear combinations of those monomer excitations.
+
+If the electrons are non-interacting and only feel the mean field, the excitation will be completely delocalized
+as this leads to the lowest value for the kinetic energy.  That means that in the lowest excitation state,
+each localized basis vector occurs with equal weight,
+\begin{equation}
+ \vert \Psi_e \rangle = \sum_{A=1}^L \frac{1}{\sqrt{L}} \vert \Psi_{g \to e}^A \rangle
+\end{equation}
+Without electronic correlation, the exciton essentially
+behaves like a particle in box, which in its lowest energy state fills the entire box.
+The question is the following: If the molecular aggregate becomes very long and there are no defects or kinks that
+could stop the delocalization, does the exciton spread over the entire length of the aggregate
+or is there a limit to the exciton delocalization length?
+
+We will concentrated on the subspace consisting of the ground state $\vert \Psi_g \rangle$ and the first excited state $\vert \Psi_e \rangle$.
+However, $\vert \Psi_e \rangle$ is made to depend on a parameter $\zeta$ that controls the degree of delocalization of the exciton. The coefficients,
+instead of being constant, are allowed to depend on the position in the chain through a function $f_A(\zeta)$,
+\begin{equation}
+  \vert \Psi_e(\zeta) \rangle = \sum_{A=1}^L f_A(\zeta) \vert \Psi_{g \to e}^A \rangle
+\end{equation}
+A Gaussian function
+\begin{equation}
+g_{\sigma,\mu}(x) = \frac{1}{\sigma \sqrt{2 \pi}} \exp\left(-\frac{1}{2} \frac{(x - \mu)^2}{\sigma^2}\right)
+\end{equation}
+is used to parameterized  $f_A(\zeta)$ as 
+\begin{equation}
+ f_A(\zeta) = \frac{\sqrt{g_{\zeta L,L/2}(A)}}{\sqrt{\sum_{B=1}^L g_{\zeta L,L/2}(B)}}
+\end{equation}
+so that $\zeta L$ is the width of the exciton and $L/2$ its center.
+As $\zeta \to \infty$, the coefficients become all equal,
+and the exciton is completely delocalized. For $\zeta < 1$, the exciton is localized around the center $A=L/2$
+and covers only a part of the molecular chain.
+With this parameterization the matrix density in the subspace spanned by $\Psi_g$ and $\Psi_e(\zeta)$ becomes a function of $\zeta$:
+\begin{align}
+ D_{00}(\vec{r}) &= \sum_{A=1}^L \rho_{gg}(\vec{r}-\vec{R}_A) \\
+ D_{01}(\vec{r}) &= D_{10}(\vec{r}) = \sum_{A=1}^L f_A(\zeta) \rho_{ge}(\vec{r} - \vec{R}_A) \\
+ D_{11}(\vec{r}) &= \sum_{A=1}^L f_A(\zeta)^2 \rho_{ee}(\vec{r} - \vec{R}_A)
+\end{align}
+The aggregate $2\times 2$ matrix density $\m{D}$ can be assembled easily from the (transition) densities $\rho_{gg}$, $\rho_{ee}$ and $\rho_{ge}$ of
+a monomer, which are calculated at the TD-DFT level of theory.
+For different lengths $L$ of the aggregate, we find the width of the exciton $\zeta^* L$ that minimizes
+the total subspace energy $\tr(\m{H}[\m{D}(\zeta)])$. The delocalization length, defined as $\tilde{L} = \min(\zeta^*, 1) L$,
+is then compared with the length $L$ of the molecular chain.
 
 \FloatBarrier
 
