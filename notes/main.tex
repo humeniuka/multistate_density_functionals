@@ -130,6 +130,42 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\section{Introduction}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\iffalse
+\subsection{Relation with Ensemble Density Functional Theory}
+\textcolor{red}{(CHECK THE ENSEMBLE DFT PAPERS)}
+The functional $\mathcal{F}[\m{D}]$ is related to the ensemble density functional theory of
+Gross, Oliveira and Kohn \cite{Gross1988ReyleighRitz,Gross1988EnsembleDFT}.
+If $\m{W} = \Diag(w_1,w_2,\ldots,w_N)$ is a diagonal matrix of non-increasing weights, $w_1 \ge w_2 \ge \ldots \ge w_N$
+that sum to $\tr(\m{W}) = 1$, the ensemble density can be expressed as
+\begin{equation}
+ \rho_{\vec{w}}(\vec{r}) = \tr(\m{W} \m{D}(\vec{r}))
+\end{equation}
+and the weight-dependent ensemble functional is
+\begin{equation}
+F[\vec{w}; \rho_{\vec{w}}] = \tr(\m{W} \mathcal{F}[\m{D}]) \label{eqn:ensemble_functional}
+\end{equation}
+\textcolor{red}{This is not correct. The left hand side is a functional of $\rho_{\vec{w}}$ but the right hand side is
+a functional of $\m{D}$. The right hand side has to be manipulated into looking like a functional of $\rho_{\vec{w}}$.}
+The Gross-Oliveira-Kohn functional $F[\vec{w};\rho_{\vec{w}}]$ is a function of the vector of weights $\vec{w}$
+and a functional of the ensemble density $\rho_{\vec{w}}$,
+\begin{equation}
+ F : (\vec{w} \in \mathbb{R}^{N}, \rho_{\vec{w}} \in L^1) \mapsto \mathbb{R}
+\end{equation}
+The length of the weight vector is equal to the number of states $N$ in the ensemble.
+This complicates matters, since it follows that there is a different functional for each number of states.
+The relationship between functionals for different dimensions of the ensemble subspace is hidden
+and it is difficult to generalize to an arbitrary number of states
+($\vec{w}$ would have to be a vector of arbitrary length).
+The Li-Gao functional, on the other hand, lends itself much more easily to further developments.
+
+The definition \ref{eqn:ensemble_functional} does not require the weights to be non-decreasing.
+However, without this restriction, there are multiple weight vectors that
+represent the same ensemble but differ only in the order of state vectors.
+\textcolor{red}{(That's not the reason, what's going on?)}
+\fi
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \subsection{Properties of the density matrix functional.}
 
 % Start with a gentle introduction:
