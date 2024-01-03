@@ -103,17 +103,21 @@ for name, mol in molecules.items():
     # dimensions of arrays
     nspin, nstate, nstate, ncoord = D.shape
 
+    # Sum over spin
+    D = numpy.einsum('sijr->ijr', D)
+    grad_D = numpy.einsum('sijdr->ijdr', grad_D)
+
     # (1) compute the first lower bound due to Lieb
     # ∑ᵢ 1/8 ∫ |∇Dᵢᵢ|²/Dᵢᵢ(r)
     # The lower bound is in fact valid for the kinetic energy density (KED)
     # at each point r.
     lower_bound_ked = numpy.zeros(ncoord)
-    # Lower over electronic states i in subspace.
+    # Loop over electronic states i in subspace.
     for i in range(0, nstate):
-        # |∇Dᵢᵢ|², sum over spins and do the scalar product of the gradient vectors.
-        numerator = numpy.einsum('sdr,sdr->r', grad_D[:,i,i,:,:], grad_D[:,i,i,:,:])
-        # Dᵢᵢ(r), sum over spins
-        denominator = numpy.einsum('sr->r', D[:,i,i,:]) + 1.0e-20
+        # |∇Dᵢᵢ|², do the scalar product of the gradient vectors.
+        numerator = numpy.einsum('dr,dr->r', grad_D[i,i,:,:], grad_D[i,i,:,:])
+        # Dᵢᵢ(r)
+        denominator = D[i,i,:] + 1.0e-20
         lower_bound_ked += 1.0/8.0 * numerator / denominator
     # Integrate the lower bound for the kinetic energy density over space.
     trace_T_lower_bound_1 = numpy.einsum('r,r->', grids.weights, lower_bound_ked)
@@ -123,12 +127,12 @@ for name, mol in molecules.items():
     # The lower bound is in fact valid for the kinetic energy density (KED)
     # at each point r.
     lower_bound_ked = numpy.zeros(ncoord)
-    # ∑ᵢ∇Dᵢᵢ, sum over spins and states.
-    trace_grad_D = numpy.einsum('siidr->dr', grad_D)
+    # ∑ᵢ∇Dᵢᵢ, sum over states.
+    trace_grad_D = numpy.einsum('iidr->dr', grad_D)
     # |∑ᵢ∇Dᵢᵢ|², scalar product of trace of gradient vector
     numerator = numpy.einsum('dr,dr->r', trace_grad_D, trace_grad_D)
-    # denominator, sum over spin and states
-    denominator = numpy.einsum('siir->r', D) + 1.0e-20
+    # denominator, sum over states
+    denominator = numpy.einsum('iir->r', D) + 1.0e-20
     # 1/8 |∑ᵢ∇Dᵢᵢ|² / (∑ⱼDⱼⱼ)
     lower_bound_ked = 1.0/8.0 * numerator / denominator
     # Integrate the lower bound for the kinetic energy density over space.
@@ -136,9 +140,9 @@ for name, mol in molecules.items():
 
     # Compare exact tr(T) with lower bounds
     print(f"Molecule: {name}")
-    print(f"                                   ∑ᵢᵢ Tᵢᵢ = {trace_T_exact:8.4f}")
-    print(f"  lower bound 1: ∑ᵢ 1/8 ∫ |∇Dᵢᵢ|²/Dᵢᵢ      = {trace_T_lower_bound_1:8.4f}")
-    print(f"  lower bound 2: 1/8 ∫ |∑ᵢ∇Dᵢᵢ|² / (∑ⱼDⱼⱼ) = {trace_T_lower_bound_2:8.4f}")
+    print(f"                                  1/N ∑ᵢᵢ Tᵢᵢ = {trace_T_exact/nstate:8.4f}")
+    print(f"  lower bound 1: 1/N ∑ᵢ 1/8 ∫ |∇Dᵢᵢ|²/Dᵢᵢ      = {trace_T_lower_bound_1/nstate:8.4f}")
+    print(f"  lower bound 2: 1/N 1/8 ∫ |∑ᵢ∇Dᵢᵢ|² / (∑ⱼDⱼⱼ) = {trace_T_lower_bound_2/nstate:8.4f}")
 
     # Check that the bounds are not violated
     epsilon = 1.0e-8
