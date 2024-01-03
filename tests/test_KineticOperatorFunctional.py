@@ -30,10 +30,12 @@ class VonWeizsaeckerFunctionalSingleState(object):
     """
     The von Weizsäcker density functional of the kinetic energy:
 
-                        (∇ρ)²
-           T[ρ] = ∫ 1/8 ----
-                          ρ
+                        (∇ρ(↑↑))²         (∇ρ(↓↓))²
+           T[ρ] = ∫ 1/8 --------- + ∫ 1/8 ---------
+                          ρ(↑↑)             ρ(↓↓)
 
+    Note that the kinetic energy is calculated separately for the spin-up and
+    the spin-down densities and then summed.
     """
     def __init__(self, mol, level=8):
         # generate a multicenter integration grid
