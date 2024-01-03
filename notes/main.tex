@@ -1197,6 +1197,99 @@ is then compared with the length $L$ of the molecular chain.
 
 \FloatBarrier
 
+\section{Lower Bounds}
+When searching for approximate density functionals, lower bounds on the kinetic energy and the exchange-correlation energy
+are very useful. In the multistate density functional theory, the subspace expectation value of the energy is minimized
+(Eqn.~(13) in Ref.~\cite{Lu2022JPCL}), which is the state-averaged (or MS for \emph{multistate}) energy,
+\begin{equation}
+  E_{\text{MS}}[\m{D}] = \frac{1}{N} \sum_{I=1}^{N} \mathcal{H}_{II}[\m{D}]
+  = \frac{1}{N} \sum_{I=1}^{N} \left( \mathcal{F}_{II}[\m{D}] + \int d^3r ~ v(\vec{r}) D_{II}(\vec{r}) \right).
+\end{equation}
+Therefore one has to bound $\frac{1}{N} \tr(\mathcal{F}[\m{D}])$ from below rather than finding bounds of
+the individual matrix elements $\mathcal{F}_{IJ}[\m{D}]$. The lower bounds for the average kinetic and electron repulsion energies
+will be treated separately.
+
+\subsection{Lower Bound of Kinetic Energy}
+The kinetic energy of a single wavefunction is bounded from below by the von-Weiz\"{a}cker kinetic energy functional.
+The proof for this inequality can be found below theorem 1.1 of Ref.~\cite{Lieb2002}. Applying this bound individually
+to each electronic state in the subspace and averaging over states, one obtains a lower bound on the subspace kinetic energy 
+\begin{equation}
+ \frac{1}{N} \sum_{I=1}^{N} T_{II} \ge \frac{1}{N} \int d^3r ~ \frac{1}{8} \sum_{I=1}^{N} \frac{\vert \nabla D_{II}(\vec{r}) \vert^2}{D_{II}(\vec{r})}.
+ \label{eqn:lower_bound_kinetic_Lieb}
+\end{equation}
+However, while the left hand side is a subspace invariant, i.e. it does not change under a basis transformation of the vectors in the subspace,
+the right hand side is not. It is possible to find a bound on the average kinetic energy that is almost as tight but also is a subspace invariant.
+The derivation proceeds in analogy with theorem 1.1 of Ref.~\cite{Lieb2002}. It is assumed that the $n$-electron wavefunctions are antisymmetric and orthonormal.
+The wavefunctions in the subspace are put into an $N$-dimensional vector
+$\vec{\Psi}(\vec{x}_1,\ldots,\vec{x}_n) = \left(\Psi_1(\vec{x}_1,\ldots,\vec{x}_n), \ldots, \Psi_N(\vec{x}_1,\ldots,\vec{x}_n)\right)$. One then defines
+a scalar product on this vector space,
+\begin{equation}
+\langle \vec{\Psi}, \vec{\Phi} \rangle({\color{red} \vec{r}_1}) = \sum_{I=1}^{N} \sum_{\sigma_1=\uparrow,\downarrow} \int dx_2 \int dx_3 \cdots \int dx_n
+  \Psi_I^*({\color{red} \vec{r}_1},\sigma_1;\vec{x}_2,\ldots,\vec{x}_n)
+  \Phi_I({\color{red} \vec{r}_1},\sigma_1;\vec{x}_2,\ldots,\vec{x}_n),
+\end{equation}
+which sums over all electronic states $I=1,\ldots,N$ and integrates over all spatial and spin coordinates $\vec{x}_i = (\vec{r}_i,\sigma_i)$ for $i=2,\ldots,n$
+except for the spatial coordinates ${\color{red} \vec{r}_1}$
+of the first electron. The scalar product is therefore a function of $\vec{r}_1$. The integral over all coordinates except for $\vec{r}_1$ is abbreviated
+by the symbol $\int^{\dagger} \ldots := \sum_{\sigma_1=\uparrow,\downarrow} \int dx_2 \int dx_3 \cdots \int dx_n \ldots$ ~.
+Since the electrons are indistinguishable, it does not matter which electronic coordinate is left out in the integral.
+The remaining electronic coordinate is denoted by $\vec{r} = \vec{r}_1$.
+Since $\langle \vec{\Psi},\vec{\Psi} \rangle = n \sum_{I} D_{II}(\vec{r})$,
+the gradient of the sum of the electron densities with respect to the remaining electron coordinate can be expressed as a scalar product,
+\begin{equation}
+  \begin{split}
+ \sum_I \nabla D_{II}(\vec{r}) &= n \sum_I \int^{\dagger} \nabla \Psi_I^* \Psi_I + n \sum_I \int^{\dagger} \Psi_I^* \nabla \Psi_I \\
+  &= n \langle \nabla \vec{\Psi}, \vec{\Psi} \rangle + n \langle \vec{\Psi}, \nabla \vec{\Psi} \rangle, \\
+  \end{split}
+\end{equation}
+which is bounded from above by the triangle inequality,
+\begin{equation}
+  \begin{split}
+\left\vert \sum_I \nabla D_{II}(\vec{r}) \right\vert &=
+\left\vert n \langle \nabla \vec{\Psi}, \vec{\Psi} \rangle + n \langle \vec{\Psi}, \nabla \vec{\Psi} \rangle \right\vert \\
+& \leq n \vert \langle \nabla \vec{\Psi}, \vec{\Psi} \rangle \vert + n \vert \langle \vec{\Psi}, \nabla \vec{\Psi} \rangle \vert \\
+&= 2 n \vert \langle \nabla \vec{\Psi}, \vec{\Psi} \rangle \vert. \label{eqn:triangle_inequality}
+  \end{split}
+\end{equation}
+$\vert \langle \nabla \vec{\Psi}, \vec{\Psi} \rangle \vert$ is bounded by the Cauchy-Schwarz inequality,
+\begin{equation}
+  \begin{split}
+  \vert \langle \nabla \vec{\Psi}, \vec{\Psi} \rangle \vert^2 &\leq
+  \vert \langle \nabla \vec{\Psi}, \nabla \vec{\Psi} \rangle \vert \vert \langle \vec{\Psi}, \vec{\Psi} \rangle \vert \\
+  &= \sum_I \int^{\dagger} \vert \nabla \Psi_I \vert^2 ~ \frac{1}{n} \sum_{J} D_{JJ}. \label{eqn:Cauchy_Schwarz}
+  \end{split}
+\end{equation}
+In $n \int^{\dagger} \frac{1}{2} \vert \nabla \Psi_I \vert^2$ one recognizes the kinetic energy density $T_{II}(\vec{r})$ of the electronic state $I$.
+Combining the inequalities \ref{eqn:triangle_inequality} and \ref{eqn:Cauchy_Schwarz} one gets
+\begin{equation}
+  \begin{split}
+ \vert \sum_I \nabla D_{II}(\vec{r}) \vert^2 &\leq 4 n^2 \left(\sum_I \int^{\dagger} \vert \nabla \Psi_I \vert^2 \right) \left( \frac{1}{n} \sum_J D_{JJ} \right) \\
+ &= 8 \left( \sum_I n \int^{\dagger} \frac{1}{2} \vert \nabla \Psi_I \vert^2 \right) \sum_J D_{JJ} \\
+ &= 8 \sum_I T_{II}(\vec{r}) \sum_J D_{JJ}(\vec{r}),
+  \end{split}
+\end{equation}
+which can be rearranged into
+\begin{equation}
+ \sum_I T_{II}(\vec{r}) \geq \frac{1}{8} \frac{\vert \sum_I \nabla D_{II}(\vec{r}) \vert^2}{\sum_J D_{JJ}(\vec{r})}.
+\end{equation}
+This inequality holds at very point in space. Dividing both sides by the number of states, expressing the right hand side in terms of the subspace
+density $\rho_{V} = \frac{1}{N} \tr(\m{D}) = \frac{1}{N} \sum_I D_{II}(\vec{r})$, and integrating over the remaining electron coordinate,
+the lower bound on the average kinetic energy of the subspace becomes
+\begin{equation}
+\frac{1}{N} \sum_{I=1}^{N} \langle \Psi_I \vert \sum_{i=1}^{n} \left(-\frac{1}{2} \nabla_i^2 \right) \vert \Psi_I \rangle
+\geq \frac{1}{8} \int \frac{\left\vert \nabla \rho_{V}(\vec{r}) \right\vert^2}{\rho_{V}(\vec{r})} d^3r.
+\label{eqn:lower_bound_kinetic_invariant}
+\end{equation}
+This lower bound is a functional of the subspace density $\rho_{V}(\vec{r})$ and is therefore an invariant property of the subspace.
+Table \ref{tbl:lower_bounds_kinetic_energy} compares the exact average kinetic energy of the lowest 4 states for a few small molecules
+with the lower bounds according to Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}
+and Eqn.~\ref{eqn:lower_bound_kinetic_invariant}, respectively.
+For one-electron systems the bound of Eqn.~\ref{eqn:lower_bound_kinetic_Lieb} is exact. For molecules with many electrons,
+both bounds are very close to each other, with the invariant bound of Eqn.~\ref{eqn:lower_bound_kinetic_invariant} slightly
+less tight than that of Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}.
+
+\input{tables/lower_bound_kinetic_energy}
+
 %%Eigenvalues and eigenvectors of D for analysing calculations.
 %There are neither wavefunctions nor orbitals in (at least orbital-free) density functional theory,
 %but only (transition) densities. For the analysis of electronic states, we need some more

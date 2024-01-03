@@ -1,0 +1,44 @@
+
+%%%%%%%%%%%%%%%%%%%%%% AUTO-GENERATE LATEX CODE (format_latex_table.py) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sisetup{
+round-mode = places,
+round-precision = 3,
+scientific-notation = fixed,
+fixed-exponent = 0,
+zero-decimal-to-integer
+}
+
+\begin{table}
+\begin{tabular}{
+  SSSSS
+  }
+    \toprule
+ {Molecule} & {Basis} & {Bound Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}} & {Bound Eqn.~\ref{eqn:lower_bound_kinetic_invariant}} & {Exact}\\
+\midrule
+{H} & {6-31g} & 1.143235 & 0.823160 & 1.143235 \\
+{H (large basis set)} & {aug-cc-pvtz} & 0.292371 & 0.150067 & 0.292371 \\
+{H$_2^+$} & {6-31g} & 1.250525 & 0.767747 & 1.250525 \\
+{H$_2$} & {6-31g} & 1.146228 & 0.973287 & 1.434804 \\
+{Li} & {6-31g} & 7.206488 & 7.146008 & 7.384005 \\
+{LiH} & {6-31g} & 7.669143 & 7.613865 & 7.976373 \\
+{water} & {sto-3g} & 57.577183 & 57.446115 & 75.553086 \\
+{O$_2$} & {sto-3g} & 113.211488 & 113.163189 & 146.582754 \\
+{NO} & {sto-3g} & 99.286293 & 99.202325 & 126.551376 \\
+{He} & {6-31g} & 4.157342 & 3.462193 & 4.649976 \\
+{Ne} & {6-31g} & 90.150973 & 90.096788 & 130.121379 \\
+\bottomrule
+\end{tabular}
+
+\caption{
+\label{tbl:lower_bounds_kinetic_energy}
+The exact subspace kinetic energy $\frac{1}{N} \sum_{I=1}^{N} T_{II}$ (\textbf{Exact}) is bounded from below by
+$\frac{1}{N} \frac{1}{8} \sum_{I=1}^{N} \int \frac{\vert \nabla D_{II} \vert^2}{D_{II}}$
+(\textbf{Bound Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}}) and by the subspace invariant
+$\frac{1}{8} \int \frac{\vert \nabla \rho_V \vert^2}{\rho_V}$
+(\textbf{Bound Eqn.~\ref{eqn:lower_bound_kinetic_invariant}})
+The exact wavefunctions for the $N=4$ lowest excited states ($N=2$ for hydrogen atom with small basis sets)
+are calculated with full configuration interaction for a few small atoms and molecules.
+All energies are in Hartree.}
+\end{table}
+%%%%%%%%%%%%%%%%%%%%%% END OF AUTO-GENERATE LATEX CODE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
