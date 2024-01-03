@@ -60,3 +60,7 @@ jobs:
         working-directory: tests
         run: |
           python test_SelfInteractionCorrection.py
+      - name: Test LowerBoundKinetic module
+        working-directory: tests
+        run: |
+          python test_LowerBoundKinetic.py
