@@ -64,3 +64,7 @@ jobs:
         working-directory: tests
         run: |
           python test_LowerBoundKinetic.py
+      - name: Test LowerBoundElectronRepulsion module
+        working-directory: tests
+        run: |
+          python test_LowerBoundElectronRepulsion.py
