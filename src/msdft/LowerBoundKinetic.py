@@ -132,7 +132,7 @@ class LowerBoundKinetic(ABC):
         return lower_bound
 
 
-class LowerBoundAverageKineticEnergy_vW(LowerBoundKinetic):
+class LowerBoundKineticSumOverStates(LowerBoundKinetic):
     """
     Lower bound 1.
 
@@ -192,7 +192,7 @@ class LowerBoundAverageKineticEnergy_vW(LowerBoundKinetic):
         return lower_bound
 
 
-class LowerBoundAverageKineticEnergy(LowerBoundKinetic):
+class LowerBoundKineticSubspaceInvariant(LowerBoundKinetic):
     """
     Lower bound 2.
 

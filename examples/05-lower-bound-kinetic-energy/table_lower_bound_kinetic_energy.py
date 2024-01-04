@@ -8,8 +8,8 @@ import numpy
 import pandas
 import pyscf.gto
 
-from msdft.LowerBoundKinetic import LowerBoundAverageKineticEnergy
-from msdft.LowerBoundKinetic import LowerBoundAverageKineticEnergy_vW
+from msdft.LowerBoundKinetic import LowerBoundKineticSubspaceInvariant
+from msdft.LowerBoundKinetic import LowerBoundKineticSumOverStates
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 # test molecules
@@ -86,9 +86,9 @@ for name, mol in molecules.items():
 
     # Lower bounds
     # 1) ∑ᵢ 1/8 ∫ |∇Dᵢᵢ|²/Dᵢᵢ(r)
-    lower_bound_1 = LowerBoundAverageKineticEnergy_vW(mol)(msmd)
+    lower_bound_1 = LowerBoundKineticSumOverStates(mol)(msmd)
     # 2) 1/8 ∫ |∇ρᵥ(r)|²/ρᵥ(r)
-    lower_bound_2 = LowerBoundAverageKineticEnergy(mol)(msmd)
+    lower_bound_2 = LowerBoundKineticSubspaceInvariant(mol)(msmd)
 
     # The exact kinetic energy matrix Tᵢⱼ
     T_exact = msmd.exact_kinetic_energy()

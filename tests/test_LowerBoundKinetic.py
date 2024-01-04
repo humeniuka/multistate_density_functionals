@@ -8,8 +8,8 @@ from tqdm import tqdm
 import unittest
 
 from msdft.LowerBoundKinetic import LowerBoundKinetic
-from msdft.LowerBoundKinetic import LowerBoundAverageKineticEnergy
-from msdft.LowerBoundKinetic import LowerBoundAverageKineticEnergy_vW
+from msdft.LowerBoundKinetic import LowerBoundKineticSubspaceInvariant
+from msdft.LowerBoundKinetic import LowerBoundKineticSumOverStates
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
@@ -231,11 +231,11 @@ class LowerBoundKineticTestCase(ABC, unittest.TestCase):
         self.assertAlmostEqual(kinetic_matrix_single[0,0], lower_bound)
 
 
-class TestLowerBoundAverageKineticEnergy_vW(LowerBoundKineticTestCase):
+class TestLowerBoundKineticSumOverStates(LowerBoundKineticTestCase):
     @property
     def lower_bound_kinetic_class(self):
         """ The functional to be tested. """
-        return LowerBoundAverageKineticEnergy_vW
+        return LowerBoundKineticSumOverStates
 
     def test_is_lower_bound(self):
         """ Check that the exact kinetic energy is larger than the lower bounds. """
@@ -256,11 +256,11 @@ class TestLowerBoundAverageKineticEnergy_vW(LowerBoundKineticTestCase):
                 self.check_single_state_von_Weizsaecker(mol)
 
 
-class TestLowerBoundAverageKineticEnergy(LowerBoundKineticTestCase):
+class TestLowerBoundKineticSubspaceInvariant(LowerBoundKineticTestCase):
     @property
     def lower_bound_kinetic_class(self):
         """ The functional to be tested. """
-        return LowerBoundAverageKineticEnergy
+        return LowerBoundKineticSubspaceInvariant
 
     def test_is_lower_bound(self):
         """ Check that the exact kinetic energy is larger than the lower bounds. """
