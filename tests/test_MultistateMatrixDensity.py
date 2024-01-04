@@ -387,7 +387,7 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
         """ check that matrix densities can be created for 1 or more states """
         for name, mol in tqdm(self.create_test_molecules().items()):
             for nstate in [1,2]:
-                with self.subTest(nstate=nstate):
+                with self.subTest(molecule=name, nstate=nstate):
                     self.create_matrix_density(mol, nstate=nstate)
 
 

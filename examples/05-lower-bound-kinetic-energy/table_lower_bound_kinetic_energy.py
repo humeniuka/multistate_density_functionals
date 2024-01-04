@@ -78,7 +78,7 @@ molecules = {
         spin = 0)
     }
 
-dataframe = pandas.DataFrame(columns=['molecule', 'basis', 'bound 1', 'bound 2', 'exact'])
+dataframe = pandas.DataFrame(columns=['molecule', 'basis', 'bound 1 (sum over states)', 'bound 2 (subspace invariant)', 'exact'])
 for name, mol in molecules.items():
     # Compute the matrix density for the lowest 4 states (if available)
     msmd = MultistateMatrixDensityFCI.create_matrix_density(
