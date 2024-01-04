@@ -3,9 +3,12 @@
 """
 Lower bound on the electron-repulsion energy.
 """
+from abc import ABC, abstractmethod
 import becke
 import numpy
 import pyscf.dft
+
+from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
 class LiebOxfordBound(object):
@@ -151,5 +154,147 @@ class LiebOxfordBound(object):
         lower_bound_indirect = self.bound_on_indirect_energy(density_function)
 
         lower_bound = J + lower_bound_indirect
+
+        return lower_bound
+
+
+class LowerBoundElectronRepulsion(ABC):
+    def __init__(self, mol, level=8):
+        """
+        The abstract base class for functionals that bound the
+        average electron repulsion energy of the subspace from below,
+
+          1/N ∑ᵢ <Ψᵢ|∑ᵦ<ᵧ 1/|rᵦ-rᵧ||Ψᵢ> ≥ bound[D]
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        self.lieb_oxford_bound = LiebOxfordBound(mol, level=level)
+
+    @abstractmethod
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity) -> float:
+        """
+        Compute the lower bound as a function of the mulistate
+        matrix density.
+        """
+        pass
+
+
+class LowerBoundElectronRepulsionSumOverStates(LowerBoundElectronRepulsion):
+    """
+    The Lieb-Oxford bound is applied to each electron state separately
+    and then the different bounds are averaged over all states.
+
+        1/N ∑ᵢ <Ψᵢ|∑ᵦ<ᵧ 1/|rᵦ-rᵧ||Ψᵢ>  ≥  1/N ∑ᵢ ( J[Dᵢᵢ] - cᴸᴼ ∫ Dᵢᵢ(r)⁴ᐟ³ )
+    """
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity) -> float:
+        """
+        compute the lower bound on the electron repulsion by averaging over
+        Lieb-Oxford bounds for individual states,
+
+          1/N ∑ᵢ ( J[Dᵢᵢ] - cᴸᴼ ∫ Dᵢᵢ(r)⁴ᐟ³ )
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the bound on the electron repulsion should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :return: The lower bound on direct and indirect Coulomb energy
+        :rtype: float
+        """
+        # number of electronic states
+        nstate = msmd.number_of_states
+        # Compute the Lieb-Oxford bound for each state
+        lower_bound = 0.0
+        for i in range(0, nstate):
+            # Density Dᵢᵢ(r) of state i,
+            def density_function_i(x, y, z):
+                # The `becke` module and the `msdft` module use different
+                # shapes for the coordinates of the grid points. Before
+                # passing the grid to `msdft`, the arrays have to be flattened
+                # and reshaped as (ncoord,3). Before returning the density,
+                # it has to be brought into the same shape as each input coordinate
+                # array.
+                coords = numpy.vstack(
+                    [x.flatten(), y.flatten(), z.flatten()]).transpose()
+
+                # Evaluate the density.
+                spin_density, _, _ = msmd.evaluate(coords)
+                # The Coulomb potential does not distinguish spins, so
+                # sum over spins.
+                density = spin_density[0,i,i,:] + spin_density[1,i,i,:]
+
+                # Give it the same shape as the input arrays.
+                density = numpy.reshape(density, x.shape)
+                # Dᵢᵢ(r)
+                return density
+
+            # Average over states
+            lower_bound += (1.0/nstate) * self.lieb_oxford_bound(density_function_i)
+
+        return lower_bound
+
+
+class LowerBoundElectronRepulsionSubspaceInvariant(LowerBoundElectronRepulsion):
+    """
+    The Lieb-Oxford bound is applied to the subspace density,
+
+       ρᵥ(r) = 1/N ∑ᵢ Dᵢᵢ(r)
+
+    so that the lower bound on the average electron repulsion energy becomes
+
+        1/N ∑ᵢ <Ψᵢ|∑ᵦ<ᵧ 1/|rᵦ-rᵧ||Ψᵢ>  ≥  J[ρᵥ] - cᴸᴼ ∫ ρᵥ(r)⁴ᐟ³.
+    """
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity) -> float:
+        """
+        compute the lower bound on the electron repulsion from the subspace density
+
+          J[ρᵥ] - cᴸᴼ ∫ ρᵥ(r)⁴ᐟ³
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the bound on the electron repulsion should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :return: The lower bound on direct and indirect Coulomb energy
+        :rtype: float
+        """
+        # number of electronic states
+        nstate = msmd.number_of_states
+        # Function for evaluating the subspace density ρᵥ(r) = 1/N ∑ᵢ Dᵢᵢ(r)
+        def subspace_density_function(x, y, z):
+            coords = numpy.vstack(
+                [x.flatten(), y.flatten(), z.flatten()]).transpose()
+
+            # Evaluate the density.
+            spin_density, _, _ = msmd.evaluate(coords)
+            # number of grid points
+            ncoord = spin_density.shape[-1]
+
+            # Average state densities to get ρᵥ(r).
+            subspace_density = numpy.zeros(ncoord)
+            # Loop over states
+            for i in range(0, nstate):
+                # The Coulomb potential does not distinguish spins, so
+                # sum over spins.
+                # ρᵥ(r) = 1/N ∑ᵢ Dᵢᵢ(r)
+                subspace_density += 1.0/nstate * (
+                    spin_density[0,i,i,:] + spin_density[1,i,i,:])
+
+            # Give it the same shape as the input arrays.
+            subspace_density = numpy.reshape(subspace_density, x.shape)
+
+            return subspace_density
+
+        # Lieb-Oxford bound for subspace density
+        lower_bound = self.lieb_oxford_bound(subspace_density_function)
 
         return lower_bound
