@@ -12,8 +12,8 @@ from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
 class LiebOxfordBound(object):
-    # The constant cᴸᴼ for the improved lower bound on page 434 of [Lieb&Oxford]
-    Lieb_Oxford_constant = 1.234
+    # The constant cᴸᴼ for the improved lower bound on page 428 of [Lieb&Oxford]
+    Lieb_Oxford_constant = 1.68
 
     def __init__(self, mol, level=8):
         """
@@ -24,7 +24,7 @@ class LiebOxfordBound(object):
 
           <Ψ|∑ᵦ<ᵧ 1/|rᵦ-rᵧ||Ψ>  ≥  1/2 ∫∫ ρ(r) ρ(r') / |r-r'|  -  cᴸᴼ ∫ ρ(r)⁴ᐟ³,
 
-        where cᴸᴼ = 1.234 is derived in reference [Lieb&Oxford].
+        where cᴸᴼ = 1.68 is derived in reference [Lieb&Oxford].
         Note that the above definition of the bound contains both the (trivial)
         direct part and the indirect part of the Coulomb energy.
 
@@ -110,7 +110,7 @@ class LiebOxfordBound(object):
 
           E[ρ] ≥  - cᴸᴼ ∫ ρ(r)⁴ᐟ³
 
-        with cᴸᴼ = 1.234.
+        with cᴸᴼ = 1.68.
 
         :param density_function: A function that evaluates ρ at grid points.
             `density_function(x,y,z)` should take three arrays `x`, `y` and `z` with the
