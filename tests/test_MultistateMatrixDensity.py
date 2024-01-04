@@ -97,7 +97,11 @@ class BaseTestMultistateMatrixDensity(ABC):
         msmd = self.create_matrix_density(mol)
         # Gradients are checked at random coordinates.
         ncoord = 100
-        coords = 5.0*(numpy.random.rand(ncoord,3) - 0.5)
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run. Otherwise the test fails occasionally
+        # when the threshold is is too tight.
+        random_number_generator = numpy.random.default_rng(seed=2345)
+        coords = 5.0*(random_number_generator.random((ncoord,3)) - 0.5)
 
         # Analytical gradients and Laplacian of D
         D, grad_D, lapl_D = msmd.evaluate(coords)
