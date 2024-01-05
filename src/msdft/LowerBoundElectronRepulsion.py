@@ -188,7 +188,7 @@ class LowerBoundElectronRepulsion(ABC):
 
 class LowerBoundElectronRepulsionSumOverStates(LowerBoundElectronRepulsion):
     """
-    The Lieb-Oxford bound is applied to each electron state separately
+    The Lieb-Oxford bound is applied to each electronic state separately
     and then the different bounds are averaged over all states.
 
         1/N ∑ᵢ <Ψᵢ|∑ᵦ<ᵧ 1/|rᵦ-rᵧ||Ψᵢ>  ≥  1/N ∑ᵢ ( J[Dᵢᵢ] - cᴸᴼ ∫ Dᵢᵢ(r)⁴ᐟ³ )
