@@ -1,0 +1,46 @@
+
+%%%%%%%%%%%%%%%%%%%%%% AUTO-GENERATE LATEX CODE (format_latex_table.py) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sisetup{
+round-mode = places,
+round-precision = 3,
+scientific-notation = fixed,
+fixed-exponent = 0,
+zero-decimal-to-integer
+}
+
+\begin{table}
+\begin{tabular}{
+  SSSSS
+  }
+    \toprule
+ {Molecule} & {Basis} & {SoS bound} & {Inv bound} & {Exact}\\
+ & &  {Eqn.~\ref{eqn:lieb_oxford_bound_sum_over_states}} & {Eqn.~\ref{eqn:lieb_oxford_bound_subspace_invariant}} & \\
+\midrule
+{H} & {6-31g} & -0.213648 & -0.196269 & -0.000000 \\
+{H (large basis set)} & {aug-cc-pvtz} & -0.109252 & -0.082824 & -0.000000 \\
+{H$_2^+$} & {6-31g} & -0.204365 & -0.177504 & 0.000000 \\
+{H$_2$} & {6-31g} & -0.023957 & -0.012915 & 0.536442 \\
+{Li} & {6-31g} & 0.535950 & 0.550383 & 2.203327 \\
+{LiH} & {6-31g} & 1.226790 & 1.234905 & 3.145189 \\
+{water} & {sto-3g} & 28.633169 & 28.628061 & 38.119322 \\
+{O$_2$} & {sto-3g} & 67.423964 & 67.422036 & 84.658835 \\
+{NO} & {sto-3g} & 57.450087 & 57.447869 & 72.826637 \\
+{He} & {6-31g} & -0.085329 & -0.060348 & 0.959691 \\
+\bottomrule
+\end{tabular}
+
+\caption{
+\label{tbl:lower_bounds_electron_repulsion}
+The exact subspace electron repulsion energy
+$\frac{1}{N} \sum_{I=1}^{N} \langle \Psi_I \vert \frac{1}{2} \sum_{i \neq j} \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert} \vert \Psi_I \rangle$
+(\textbf{Exact}) is bounded from below by
+the \textbf{S}um \textbf{O}ver \textbf{S}tates bound $\frac{1}{N} \frac{1}{8} \sum_{I=1}^{N} \int \frac{\vert \nabla D_{II} \vert^2}{D_{II}}$
+(\textbf{SoS bound} Eqn.~\ref{eqn:lieb_oxford_bound_sum_over_states}) and by the subspace \textbf{Inv}ariant bound
+$\frac{1}{8} \int \frac{\vert \nabla \rho_V \vert^2}{\rho_V}$
+(\textbf{Inv bound} Eqn.~\ref{eqn:lieb_oxford_bound_subspace_invariant})
+The exact wavefunctions for the $N=4$ lowest excited states ($N=2$ for hydrogen atom with small basis sets)
+are calculated with full configuration interaction for a few small atoms and molecules.
+All energies are in Hartree.}
+\end{table}
+%%%%%%%%%%%%%%%%%%%%%% END OF AUTO-GENERATE LATEX CODE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    

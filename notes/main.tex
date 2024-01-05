@@ -993,20 +993,6 @@ The right hand side of this inequality is zero, since $\tr(\m{D} \Diag(\m{D})^{1
 \end{equation}
 Integrating over space yields the inequality \ref{eqn:K_inequality}.
 
-% Lieb-Oxford bound
-%Justifying the multistate exchange functional $\m{K}^{LSDA}[\m{D}]$ requires more effort.
-%We will resort to some ideas employed by Lieb and Oxford to derive
-%a lower bound on the indirect part of the electron repulsion in terms of the electron density. \cite{Lieb1979,Lieb1981}
-%The proof in the original publications is written in a very dense style. Are more accessible explanation of the proof
-%for a less tight bound is given in
-%chapter 6 of E. Lieb's book "Stability of Matter in Quantum Mechanics" \cite{Lieb2010_Stability_of_Matter}.
-%We will follow the notation of the book, except for denoting
-%the Coulomb interaction between two charge densities $f(\vec{x})$ and $g(\vec{x})$ by 
-%\begin{equation}
-%  C(f,g) = \frac{1}{2} \int d^3x \int d^3y \frac{f(\vec{x}) g(\vec{y})}{\vert \vec{x} - \vec{y} \vert}
-%\end{equation}
-%(instead of $D(f,g)$) to avoid confusion with the matrix density.
-
 \subsection{Self-Interaction Error}
 The largest part of the deviation between the exact electron repulsion $\m{C}$ and
 the MSDFT approximation $\m{J}[\m{D}]-\m{K}^{LSDA}[\m{D}]$ does not depend on the geometry.
@@ -1215,7 +1201,7 @@ The proof for this inequality can be found below theorem 1.1 of Ref.~\cite{Lieb2
 to each electronic state in the subspace and averaging over states, one obtains a lower bound on the subspace kinetic energy 
 \begin{equation}
  \frac{1}{N} \sum_{I=1}^{N} T_{II} \ge \frac{1}{N} \int d^3r ~ \frac{1}{8} \sum_{I=1}^{N} \frac{\vert \nabla D_{II}(\vec{r}) \vert^2}{D_{II}(\vec{r})}.
- \label{eqn:lower_bound_kinetic_Lieb}
+ \label{eqn:lower_bound_kinetic_sum_over_states}
 \end{equation}
 However, while the left hand side is a subspace invariant, i.e. it does not change under a basis transformation of the vectors in the subspace,
 the right hand side is not. It is possible to find a bound on the average kinetic energy that is almost as tight but also is a subspace invariant.
@@ -1278,17 +1264,110 @@ the lower bound on the average kinetic energy of the subspace becomes
 \begin{equation}
 \frac{1}{N} \sum_{I=1}^{N} \langle \Psi_I \vert \sum_{i=1}^{n} \left(-\frac{1}{2} \nabla_i^2 \right) \vert \Psi_I \rangle
 \geq \frac{1}{8} \int \frac{\left\vert \nabla \rho_{V}(\vec{r}) \right\vert^2}{\rho_{V}(\vec{r})} d^3r.
-\label{eqn:lower_bound_kinetic_invariant}
+\label{eqn:lower_bound_kinetic_subspace_invariant}
 \end{equation}
 This lower bound is a functional of the subspace density $\rho_{V}(\vec{r})$ and is therefore an invariant property of the subspace.
 Table \ref{tbl:lower_bounds_kinetic_energy} compares the exact average kinetic energy of the lowest 4 states for a few small molecules
-with the lower bounds according to Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}
-and Eqn.~\ref{eqn:lower_bound_kinetic_invariant}, respectively.
-For one-electron systems the bound of Eqn.~\ref{eqn:lower_bound_kinetic_Lieb} is exact. For molecules with many electrons,
-both bounds are very close to each other, with the invariant bound of Eqn.~\ref{eqn:lower_bound_kinetic_invariant} slightly
-less tight than that of Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}. Overall the bounds are not tight enough to be very useful.
+with the lower bounds according to Eqn.~\ref{eqn:lower_bound_kinetic_sum_over_states}
+and Eqn.~\ref{eqn:lower_bound_kinetic_subspace_invariant}, respectively.
+For one-electron systems the bound of Eqn.~\ref{eqn:lower_bound_kinetic_sum_over_states} is exact. For molecules with many electrons,
+both bounds are very close to each other, with the invariant bound of Eqn.~\ref{eqn:lower_bound_kinetic_subspace_invariant} slightly
+less tight than that of Eqn.~\ref{eqn:lower_bound_kinetic_sum_over_states}. Overall the bounds are not tight enough to be very useful.
 
 \input{tables/lower_bound_kinetic_energy}
+
+\subsection{Lower Bound of Electron Repulsion Energy}
+A lower bound on the Coulomb energy of an arbitrary wavefunction
+(not limited to Fermionic wavefunctions or those that are eigenstates of the Hamiltonian) in terms of
+its charge density was proven by Lieb \cite{Lieb1979} and later improved upon by Lieb and Oxford \cite{Lieb1981}.
+Applying the Lieb-Oxford bound to each electronic state separately and averaging over all $N$ states in the subspace
+yields a bound on the average electron repulsion,
+\begin{equation}
+\frac{1}{N} \sum_{I=1}^{N} \langle \Psi_{I} \vert \sum_{i < j}^{n} \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert} \vert \Psi_{I} \rangle
+\geq \frac{1}{N} \sum_{I} \left( \frac{1}{2} \int \int' \frac{D_{II}(\vec{r}) D_{II}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
+ - c_{\text{LO}} \int D_{II}(\vec{r})^{4/3} \right) \label{eqn:lieb_oxford_bound_sum_over_states} 
+\end{equation}
+with $c_{\text{LO}} = 1.68$ \cite{Lieb1981}. The right hand side of the inequality is not a subspace invariant, but this can be
+remedied. A note at the end of the article by Lieb and Oxford \cite{Lieb1981} mentions that their inequality holds not only for pure states
+but also for density matrices. The ensemble density matrix $\frac{1}{N} \sum_{I=1}^{N} \vert \Psi_I \rangle \langle \Psi_I \vert$, in which all
+states have equal weights, gives rise to the subspace density $\rho_V(\vec{r})$. Invoking the Lieb-Oxford inequality for this ensemble
+density matrix leads to a lower bound that is a functional of $\rho_V$ and therefore an invariant of the subspace,
+\begin{equation}
+  \frac{1}{N} \sum_{I=1}^{N} \langle \Psi_{I} \vert \sum_{i < j}^{n} \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert} \vert \Psi_{I} \rangle
+  \geq \frac{1}{2} \int \int' \frac{\rho_V(\vec{r}) \rho_V(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
+   - c_{\text{LO}} \int \rho_V(\vec{r})^{4/3}. \label{eqn:lieb_oxford_bound_subspace_invariant} 
+\end{equation}
+
+%%%%% This digression can be moved to the SI.
+The proof that the Lieb-Oxford bound also works for density matrices is not spelled out explicitly in Ref.~\cite{Lieb1981}. To be sure, a proof
+of inequality \ref{eqn:lieb_oxford_bound_subspace_invariant} will be sketched that uses the ideas of Lieb and Oxford. The original publications
+\cite{Lieb1979,Lieb1981} are written in a very dense style. A more accessible explanation of the proof
+for a less tight bound is given in chapter 6 of E. Lieb's book "Stability of Matter in Quantum Mechanics" \cite{Lieb2010_Stability_of_Matter}.
+I will follow the notation of the book, except for denoting the Coulomb interaction between two charge densities
+$f(\vec{r})$ and $g(\vec{r})$ by 
+\begin{equation}
+  C(f,g) = \frac{1}{2} \int d^3r \int d^3r' \frac{f(\vec{r}) g(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
+\end{equation}
+(instead of $D(f,g)$) to avoid confusion with the matrix density. The starting point is Onsager's lemma
+(Lemma 6.1 in \cite{Lieb2010_Stability_of_Matter}), which is valid for any charge density. For our purposes the
+charge density is set to the subspace density $\rho_V$,
+\begin{equation}
+\frac{1}{2} \sum_{i \neq j}^n \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert}
+\geq - C(\rho_V,\rho_V) + 2 \sum_{i=1}^n C(\rho_V, \mu_{\vec{r}_i}) - \sum_{i=1}^{n} C(\mu_{\vec{r}_i},\mu_{\vec{r}_i}) \label{eqn:onsagers_lemma}
+\end{equation}
+The $\mu_{\vec{r}_i}(\vec{r})$ are bounded and normalized ($\int d^3r \mu_{\vec{r}_i}(\vec{r}) = 1$) functions, which are
+spherically symmetric around the position $\vec{r}_i$ of electron $i=1,\ldots,n$.
+They can be understood as the smeared out charge of an electron. The inequality is useful, because
+the 2-electron repulsion operator on the left side is bounded by the Hartree energy and two one-electron operators on the right hand side. \cite{Lieb2010_Stability_of_Matter}
+Taking the expectation value of Eqn.~\ref{eqn:onsagers_lemma} in the state $\Psi_I$ on both sides and averaging over the electronic states $I=1,\ldots,N$
+in the subspace gives
+\begin{equation}
+\begin{split}
+\frac{1}{N} \sum_{I=1}^N \langle \Psi_I \vert \frac{1}{2} & \sum_{i \neq j}^n \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert} \vert \Psi_I \rangle
+\geq
+-\frac{1}{N} \sum_{I=1}^{N} \underbrace{\langle \Psi_I \vert \Psi_I \rangle}_{=1} C(\rho_V, \rho_V) \\
+& + 2 \sum_{i=1}^n \int d^3r_i 
+\frac{1}{N} \sum_{I=1}^{N} \int^{\dagger} \Psi_I^*(\vec{r}_i,\sigma_1;\vec{x}_2;\ldots,\vec{x}_n)
+\Psi_I(\vec{r}_i,\sigma_1;\vec{x}_2;\ldots,\vec{x}_n)
+C(\rho_V,\mu_{\vec{r}_i})
+\\
+& - \sum_{i=1}^n \int d^3r_i
+\frac{1}{N} \sum_{I=1}^{N} \int^{\dagger} \Psi_I^*(\vec{r}_i,\sigma_1;\vec{x}_2;\ldots,\vec{x}_n)
+\Psi_I(\vec{r}_i,\sigma_1;\vec{x}_2;\ldots,\vec{x}_n)
+C(\mu_{\vec{r}_i},\mu_{\vec{r}_i}) \label{eqn:onsagers_lemma_2}
+\end{split}
+\end{equation}
+Because of the antisymmetry of the wavefunctions, the coordinate of the $i$th electron has been moved to the first position in both the bra
+and the ket so that the signs from the exchanges cancel. $\int^{\dagger}\ldots$ denotes again integration over all electronic coordinates except
+for the spatial coordinate of the first electron, which is called $\vec{r}_i$. 
+Using the definition of the subspace density,
+\begin{equation}
+ \rho_V(\vec{r}) = \frac{1}{N} \sum_{I=1}^{N} n \int^{\dagger}
+ \Psi_I^*(\vec{r},\sigma_1;\vec{x}_2,\ldots,\vec{x}_n) \Psi_I(\vec{r},\sigma_1;\vec{x}_2,\ldots,\vec{x}_n)
+\end{equation}
+and adding and subtracting $2 C(\rho_V,\rho_V)$, the right hand side of Eqn.~\ref{eqn:onsagers_lemma_2}
+becomes
+\begin{equation}
+ C(\rho_V,\rho_V) 
+  - \underbrace{2 \left( 
+    C(\rho_V,\rho_V) - \frac{1}{n} \sum_{i=1}^{n} \int d^3r_i ~ \rho_V(\vec{r}_i) C(\rho_V,\mu_{\vec{r}_i})
+    \right)}_{F_1}
+  - \underbrace{\frac{1}{n} \sum_{i=1}^{n} \int d^3r_i ~ \rho_V(\vec{r}_i) C(\mu_{\vec{r}_i},\mu_{\vec{r}_i})}_{F_2}
+\end{equation}
+where one can identify terms $F_1$ and $F_2$ that look identical to
+Eqns.~(6.4.9) and (6.4.10) in Lieb's book \cite{Lieb2010_Stability_of_Matter},
+with the only difference that the density is replaced by the subspace density.
+From here on the proof proceeds in the same way as for a single electronic state (section 6.5 in \cite{Lieb2010_Stability_of_Matter}
+or Ref.~\cite{Lieb1981}) leading finally to the inequality \ref{eqn:lieb_oxford_bound_subspace_invariant}.
+%%%%%% End of digression.
+
+Table \ref{tbl:lower_bounds_electron_repulsion} compares the lower bounds of Eqns.~\ref{eqn:lieb_oxford_bound_sum_over_states} and
+\ref{eqn:lieb_oxford_bound_subspace_invariant} with the exact average electron repulsion in the subspace. Both bounds are very similar,
+but neither bound is strictly larger than the other. For some of the example molecules (e.g. He and Li), the subspace invariant
+bound (Eqn.~\ref{eqn:lieb_oxford_bound_subspace_invariant}) is slightly larger,
+whereas for water the sum over states bound (Eqn.~\ref{eqn:lieb_oxford_bound_sum_over_states}) is the larger one. There 
+
+\input{tables/lower_bound_electron_repulsion}
 
 %%Eigenvalues and eigenvectors of D for analysing calculations.
 %There are neither wavefunctions nor orbitals in (at least orbital-free) density functional theory,

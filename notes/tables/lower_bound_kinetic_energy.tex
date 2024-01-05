@@ -13,7 +13,8 @@ zero-decimal-to-integer
   SSSSS
   }
     \toprule
- {Molecule} & {Basis} & {Bound Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}} & {Bound Eqn.~\ref{eqn:lower_bound_kinetic_invariant}} & {Exact}\\
+ {Molecule} & {Basis} & {SoS bound} & {Inv bound} & {Exact}\\
+ & &  {Eqn.~\ref{eqn:lower_bound_kinetic_sum_over_states}} & {Eqn.~\ref{eqn:lower_bound_kinetic_subspace_invariant}} & \\
 \midrule
 {H} & {6-31g} & 1.143235 & 0.823160 & 1.143235 \\
 {H (large basis set)} & {aug-cc-pvtz} & 0.292371 & 0.150067 & 0.292371 \\
@@ -32,10 +33,10 @@ zero-decimal-to-integer
 \caption{
 \label{tbl:lower_bounds_kinetic_energy}
 The exact subspace kinetic energy $\frac{1}{N} \sum_{I=1}^{N} T_{II}$ (\textbf{Exact}) is bounded from below by
-$\frac{1}{N} \frac{1}{8} \sum_{I=1}^{N} \int \frac{\vert \nabla D_{II} \vert^2}{D_{II}}$
-(\textbf{Bound Eqn.~\ref{eqn:lower_bound_kinetic_Lieb}}) and by the subspace invariant
+the \textbf{S}um \textbf{O}ver \textbf{S}tates bound $\frac{1}{N} \frac{1}{8} \sum_{I=1}^{N} \int \frac{\vert \nabla D_{II} \vert^2}{D_{II}}$
+(\textbf{SoS bound} Eqn.~\ref{eqn:lower_bound_kinetic_sum_over_states}) and by the subspace \textbf{Inv}ariant bound
 $\frac{1}{8} \int \frac{\vert \nabla \rho_V \vert^2}{\rho_V}$
-(\textbf{Bound Eqn.~\ref{eqn:lower_bound_kinetic_invariant}})
+(\textbf{Inv bound} Eqn.~\ref{eqn:lower_bound_kinetic_subspace_invariant})
 The exact wavefunctions for the $N=4$ lowest excited states ($N=2$ for hydrogen atom with small basis sets)
 are calculated with full configuration interaction for a few small atoms and molecules.
 All energies are in Hartree.}
