@@ -25,7 +25,6 @@ except ImportError as err:
 
 import numpy
 import numpy.linalg as la
-
 import pyscf.dft
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
@@ -306,7 +305,7 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         :param msmd: The multistate matrix density in the electronic subspace
         :type msmd: :class:`~.MultistateMatrixDensity`
 
-        :param coords: The Cartesian positions at which the kinetic energy
+        :param coords: The Cartesian positions at which the exchange energy
            density is calculated.
         :type coords: numpy.ndarray of shape (Ncoord,3)
 
@@ -360,3 +359,134 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
                 XED[s,:,:,r] = exchange_energy_r
 
         return XED
+
+
+class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
+    # Parameters of Chachiyo's functional from Eqn.(3) of [Chachiyo]
+    a = (numpy.log(2.0)-1.0)/(2*numpy.pi**2)
+    # b from Eqn.(3) for the paramagnetic part εᶜ₀
+    b_paramagnetic = 20.4562557
+
+    def __init__(self, mol, level=8):
+        """
+        Multi-state correlation energy according to the local density approximation.
+
+        For a single electronic state it reduces to the correlation energy of the uniform
+        electron gas. The functional form from [Chachiyo] is a simple and elegant parameterization
+        of the correlation energy per electron of the uniform electron gas.
+        It recovers the exact high density limit and fits the quantum Monte-Carlo results of
+        [Ceperley&Alder] in the medium density range rather well.
+
+        Taking the paramagnetic part of the correlation energy (spin polarization = 0) and
+        replacing the electron density ρ(r) with the density matrix D(r), the multistate extension
+        of the Chachiyo functional (Eqn.8 in [Chachiyo]) can be written in the following form:
+
+          C[D(r)] = a ∫ log(Id + b₁ D(r)¹ᐟ³ + b₂ D(r)²ᐟ³ ) D(r) dr
+
+        with
+
+          a = (log(2)-1)/(2 π²) = -0.01554534543482745
+          b = 20.4562557 (paramagnetic)
+          b₁ = (4π/3)¹ᐟ³ b = 32.975319597703546
+          b₂ = (4π/3)²ᐟ³ b = 53.155949872619715
+
+        `f[D] = log(Id + b₁ D(r)¹ᐟ³ + b₂ D(r)²ᐟ³) D(r)` is a matrix funtional,
+        which is calculated by diagonalizing D and applying the function f to the eigenvalues.
+
+        References
+        ----------
+        [Chachiyo] T. Chachiyo (2016), J. Chem. Phys. 145, 2
+            "Communication: Simple and accurate uniform electron gas correlation energy for the full range of densities"
+        [Ceperley&Alder] D. Ceperley, B. Alder (1980), Phys. Rev. Lett., 45, 7, 566.
+            "Ground state of the electron gas by a stochastic method"
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the energy density for the correlation-like part of the electron-electron
+        repulsion operator in the subspace of electronic states,
+
+          CED[D]ᵢⱼ(r) = a log(Id + b₁ D(r)¹ᐟ³ + b₂ D(r)²ᐟ³) D(r)
+
+        :param msmd: The multistate matrix density in the electronic subspace
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the correlation energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: CEDᵢⱼ(r), correlation energy density
+        :rtype: numpy.ndarray of shape (1,Mstate,Mstate,Ncoord)
+           CED[0,i,j,r] is the correlation energy density between the
+           electronic states i and j at position coords[r,:].
+           There is only a single spin component, because the correlation
+           energy depends on the total electron density and the spin polarization.
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+
+        # Evaluate D(r) on the integration grid.
+        D, _, _ = msmd.evaluate(coords)
+
+        # total density D = Dᵅ(r) + Dᵝ(r)
+        total_density = D[0,...] + D[1,...]
+        # and spin polarization ΔD = Dᵅ(r) - Dᵝ(r)
+        spin_polarization = D[0,...] - D[1,...]
+        # WARNING: This functional only evaluates the paramagnetic part of the correlation
+        #   energy, the spin polarization is assumed to be zero. For closed-shell molecules
+        #   the diagonal elements of the matrix density are not spin-polarized, however
+        #   the transition densities usually have a large spin-polarization.
+        #   The correlation energy of the uniform electron gas is negative. For medium
+        #   and low densities (0.5 ≤ rₛ ≤ 10.0), the ratio of ferromagnetic to paramagnetic
+        #   correlation energy is approximately 1.1. So by neglecting the difference between
+        #   paramagnetic and ferromagnetic correlation, we incur and error of approximately 10%.
+
+        def correlation_chachiyo(density):
+            # The correlation energy of a uniform electron gas in Chachiyo's parameterization.
+            # In terms of the Wigner-Seitz radius
+            #  rₛ = (4π/3 ρ)⁻¹ᐟ³
+            # the correlation energy per electron is expressed as
+            #  εᶜ(rₛ) = a log(1+b/rₛ+b/rₛ²)
+            b1 = pow(4.0/3.0*numpy.pi, 1.0/3.0) * self.b_paramagnetic
+            b2 = pow(4.0/3.0*numpy.pi, 2.0/3.0) * self.b_paramagnetic
+            # In terms of the density the correlation energy becomes
+            #  εᶜ(ρ) = a log( 1 + b1 ρ¹ᐟ³ + b2 ρ²ᐟ³ )
+            epsilon_c = self.a * numpy.log(1.0 + b1 * pow(density, 1.0/3.0) + b2 * pow(density, 2.0/3.0))
+            # Multiply the correlation energy per particle by the particel density.
+            correlation_energy_density = epsilon_c * density
+            return correlation_energy_density
+
+        # correlation-energy density
+        # CED[D]ᵢⱼ(r) = a log(Id + b₁ D(r)¹ᐟ³ + b₂ D(r)²ᐟ³ )
+        # The array CED has only on spin dimension, because the functional operates
+        # on the total spin density (up + down).
+        CED = numpy.zeros((1,nstate,nstate,ncoord))
+
+        for r in range(0, ncoord):
+            # Compute eigenvalues Λ and eigenvectors U of the symmetric matrix
+            # D = Dᵅ(r) + Dᵝ(r).
+            L, U = numpy.linalg.eigh(total_density[:,:,r])
+            # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+            assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
+
+            # The correlation energy function is applied to the eigenvalues
+            #   CED[D](r) = U(r) εᶜ(Λ(r)) Uᵀ(r)
+            CED[0,:,:,r] = numpy.einsum('ia,a,ja->ij', U, correlation_chachiyo(abs(L)), U)
+
+        return CED

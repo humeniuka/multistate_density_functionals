@@ -7,6 +7,7 @@ import numpy.linalg as la
 import numpy.testing
 
 import pyscf.dft
+import pyscf.dft.libxc
 import pyscf.fci
 import pyscf.gto
 import pyscf.scf
@@ -16,6 +17,7 @@ import unittest
 
 from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
+from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -316,7 +318,62 @@ class TestLSDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
                 exchange_matrix_single = exchange_functional_single(msmd)
 
                 numpy.testing.assert_almost_equal(
-                    exchange_matrix_multi, exchange_matrix_single)
+                    exchange_matrix_single, exchange_matrix_multi)
+
+
+class TestLDACorrelationLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+    @property
+    def xc_functional_class(self):
+        """ The functional to be tested. """
+        return LDACorrelationLikeFunctional
+
+    def test_chunk_size(self):
+        """
+        Check that the correlation energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
+
+    def test_chachiyo_functional_implementation(self):
+        """
+        Check that the implementation of the correlation functional gives the same energy
+        as libxc for a range of electron densities.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # Evaluate the correlation energy, X[D(r)], using the multi-state functional.
+                correlation_functional_multi = self.xc_functional_class(mol)
+                correlation_matrix_multi = correlation_functional_multi(msmd)
+
+                # Evaluate the LDA correlation energy of a single state using the
+                # implementation of libxc.
+                grids = pyscf.dft.gen_grid.Grids(mol)
+                grids.level = 8
+                grids.build()
+                # number of grid points
+                ncoord = grids.coords.shape[0]
+
+                D, _, _ = msmd.evaluate(grids.coords)
+                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+                # but only den has to be non-zero for an LDA functional.
+                rho = numpy.zeros((6, ncoord))
+                # Sum over spins.
+                rho[0,:] = D[0,0,0,:] + D[1,0,0,:]
+                exc, _, _, _ = pyscf.dft.libxc.eval_xc(',LDA_C_CHACHIYO', rho)
+                # Integrate over space
+                #  Ec[ρ] = ∫ ρ exc[ρ] dr
+                correlation_matrix_single = numpy.array([[
+                        numpy.sum(grids.weights * (rho * exc))
+                    ]])
+
+                # Compare the multistate and the single-state (libxc) correlation functionals.
+                numpy.testing.assert_almost_equal(
+                    correlation_matrix_single, correlation_matrix_multi, decimal=5)
 
 
 if __name__ == "__main__":
