@@ -70,6 +70,11 @@ molecules = {
         atom = 'He  0 0 0',
         basis = '6-31g',
         # singlet
+        spin = 0),
+    'Ne': pyscf.gto.M(
+        atom = 'Ne  0 0 0',
+        basis = '6-31g',
+        # singlet
         spin = 0)
     }
 
@@ -85,12 +90,12 @@ for name, mol in molecules.items():
     # 2) J[ρᵥ] - cᴸᴼ ∫ ρᵥ(r)⁴ᐟ³
     lower_bound_2 = LowerBoundElectronRepulsionSubspaceInvariant(mol)(msmd)
 
-    # The exact electron repulsion matrix Cᵢⱼ
-    C_exact = msmd.exact_electron_repulsion()
+    # The exact electron repulsion matrix Iᵢⱼ
+    I_exact = msmd.exact_electron_repulsion()
     # number of electronic states
-    nstate = C_exact.shape[0]
-    # exact subspace electron repulsion energy, 1/N tr(C)
-    subspace_electron_repulsion = 1.0/nstate * numpy.trace(C_exact)
+    nstate = I_exact.shape[0]
+    # exact subspace electron repulsion energy, 1/N tr(I)
+    subspace_electron_repulsion = 1.0/nstate * numpy.trace(I_exact)
 
     dataframe.loc[len(dataframe)] = [name, mol.basis, lower_bound_1, lower_bound_2, subspace_electron_repulsion]
 

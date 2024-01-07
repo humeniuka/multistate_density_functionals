@@ -37,8 +37,8 @@ if __name__ == "__main__":
     # convert angles to degree
     angles = numpy.array(scan_data['angle']) * 180.0 / numpy.pi
     eigenenergies = numpy.array(scan_data['eigenenergies'])
-    C_exact = numpy.array(scan_data['C_exact'])
-    C_approximate = numpy.array(scan_data['C_approximate'])
+    I_exact = numpy.array(scan_data['I_exact'])
+    I_approximate = numpy.array(scan_data['I_approximate'])
     J_Hartree = numpy.array(scan_data['J_Hartree'])
     K_LSDA = numpy.array(scan_data['K_LSDA'])
     SIC = numpy.array(scan_data['self_interaction_correction'])
@@ -63,11 +63,11 @@ zero-decimal-to-integer
   }
     """
     # Tables
-    tex += matrix_to_latex(C_exact[index], "$C_{IJ}^{\\text{exact}}$")
-    tex += matrix_to_latex(C_approximate[index], "$C[\m{D}]_{IJ}$")
+    tex += matrix_to_latex(I_exact[index], "$I_{IJ}^{\\text{exact}}$")
+    tex += matrix_to_latex(I_approximate[index], "$I[\m{D}]_{IJ}$")
     tex += matrix_to_latex(J_Hartree[index], "$J[\m{D}]_{IJ}$")
     tex += matrix_to_latex(-K_LSDA[index], "$-K^{LSDA}[\m{D}]_{IJ}$")
-    tex += matrix_to_latex(SIC[index] * numpy.eye(C_exact[index].shape[0]), "$\\text{SIC} \delta_{IJ}$")
+    tex += matrix_to_latex(SIC[index] * numpy.eye(I_exact[index].shape[0]), "$\\text{SIC} \delta_{IJ}$")
     # Footer
     tex += """\\bottomrule
 \end{tabular}
@@ -76,7 +76,7 @@ zero-decimal-to-integer
 \label{tbl:water_electron_repulsion}    
 Electron repulsion in the lowest 4 singlet states of water ($r(OH_1)=r(OH_2)=0.958 \AA$, $\\angle(HOH) = 104.2^{\circ}$).
 Exact and multistate density functional approximation for matrix of electron repulsion operator
-in the basis of FCI eigenstates. The parts $\m{J}$, $-\m{K}$ and $\\text{SIC} \m{I}$ are shown below.
+in the basis of FCI eigenstates. The parts $\m{J}$, $-\m{K}$ and $\\text{SIC}$ are shown below.
 All energies are in Hartree.}
 \end{table}
 %%%%%%%%%%%%%%%%%%%%%% END OF AUTO-GENERATE LATEX CODE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

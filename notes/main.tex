@@ -835,14 +835,14 @@ where $\zeta_m(\vec{r})$ and $\zeta_n(\vec{r})$ are basis functions from the gra
 The matrix element of the electron repulsion operator, $\sum_{a < b}^{n} 1/\vert \vec{r}_a - \vec{r}_b \vert$,
 between two electronic states $\Psi_I$ and $\Psi_J$ with $n$ electrons is
 \begin{equation}
- C_{IJ} = 
+ I_{IJ} = 
 \int dx_1 \int dx_2 \ldots \int dx_n ~ \Psi_{I}^*(\vec{x}_1, \vec{x}_2, \ldots, \vec{x}_n)
 \sum_{a < b}^{n} \frac{1}{\vert \vec{r}_a - \vec{r}_b \vert}
 \Psi_{J}(\vec{x}_1, \vec{x}_2, \ldots, \vec{x}_n), \label{eqn:electron_repulsion_exact}
 \end{equation}
 where $\vec{x}_a = (\vec{r}_a, \sigma_a)$ are the spatial and spin coordinates of electron $a$.
 According to the theorem by Lu and Gao \cite{Lu2022JPCL}, which is the multi-state equivalent of the Hohenberg-Kohn theorem,
-$C_{IJ}$ is a functional of the matrix density $\m{D}(\vec{r})$.
+$I_{IJ}$ is a functional of the matrix density $\m{D}(\vec{r})$.
 In the Thomas-Fermi-Dirac (TFD) model \cite[chapter 6]{ParrYangBook} the electron-electron repulsion consists of the
 classical electrostatic energy of the total electronic charge $\rho = \rho^{\alpha} + \rho^{\beta}$ ($\alpha$ denotes spin up, $\beta$ spin down) and the exchange energy 
 \begin{equation}
@@ -850,7 +850,7 @@ U_{ee}^{\text{TFD}}[\rho] = \frac{1}{2} \int \int' \frac{\rho(\vec{r}) \rho(\vec
  - 2^{1/3} C_x \int [\rho^{\alpha}(\vec{r})]^{4/3} + [\rho^{\beta}(\vec{r})]^{4/3} ~ d^3r.
 \end{equation}
 The value of the prefactor $C_x = 0.7937$ is taken from the "Gaussian" approximation in
-Eqn.~(6.5.25) of chapter 6 of the textbook by Parr \& Yang \cite{ParrYangBook}. Since $C_{IJ}[\m{D}]$ is an \emph{analytical} matrix functional,
+Eqn.~(6.5.25) of chapter 6 of the textbook by Parr \& Yang \cite{ParrYangBook}. Since $I_{IJ}[\m{D}]$ is an \emph{analytical} matrix functional,
 the Thomas-Fermi-Dirac functional for the ground state can be turned into a multistate functional by keeping the same functional form
 and replacing $\rho$ with the matrix density $\m{D}$. This process is not unique, since the single-state
 functional does not contain the complete information about the multi-state functional.
@@ -859,11 +859,11 @@ or $\tr(\m{D}) \m{D}$, since for a single state both options are identical.}
 However, the simplest choice is to replace scalar multiplication with matrix multiplication, so that the multistate extension
 of the electron repulsion energy becomes
 \begin{equation}
-C[\m{D}]_{IJ} = 
+I[\m{D}]_{IJ} = 
 \frac{1}{2} \sum_{K} \int \int' \frac{D_{IK}(\vec{r}) D_{KJ}(\vec{r}')}{\vert \vec{r}' - \vec{r} \vert} ~ d^3r d^3r'
 - 2^{1/3} C_x \int [\m{D}^{\alpha}]^{4/3}(\vec{r})_{IJ} + [\m{D}^{\beta}]^{4/3}(\vec{r})_{IJ} ~ d^3r
 \end{equation}
-Because of the requirement that $C[\m{D}]_{IJ}$ is an analytical matrix functional, the Hartree-like term 
+Because of the requirement that $I[\m{D}]_{IJ}$ is an analytical matrix functional, the Hartree-like term 
 \begin{equation}
 \m{J}[\m{D}] = \frac{1}{2} \int \int' \frac{\m{D}(\vec{r}) \m{D}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert} \label{eqn:Hartree_term}
 \end{equation}
@@ -926,7 +926,7 @@ and
 respectively. The matrix element of the electron repulsion operator between two different states is
 \begin{equation}
   \begin{split}
-C_{IJ} &= \int d^3r_1 \ldots \int d^3r_n ~ 
+I_{IJ} &= \int d^3r_1 \ldots \int d^3r_n ~ 
 \Psi^*_{I}(\vec{r}_1,\vec{r}_2,\ldots,\vec{r}_n)
 \sum_{1 \leq i < j \leq n} \frac{1}{\vert \vec{r}_i - \vec{r}_j \vert}
 \Psi_{J}(\vec{r}_1,\vec{r}_2,\ldots,\vec{r}_n) \\
@@ -940,7 +940,7 @@ C_{IJ} &= \int d^3r_1 \ldots \int d^3r_n ~
   \end{split}
 \end{equation}
 The last equality follows because all terms that involve an integral over $\vec{r}_n$ vanish since $\phi_I$ and $\phi_J$ are orthogonal.
-So $C_{IJ}$ is the electrostatic interaction of the transition density with the density of the "inactive" orbitals
+So $I_{IJ}$ is the electrostatic interaction of the transition density with the density of the "inactive" orbitals
 that are shared by all electronic states. On the other hand, the Hartree-term in Eqn.~\ref{eqn:Hartree_term} gives
 \begin{align}
  J[\m{D}]_{IJ} &= \frac{1}{2} \int d^3r_1 \int d^3r_2 \sum_K \frac{D_{IK}(\vec{r}_1) D_{KJ}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert} \\
@@ -966,7 +966,7 @@ matrix functional is larger than the sum of the Hartree energies of the individu
 \begin{equation}
  \tr(J[\m{D}]) \ge \sum_{I=1}^{N} \frac{1}{2} \int \int' \frac{D_{II}(\vec{r}) D_{II}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}. \label{eqn:J_inequality}
 \end{equation}
-However, in the total electron repulsion $\m{C}[\m{D}] = \m{J}[\m{D}] - \m{K}[\m{D}]$,
+However, in the total electron repulsion $\m{I}[\m{D}] = \m{J}[\m{D}] - \m{K}[\m{D}]$,
 this larger direct part of the electron repulsion is partly compensated for by the
 indirect (or exchange/correlation-like) electron repulsion $\m{K}$, which on average is larger than the
 exchange-correlation energies of the individual electronic states,
@@ -994,7 +994,7 @@ The right hand side of this inequality is zero, since $\tr(\m{D} \Diag(\m{D})^{1
 Integrating over space yields the inequality \ref{eqn:K_inequality}.
 
 \subsection{Self-Interaction Error}
-The largest part of the deviation between the exact electron repulsion $\m{C}$ and
+The largest part of the deviation between the exact electron repulsion $\m{I}$ and
 the MSDFT approximation $\m{J}[\m{D}]-\m{K}^{LSDA}[\m{D}]$ does not depend on the geometry.
 This suggests that it is due to the core electrons, which do not participate in the bonding.
 It is known that in the core regions the self-interaction errors are particularly large (see section D in Ref. \cite{Tsuneda2014}).
@@ -1008,7 +1008,7 @@ and an exchange-like contribution,
 \begin{equation}
 -K[\rho^{\alpha}_{1s}] = - 2^{1/3} C_x \int \rho^{\alpha}_{1s}(\vec{r})^{4/3},
 \end{equation}
-that have to be subtracted from the diagonal elements $C_{II}[\m{D}]$. The off-diagonal elements $C_{IJ}[\m{D}]$, $I \neq J$, do not suffer from the self-intersection problem.
+that have to be subtracted from the diagonal elements $I_{II}[\m{D}]$. The off-diagonal elements $I_{IJ}[\m{D}]$, $I \neq J$, do not suffer from the self-intersection problem.
 The self-interaction energies from different elements (except the very light ones like hydrogen, lithium etc.) are added.
 Since core orbitals are doubly occupied, a factor two appears.
 The self-interaction correction (SIC) is supposed to cancel the self-interaction error (SIE), so there is a minus sign in front:
@@ -1025,7 +1025,7 @@ outside of the MSDFT formalism has to be employed.
 The self-interaction correction is a constant that only depends on the elemental composition of the molecule, but not
 on the geometry and is the same for all electronic states. So the final expression for the electron repulsion is
 \begin{equation}
-C[\m{D}]_{IJ} = J[\m{D}]_{IJ} - K^{LSDA}[\m{D}]_{IJ} + \text{SIC} ~ \delta_{IJ}. \label{eqn:electron_repulsion_msdft}
+I[\m{D}]_{IJ} = J[\m{D}]_{IJ} - K^{LSDA}[\m{D}]_{IJ} + \text{SIC} ~ \delta_{IJ}. \label{eqn:electron_repulsion_msdft}
 \end{equation}
 
 \subsection{Example: Water}
@@ -1060,7 +1060,7 @@ swap their \emph{adiabatic} state labels.
 
 The relative errors of the diagonal elements and the off-diagonal elements of the electron repulsion
 are less than 1\% and less than 5\%, respectively.
-The off-diagonal elements $C_{IJ}$, which have no equivalent
+The off-diagonal elements $I_{IJ}$, which have no equivalent
 in single-state density functional theory, also match well.
 
 For the oxygen atom with the sto-3g basis set the self-interaction of the 1s core electrons is SIE=0.371 Hartree.

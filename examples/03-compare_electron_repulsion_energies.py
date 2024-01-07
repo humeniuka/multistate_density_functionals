@@ -3,11 +3,11 @@
 """
 Compare the exact electron repulsion energy matrix between electronic states
 
-  Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+  Iᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
 
 with the multi-state local-density approximation
 
-  Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+  Iᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
       = 1/2 ∑ₖ ∫∫' Dᵢₖ(r) Dₖⱼ(r')/|r-r'| - 2¹ᐟ³ Cₓ ∫ [Dᵅ(r)⁴ᐟ³]ᵢⱼ + [Dᵝ(r)⁴ᐟ³]ᵢⱼ dr
 
 for the water molecule at its equilibrium geometry.
@@ -43,28 +43,28 @@ def compare_electron_repulsion_energies(mol, nstate=2):
     exchange_functional = LSDAExchangeLikeFunctional(mol)
 
     # exact electron repulsion
-    # Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
-    C_exact = msmd.exact_electron_repulsion()
+    # Iᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+    I_exact = msmd.exact_electron_repulsion()
     # approximate multi-state LSDA electron repulsion
-    # Cᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+    # Iᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
     J_Hartree = hartree_functional(msmd)
     K_LSDA = exchange_functional(msmd)
-    C_approximate = J_Hartree - K_LSDA
+    I_approximate = J_Hartree - K_LSDA
     #
     print("=== Electron Repulsion Matrices ===")
-    print("C_exact")
-    print(C_exact)
-    print("C_approximate")
-    print(C_approximate)
+    print("I_exact")
+    print(I_exact)
+    print("I_approximate")
+    print(I_approximate)
     print("J Hartree")
     print(J_Hartree)
     print("-K_LSDA")
     print(-K_LSDA)
 
     # relative errors
-    relative_errors = abs(C_approximate - C_exact)/(abs(C_exact) + 1.0e-8)
+    relative_errors = abs(I_approximate - I_exact)/(abs(I_exact) + 1.0e-8)
     print("=== Relative Errors ===")
-    print("|C(approximate)-C(exact)|/|C(exact)|")
+    print("|I(approximate)-I(exact)|/|I(exact)|")
     print(relative_errors)
 
 

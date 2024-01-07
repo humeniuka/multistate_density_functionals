@@ -3,11 +3,11 @@
 """
 plot the indirect part of the exact matrix elements of the electron repulsion operator
 
-  Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+  Iᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
 
 i.e.
 
-  Cᵢⱼ - Jᵢⱼ[D]
+  Iᵢⱼ - Jᵢⱼ[D]
 
 and compare it with the multistate Thomas-Fermi-Dirac approximation for
 exchange and correlation,
@@ -32,14 +32,14 @@ if __name__ == "__main__":
     # convert angles to degree
     angles = numpy.array(scan_data['angle']) * 180.0 / numpy.pi
     eigenenergies = numpy.array(scan_data['eigenenergies'])
-    C_exact = numpy.array(scan_data['C_exact'])
-    C_approximate = numpy.array(scan_data['C_approximate'])
+    I_exact = numpy.array(scan_data['I_exact'])
+    I_approximate = numpy.array(scan_data['I_approximate'])
     J_Hartree = numpy.array(scan_data['J_Hartree'])
     K_LSDA = numpy.array(scan_data['K_LSDA'])
     SIC = numpy.array(scan_data['self_interaction_correction'])
 
     # number of electronic states
-    nstate = C_exact[0].shape[0]
+    nstate = I_exact[0].shape[0]
 
     # Figure, axes, labels
     fig, axes = plt.subplots(1,2, figsize=(10,5))
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     for i in range(0, nstate):
         line, = axes[0].plot(
-            angles, C_exact[:,i,i] - J_Hartree[:,i,i],
+            angles, I_exact[:,i,i] - J_Hartree[:,i,i],
             lw=2, alpha=0.5,
             label=rf"XC$_{{{i},{i}}}$")
         axes[0].plot(
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     for i in range(0, nstate):
         for j in range(i+1, nstate):
             line, = axes[1].plot(
-                angles, C_exact[:,i,j] - J_Hartree[:,i,j],
+                angles, I_exact[:,i,j] - J_Hartree[:,i,j],
                 lw=2, alpha=0.5,
                 label=rf"XC$_{{{i},{j}}}$")
             axes[1].plot(

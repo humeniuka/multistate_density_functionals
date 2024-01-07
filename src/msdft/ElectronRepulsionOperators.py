@@ -4,10 +4,10 @@
 Matrix elements of the electron-repulsion operator between two
 n-electron wavefunctions Ψᵢ and Ψⱼ
 
-   Cᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+   Iᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
 
 with xᵦ=(rᵦ,σᵦ), are approximated a matrix functional of the matrix density,
-i.e. C[D(r)].
+i.e. I[D(r)].
 """
 from abc import ABC, abstractmethod
 
