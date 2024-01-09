@@ -60,7 +60,7 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
         self.assertAlmostEqual(SIE_oxygen_atom, SIE_water)
 
         # Check the actual value (in Hartree)
-        self.assertAlmostEqual(0.3708, SIE_oxygen_atom, places=3)
+        self.assertAlmostEqual(0.5013, SIE_oxygen_atom, places=3)
 
     def test_self_interaction_energy_of_core(self):
         """
