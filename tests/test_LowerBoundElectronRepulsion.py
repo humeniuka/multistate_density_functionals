@@ -127,7 +127,7 @@ class TestLiebOxfordBound(unittest.TestCase):
         lower_bound_indirect = lieb_oxford_bound.bound_on_indirect_energy(density_function)
 
         C_LO = LiebOxfordBound.Lieb_Oxford_constant
-        Cx = LSDAExchangeLikeFunctional.Cx_Gaussian
+        Cx = LSDAExchangeLikeFunctional.Cx
         self.assertAlmostEqual(-C_LO/Cx * exchange_energy, lower_bound_indirect)
 
     def test_bound_on_indirect_energy(self):

@@ -270,10 +270,8 @@ class LDAExchangeFunctionalSingleState(object):
         # Trace out spin and electronic states (there is only one state) to get ρ(r)
         rho = numpy.einsum('siir->r', D)
 
-        # prefactor Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
-        Cx = LSDAExchangeLikeFunctional.Cx_Gaussian
         # t[ρ] = Cₓ ρ(r)⁴ᐟ³
-        exchange_energy_density = Cx * pow(rho, 4.0/3.0)
+        exchange_energy_density = LSDAExchangeLikeFunctional.Cx * pow(rho, 4.0/3.0)
 
         # Integrate over space, Eₓ[ρ] = ∫ t[ρ] dr = Cₓ ∫ ρ(r)⁴ᐟ³ dr
         exchange_energy = numpy.einsum('r,r->', self.grids.weights, exchange_energy_density)
