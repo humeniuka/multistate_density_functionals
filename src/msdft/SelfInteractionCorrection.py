@@ -7,13 +7,14 @@ electrons. In the core region and at the tails of the electron density outside o
 the self-interaction error is particularly bad.
 
 Since in most functionals the self-interaction in the Hartree-term is not cancelled properly
-by the exchange term, the self-interaction error (SIE) leads to a increase of the electron repulsion
-in DFA relative to the full CI reference. This constant shift can be removed by simply subtracting
-the SIE for each orbital from the electron repulsion energies for each electronic state.
+by the exchange/correlation term, the self-interaction error (SIE) leads to a increase of the
+electron repulsion in DFA relative to the full CI reference. This constant shift can be removed
+by simply subtracting the SIE for each orbital from the electron repulsion energies for each
+electronic state.
 
 Let ρ₁ₛ be the density of a 1s core orbital. Then the SIE from that orbital is
 
-  SIE(1s) = 2 x [ (ρ₁ₛᵅ|ρ₁ₛᵅ) - 2¹ᐟ³ Cₓ ∫ ρ₁ₛᵅ(r)⁴ᐟ³ dr ]
+  SIE(1s) = 2 x [ 1/2 (ρ₁ₛᵅ|ρ₁ₛᵅ) - 2¹ᐟ³ Cₓ ∫ ρ₁ₛᵅ(r)⁴ᐟ³ dr + ∫ ρ₁ₛᵅ(r) εᶜ(ρ₁ₛᵅ) dr ]
 
 (ρ₁ₛᵅ|ρ₁ₛᵅ)=(1sᵅ1sᵅ|1sᵅ1sᵅ) is the electrostatic interaction of the density with itself.
 The factor two comes from the double occupancy of the core orbital.
@@ -26,6 +27,7 @@ import pyscf.data
 from pyscf.dft import numint
 import pyscf.scf
 
+from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 
 
@@ -184,20 +186,31 @@ class CoreSelfInteractionCorrection(object):
             # J[ρᵅ] = 1/2 (1sᵅ1sᵅ|1sᵅ1sᵅ)
             #       = 1/2 ∫∫' ρᵅ(r) ρᵅ(r') / |r-r'|
             #       = 1/2 ∫ ρᵅ(r) Vᵅ(r)
-            self_interaction_energy = 0.5 * numpy.sum(
+            self_interaction_energy_J = 0.5 * numpy.sum(
                 grids.weights * core_orbital_density * core_orbital_potential)
 
             # Exchange-part of self-interaction, -K[ρᵅ] = -2¹ᐟ³ Cₓ ∫ ρᵅ(r)⁴ᐟ³ dr
-            # Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
-            Cx = LSDAExchangeLikeFunctional.Cx_Gaussian
-            prefactor = pow(2.0, 1.0/3.0) * Cx
-            self_interaction_energy -= prefactor * numpy.sum(
+            prefactor = pow(2.0, 1.0/3.0) * LSDAExchangeLikeFunctional.Cx
+            self_interaction_energy_X = -prefactor * numpy.sum(
                 grids.weights * pow(core_orbital_density, 4.0/3.0))
 
+            # Correlation-part of self-interaction, C[ρᵅ] = ∫ ρᵅ(r) εᶜ(ρᵅ) dr
+            # A single orbital is fully spin-polarizated, therefore the ferromagnetic (spin=1)
+            # correlation energy should be used. However, since the difference between the two
+            # is less than 10%, the paramagnetic function (spin=0) is used to keep things simple.
+            self_interaction_energy_C = numpy.sum(
+                grids.weights * LDACorrelationLikeFunctional.correlation_energy_density(core_orbital_density, spin=0)
+            )
+
+            # Combine contributions from direct and indirect part of Coulomb energy.
             # The factor 2 comes from the fact that the core electron is doubly occupied.
             # In the density functional approximation, the interaction of each electron
             # with itself is not excluded.
-            self_interaction_energy *= 2
+            self_interaction_energy = 2 * (
+                self_interaction_energy_J +
+                self_interaction_energy_X +
+                self_interaction_energy_C
+            )
 
             self_interaction_energies.append(self_interaction_energy)
 

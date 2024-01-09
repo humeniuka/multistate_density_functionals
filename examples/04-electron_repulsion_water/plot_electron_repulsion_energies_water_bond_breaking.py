@@ -7,9 +7,9 @@ plot the exact matrix elements of the electron repulsion operator
 
 and their multi-state local-density approximation
 
-  Iᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+  Iᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D] + Cᵢⱼ[D] + SIC δᵢⱼ
 
-for the diagonal (i=j) and off-diagonal (i!=j) elements for all
+for the diagonal (i=j) and off-diagonal (i≠j) elements for all
 scan geometries.
 """
 import json
@@ -30,8 +30,6 @@ if __name__ == "__main__":
     eigenenergies = numpy.array(scan_data['eigenenergies'])
     I_exact = numpy.array(scan_data['I_exact'])
     I_approximate = numpy.array(scan_data['I_approximate'])
-    J_Hartree = numpy.array(scan_data['J_Hartree'])
-    K_LSDA = numpy.array(scan_data['K_LSDA'])
 
     # number of electronic states
     nstate = I_exact[0].shape[0]
@@ -81,7 +79,7 @@ if __name__ == "__main__":
         [solid_line, dashed_line],
         [
             r"$I_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle$ (exact)",
-            r"$I_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
+            r"$I_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ}  + \text{SIC}~\delta_{IJ}$"
         ],
         fontsize='large',
         frameon=False,

@@ -10,11 +10,11 @@ i.e.
   Iᵢⱼ - Jᵢⱼ[D]
 
 and compare it with the multistate Thomas-Fermi-Dirac approximation for
-exchange and correlation,
+exchange (X=-K) and correlation (C),
 
-  -Kᵢⱼ[D] + SIC δᵢⱼ,
+  -Kᵢⱼ[D] + Cᵢⱼ[D] + SIC δᵢⱼ,
 
-for the diagonal (i=j) and off-diagonal (i!=j) elements for all
+for the diagonal (i=j) and off-diagonal (i≠j) elements for all
 scan geometries.
 """
 import json
@@ -37,6 +37,7 @@ if __name__ == "__main__":
     I_approximate = numpy.array(scan_data['I_approximate'])
     J_Hartree = numpy.array(scan_data['J_Hartree'])
     K_LSDA = numpy.array(scan_data['K_LSDA'])
+    C_LDA = numpy.array(scan_data['C_LDA'])
     SIC = numpy.array(scan_data['self_interaction_correction'])
 
     # number of electronic states
@@ -55,7 +56,7 @@ if __name__ == "__main__":
             lw=2, alpha=0.5,
             label=rf"XC$_{{{i},{i}}}$")
         axes[0].plot(
-            bond_length, -K_LSDA[:,i,i] + SIC,
+            bond_length, -K_LSDA[:,i,i] + C_LDA[:,i,i] + SIC,
             ls="--", color=line.get_color())
 
     axes[0].legend(title="$\mathbf{(a)}$ diagonal")
@@ -71,7 +72,7 @@ if __name__ == "__main__":
                 lw=2, alpha=0.5,
                 label=rf"XC$_{{{i},{j}}}$")
             axes[1].plot(
-                bond_length, -K_LSDA[:,i,j],
+                bond_length, -K_LSDA[:,i,j] + C_LDA[:,i,j],
                 ls="--", color=line.get_color())
 
     axes[1].yaxis.set_label_position("right")
@@ -86,7 +87,7 @@ if __name__ == "__main__":
         [solid_line, dashed_line],
         [
             r"$\text{XC}_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle - \text{J}[\mathbf{D}]_{IJ}$ (exact)",
-            r"$- \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
+            r"$-\text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
         ],
         fontsize='large',
         frameon=False,
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     )
 
     # Otherwise the x-labels are partly cut off.
-    plt.subplots_adjust(bottom=0.15)
+    plt.subplots_adjust(bottom=0.15, wspace=0.05, left=0.1, right=0.86)
 
     #plt.savefig("indirect_electron_repulsion_energies_water_bond_breaking.svg")
     #plt.savefig("indirect_electron_repulsion_energies_water_bond_breaking.png", dpi=300)

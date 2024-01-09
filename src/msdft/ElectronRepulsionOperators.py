@@ -253,11 +253,14 @@ class ExchangeCorrelationLikeFunctional(ABC):
         return xc_like_matrix
 
 
+# Cₓ = (3/4) (3/pi)¹ᐟ³ = 0.738 from Dirac's exchange-energy, Eqn. (6.1.20) in [Parr&Yang]
+Cx_Dirac = 0.7386
+# Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
+Cx_Gaussian = 0.7937
+
 class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
-    # Cₓ = (3/4) (3/pi)¹ᐟ³ = 0.738 from Dirac's exchange-energy, Eqn. (6.1.20) in [Parr&Yang]
-    Cx_Dirac = 0.7386
-    # Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
-    Cx_Gaussian = 0.7937
+    # The prefactor Cₓ for the exchange energy.
+    Cx = Cx_Dirac
 
     def __init__(self, mol, level=8):
         """
@@ -338,10 +341,7 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
                 # There are no electrons with spin projection s
                 # that could contribute to the exchange energy.
                 continue
-
-            # Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
-            Cx = LSDAExchangeLikeFunctional.Cx_Gaussian
-            prefactor = pow(2.0, 1.0/3.0) * Cx
+            prefactor = pow(2.0, 1.0/3.0) * self.Cx
             for r in range(0, ncoord):
                 # Compute eigenvalues Λ and eigenvectors U of the symmetric matrix D.
                 L, U = numpy.linalg.eigh(D[s,:,:,r])
@@ -366,6 +366,8 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
     a = (numpy.log(2.0)-1.0)/(2*numpy.pi**2)
     # b from Eqn.(3) for the paramagnetic part εᶜ₀
     b_paramagnetic = 20.4562557
+    # b from Eqn.(12) for the ferromagnetic part εᶜ₁
+    b_ferromagnetic = 27.4203609
 
     def __init__(self, mol, level=8):
         """
@@ -412,6 +414,48 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
         self.grids.level = level
         self.grids.build()
 
+    @classmethod
+    def correlation_energy_density(
+            cls,
+            density : numpy.ndarray,
+            spin=0) ->  numpy.ndarray:
+        """
+        The correlation energy density of a uniform electron gas in Chachiyo's parameterization.
+        In terms of the Wigner-Seitz radius
+          rₛ = (4π/3 ρ)⁻¹ᐟ³
+        the correlation energy per electron is expressed as
+          εᶜ(rₛ) = a log(1+b/rₛ+b/rₛ²)
+        The correlation energy density is then given by
+          ced(ρ) = ρ(r) εᶜ
+
+        :param density: The total electron density ρ = ρᵅ+ρᵝ
+          at the grid points
+        :type density: numpy.ndarray of arbitrary shape
+        
+        :param spin: The spin parameter determines whether the paramagnetic (spin=0)
+          or ferromagnetic (spin=1) correlation energy is calculated.
+        :type spin: int 
+
+        :return: Electron correlation energy CED
+        :rtype: numpy.ndarray of same shape as `density`.
+        """
+        assert spin in [0,1]
+        # The parameter b is different from paramagnetic or ferromagnetic densities.
+        if spin == 1:
+            b = cls.b_ferromagnetic
+        else:
+            b = cls.b_paramagnetic
+
+        b1 = pow(4.0/3.0*numpy.pi, 1.0/3.0) * b
+        b2 = pow(4.0/3.0*numpy.pi, 2.0/3.0) * b
+        # In terms of the density the correlation energy becomes
+        #  εᶜ(ρ) = a log( 1 + b1 ρ¹ᐟ³ + b2 ρ²ᐟ³ )
+        epsilon_c = cls.a * numpy.log(1.0 + b1 * pow(density, 1.0/3.0) + b2 * pow(density, 2.0/3.0))
+        # Multiply the correlation energy per particle by the particel density
+        # to get the correlation energy density (CED(r))
+        ced = epsilon_c * density
+        return ced
+
     def energy_density(
             self,
             msmd : MultistateMatrixDensity,
@@ -457,21 +501,6 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
         #   correlation energy is approximately 1.1. So by neglecting the difference between
         #   paramagnetic and ferromagnetic correlation, we incur and error of approximately 10%.
 
-        def correlation_chachiyo(density):
-            # The correlation energy of a uniform electron gas in Chachiyo's parameterization.
-            # In terms of the Wigner-Seitz radius
-            #  rₛ = (4π/3 ρ)⁻¹ᐟ³
-            # the correlation energy per electron is expressed as
-            #  εᶜ(rₛ) = a log(1+b/rₛ+b/rₛ²)
-            b1 = pow(4.0/3.0*numpy.pi, 1.0/3.0) * self.b_paramagnetic
-            b2 = pow(4.0/3.0*numpy.pi, 2.0/3.0) * self.b_paramagnetic
-            # In terms of the density the correlation energy becomes
-            #  εᶜ(ρ) = a log( 1 + b1 ρ¹ᐟ³ + b2 ρ²ᐟ³ )
-            epsilon_c = self.a * numpy.log(1.0 + b1 * pow(density, 1.0/3.0) + b2 * pow(density, 2.0/3.0))
-            # Multiply the correlation energy per particle by the particel density.
-            correlation_energy_density = epsilon_c * density
-            return correlation_energy_density
-
         # correlation-energy density
         # CED[D]ᵢⱼ(r) = a log(Id + b₁ D(r)¹ᐟ³ + b₂ D(r)²ᐟ³ )
         # The array CED has only on spin dimension, because the functional operates
@@ -485,8 +514,9 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
             # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
             assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
 
-            # The correlation energy function is applied to the eigenvalues
+            # The paramagnetic (spin=0) correlation energy function is applied to the eigenvalues
             #   CED[D](r) = U(r) εᶜ(Λ(r)) Uᵀ(r)
-            CED[0,:,:,r] = numpy.einsum('ia,a,ja->ij', U, correlation_chachiyo(abs(L)), U)
+            ced_eigenvalues = LDACorrelationLikeFunctional.correlation_energy_density(abs(L), spin=0)
+            CED[0,:,:,r] = numpy.einsum('ia,a,ja->ij', U, ced_eigenvalues, U)
 
         return CED

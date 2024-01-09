@@ -7,9 +7,9 @@ plot the exact matrix elements of the electron repulsion operator
 
 and their multi-state local-density approximation
 
-  Iᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D]
+  Iᵢⱼ ≈ Jᵢⱼ[D] - Kᵢⱼ[D] + Cᵢⱼ[D] + SIC δᵢⱼ
 
-for the diagonal (i=j) and off-diagonal (i!=j) elements for all
+for the diagonal (i=j) and off-diagonal (i≠j) elements for all
 scan geometries.
 """
 import json
@@ -29,8 +29,6 @@ if __name__ == "__main__":
     eigenenergies = numpy.array(scan_data['eigenenergies'])
     I_exact = numpy.array(scan_data['I_exact'])
     I_approximate = numpy.array(scan_data['I_approximate'])
-    J_Hartree = numpy.array(scan_data['J_Hartree'])
-    K_LSDA = numpy.array(scan_data['K_LSDA'])
 
     # number of electronic states
     nstate = I_exact[0].shape[0]
@@ -48,10 +46,6 @@ if __name__ == "__main__":
             angles, I_exact[:,i,i],
             lw=2, alpha=0.5,
             label=rf"$I_{{{i},{i}}}$")
-        # Jᵢⱼ[D] - Kᵢⱼ[D] overestimates the electron repulsion because of the
-        # self-interaction error. For a single electron, the exchange part should
-        # exactly cancel the Hartree part, but this does not happen in the
-        # density functional approximation.
         axes[0].plot(
             angles, I_approximate[:,i,i],
             ls="--", color=line.get_color())
@@ -74,7 +68,7 @@ if __name__ == "__main__":
 
     axes[1].yaxis.set_label_position("right")
     axes[1].yaxis.set_ticks_position("right")
-    axes[1].legend(title="$\mathbf{(b)}$ off-diagonal")
+    axes[1].legend(title="$\mathbf{(b)}$ off-diagonal", loc='upper right', ncol=2)
 
     # Create the invisible solid and dashed
     # black lines that are shown in the figure legend.
@@ -84,7 +78,7 @@ if __name__ == "__main__":
         [solid_line, dashed_line],
         [
             r"$I_{IJ} = \langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle$ (exact)",
-            r"$I_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
+            r"$I_{IJ} = \text{J}[\mathbf{D}]_{IJ} - \text{K}^{LSDA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
         ],
         fontsize='large',
         frameon=False,

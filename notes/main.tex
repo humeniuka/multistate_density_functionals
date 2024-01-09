@@ -38,6 +38,7 @@
 \DeclareMathOperator{\Span}{span}
 \DeclareMathOperator{\Div}{div}
 \DeclareMathOperator{\Diag}{diag}
+\DeclareMathOperator{\Id}{\mathbf{1}}
 \DeclareMathOperator*{\argmin}{arg\,min}
 
 % bold matrix
@@ -129,6 +130,18 @@
 %% Start the main part of the manuscript here.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\section{Introduction}
+
+% Recently Li & Gao have published an interesting article.
+% State the theorems of Li & Gao.
+% Explain how the lowest few electronic states are found -> Parameterize D -> Minimize E_MS -> Diagonalize H.
+%
+% (Transition) density is a much simpler object than the wavefunction.
+% Variational DFT allows to make simple ansatz -> larger systems.
+% In combination with OF-DFT -> linear scaling
+% Ensemble DFT (Theophilou)
+% Gross' Ensemble DFT
+%
+% What is missing is a multistate functional. This paper is a first attempt in that direction.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \iffalse
@@ -849,8 +862,11 @@ classical electrostatic energy of the total electronic charge $\rho = \rho^{\alp
 U_{ee}^{\text{TFD}}[\rho] = \frac{1}{2} \int \int' \frac{\rho(\vec{r}) \rho(\vec{r}')}{\vert \vec{r}-\vec{r}' \vert} d^3r d^3r'
  - 2^{1/3} C_x \int [\rho^{\alpha}(\vec{r})]^{4/3} + [\rho^{\beta}(\vec{r})]^{4/3} ~ d^3r.
 \end{equation}
-The value of the prefactor $C_x = 0.7937$ is taken from the "Gaussian" approximation in
-Eqn.~(6.5.25) of chapter 6 of the textbook by Parr \& Yang \cite{ParrYangBook}. Since $I_{IJ}[\m{D}]$ is an \emph{analytical} matrix functional,
+%The value of the prefactor $C_x = 0.7937$ is taken from the "Gaussian" approximation in Eqn.~(6.5.25)
+The value of the prefactor $C_x = 0.7386$ is taken from the Dirac's approximation \cite{Dirac1930} (see also Eqn.~(6.1.20)
+of chapter 6 of the textbook by Parr \& Yang \cite{ParrYangBook}), so that $2^{1/3} C_x = 0.93058$
+(same as Eqn.(35) in Ref.~\cite{Perdew1981}).
+Since $I_{IJ}[\m{D}]$ is an \emph{analytical} matrix functional,
 the Thomas-Fermi-Dirac functional for the ground state can be turned into a multistate functional by keeping the same functional form
 and replacing $\rho$ with the matrix density $\m{D}$. This process is not unique, since the single-state
 functional does not contain the complete information about the multi-state functional.
@@ -875,6 +891,7 @@ Only if the transition densities to other states in the selected subspace vanish
 treated in isolation. This situation might occur for a doubly excited state that is dark.
 Multistate density functional theory thus provides a justification for the applicability of the $\Delta SCF$ method.
 
+% Exchange-energy of uniform electron gas
 The exchange-like term
 \begin{equation}
 \m{K}[\m{D}] = 2^{1/3} C_x \int (\m{D}^{\alpha})^{4/3} + (\m{D}^{\beta})^{4/3} \label{eqn:exchange_term}
@@ -900,6 +917,56 @@ the eigenvalues of $\m{D}$.
 Acutally applying the ground state exchange functional element-wise is not even possible, since the transition density $D_{IJ}(\vec{r})$
 can be negative. For negative arguments the fractional power is not uniquely defined. This problem does not occur for the fractional matrix
 power, since the matrix density is positive definite, so that all eigenvalues are positive everywhere.
+
+% Correlation energy of uniform eletron gas
+Let us move on to the correlation energy.
+The Chachiyo functional \cite{Chachiyo2016} is a simple and elegant parametrization of the correlation energy per electron.
+It recovers the high-density limit and fits the quantum Monte-Carlo results of Ceperley and Alder ~\cite{Ceperley1980} rather well.
+In terms of the Wigner-Seitz radius $r_s=\left(4 \pi /3 \rho\right)^{-1/3}$ the correlation energy per particle is given
+by $\epsilon_{\text{corr}}(\rho) = a \log(1 + b r_s^{-1} + b r_s^{-2})$. Since $\epsilon_c$ is an analytic function of the electron density
+it can be turned into a multistate functional by retaining the
+functional form and replacing the scalar density argument $\rho=\rho^{\alpha}+\rho^{\beta}$
+with the matrix density $\m{D}=\m{D}^{\alpha}+\m{D}^{\beta}$. Considering only the paramagnetic part of the correlation energy,
+the multistate extension of the Chachiyo correlation functional (Eqn.~8 in Ref.~\cite{Chachiyo2016}) can be written in the following form:
+\begin{equation}
+ \m{C}[\m{D}] = \int a \log\left( \Id + b_1 \m{D}^{1/3}(\vec{r}) + b_2 \m{D}^{2/3}(\vec{r}) \right) \m{D}(\vec{r}) ~ d^3r
+ \label{eqn:LDA_correlation_energy}
+\end{equation}
+with the parameters
+\begin{align}
+ a &= \frac{\log(2)-1}{2 \pi^2} = -0.01554534543482745 \\
+ b &= 20.4562557 \quad \text{(paramagnetic case)} \\
+ b_1 &= \left(4 \pi /3 \right)^{1/3} b = 32.975319597703546 \\
+ b_2 &= \left(4 \pi /3 \right)^{2/3} b = 53.155949872619715.
+\end{align}
+The integrand of Eqn.~\ref{eqn:LDA_correlation_energy}, the correlation energy density,
+is calculated by diagonalizing $\m{D}$,
+applying the function $f(D) = a \log(1 + b_1 D^{1/3} + b_2 D^{2/3}) D$ to the eigenvalues
+and transforming the result back from the eigenbasis to the original basis.
+For a single electronic state Eqn.~\ref{eqn:LDA_correlation_energy} reduces to the correlation energy
+of the local density approximation.
+This functional only evaluates the paramagnetic part of the correlation
+energy, the spin polarization is assumed to be zero.
+For closed-shell molecules the diagonal elements of the matrix density are not spin-polarized, however
+the transition densities usually have a large spin-polarization. However, it is not obvious how to turn the spin
+polarization $\zeta = (\rho^{\alpha} - \rho^{\beta})/\rho$ into a matrix functional. With spin polarization the
+matrix functional would have to depend on two matrix densities, $\m{D}^{\alpha}+\m{D}^{\beta}$ and $\m{D}^{\alpha}-\m{D}^{\beta}$,
+which do not commute.
+The correlation energy of the uniform electron gas is always negative. For medium
+and low densities ($0.5 \leq r_s \leq 10.0$), the ratio of ferromagnetic to paramagnetic
+correlation energy is approximately $1.1$ (see Fig.~\ref{fig:correlation_energy_paramagnetic_fs_ferromagnetic}).
+So by neglecting the difference between paramagnetic and ferromagnetic correlation
+we incur and error of approximately 10\%.
+
+% This figure should go into the SI.
+\begin{figure}[h!]
+  \includegraphics[width=0.5\linewidth]{figures/correlation_energy_paramagnetic_fs_ferromagnetic.png}
+  \caption{\label{fig:correlation_energy_paramagnetic_fs_ferromagnetic}
+  Paramagnetic (spin polarization $\zeta=0$) and ferromagnetic $\zeta=1$) correlation energy per particle
+  $\epsilon_{\text{corr}}^{\zeta}$
+  of a uniform electron gas with density $\rho = \frac{3}{4 \pi} r_s^{-3}$.
+  The parameterization of Chachiyo \cite{Chachiyo2016} is used.}
+\end{figure}
 
 The Hartree term (the direct part of the Coulomb energy) accounts for most of the electron repulsion.
 For the diagonal matrix elements it is almost an order of magnitude larger than the exchange-correlation term
@@ -967,13 +1034,14 @@ matrix functional is larger than the sum of the Hartree energies of the individu
  \tr(J[\m{D}]) \ge \sum_{I=1}^{N} \frac{1}{2} \int \int' \frac{D_{II}(\vec{r}) D_{II}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}. \label{eqn:J_inequality}
 \end{equation}
 However, in the total electron repulsion $\m{I}[\m{D}] = \m{J}[\m{D}] - \m{K}[\m{D}]$,
-this larger direct part of the electron repulsion is partly compensated for by the
-indirect (or exchange/correlation-like) electron repulsion $\m{K}$, which on average is larger than the
-exchange-correlation energies of the individual electronic states,
+this larger direct electron repulsion is partly compensated for by the
+exchange part of the indirect electron repulsion $\m{K}$, which on average is larger than the
+exchange energies of the individual electronic states,
 \begin{equation}
  \tr(K[\m{D}]) = C_x \int d^3r \tr(\m{D}^{4/3}(\vec{r})) \ge \sum_{I=1}^N C_x \int d^3r ~ D_{II}(\vec{r})^{4/3}. \label{eqn:K_inequality}
 \end{equation}
 This is a result of Klein's inequality \cite{wiki:Kleins_inequality} and is proven in section \ref{sec:Kleins_inequality} below.
+The correlation energy is left out in the comparison since it is usually an order of magnitude smaller than the exchange energy.
 
 \subsection{Klein's trace inequality}
 \label{sec:Kleins_inequality}
@@ -994,8 +1062,9 @@ The right hand side of this inequality is zero, since $\tr(\m{D} \Diag(\m{D})^{1
 Integrating over space yields the inequality \ref{eqn:K_inequality}.
 
 \subsection{Self-Interaction Error}
+Many failures of the local spin density approximation can be attributed to the self-interaction error. \cite{Perdew1981}
 The largest part of the deviation between the exact electron repulsion $\m{I}$ and
-the MSDFT approximation $\m{J}[\m{D}]-\m{K}^{LSDA}[\m{D}]$ does not depend on the geometry.
+the MSDFT approximation $\m{J}[\m{D}]-\m{K}^{LSDA}[\m{D}] + \m{C}^{LDA}[\m{D}]$ does not depend on the geometry.
 This suggests that it is due to the core electrons, which do not participate in the bonding.
 It is known that in the core regions the self-interaction errors are particularly large (see section D in Ref. \cite{Tsuneda2014}).
 We have to subtract the unphysical interaction of a core electron with itself. An electron in a 1s spin-up ($\alpha$) core orbital $\phi^{\alpha}_{1s}(\vec{r})$
@@ -1004,11 +1073,16 @@ with itself. There is a Hartree-like contribution,
 \begin{equation}
 J[\rho^{\alpha}_{1s}] = \frac{1}{2} \int \int' \frac{\rho^{\alpha}_{1s}(\vec{r}) \rho^{\alpha}_{1s}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert},
 \end{equation}
-and an exchange-like contribution,
+an exchange-like contribution,
 \begin{equation}
 -K[\rho^{\alpha}_{1s}] = - 2^{1/3} C_x \int \rho^{\alpha}_{1s}(\vec{r})^{4/3},
 \end{equation}
-that have to be subtracted from the diagonal elements $I_{II}[\m{D}]$. The off-diagonal elements $I_{IJ}[\m{D}]$, $I \neq J$, do not suffer from the self-intersection problem.
+and a correlation-like contribution,
+\begin{equation}
+C[\rho^{\alpha}_{1s}] = \int \rho^{\alpha}_{1s}(\vec{r}) \epsilon_{\text{corr}}(\rho^{\alpha}_{1s}(\vec{r})),
+\end{equation}
+that have to be subtracted from the diagonal elements $I_{II}[\m{D}]$.
+The off-diagonal elements $I_{IJ}[\m{D}]$, $I \neq J$, do not suffer from the self-intersection problem.
 The self-interaction energies from different elements (except the very light ones like hydrogen, lithium etc.) are added.
 Since core orbitals are doubly occupied, a factor two appears.
 The self-interaction correction (SIC) is supposed to cancel the self-interaction error (SIE), so there is a minus sign in front:
@@ -1016,16 +1090,20 @@ The self-interaction correction (SIC) is supposed to cancel the self-interaction
 \text{SIC} = - \sum_{c}^{\text{core orbs.}} 2 \left(
   \frac{1}{2} \int \int' \frac{\rho_{c}(\vec{r}) \rho_{c}(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}
   - 2^{1/3} C_x \int \rho_c(\vec{r})^{4/3}
+  + \int \rho_c(\vec{r}) \epsilon_{\text{corr}}(\rho_c(\vec{r}))
  \right)
 \end{equation}
 This self-interaction correction is not a functional of the matrix density. Like its ground state counterpart,
-the multistate Thomas-Fermi-Dirac-like functional is too simplistic to cancel the self-interaction, so that a correction
+the multistate 
+LDA-like
+%Thomas-Fermi-Dirac-like 
+functional is too simplistic to cancel the self-interaction, so that a correction
 outside of the MSDFT formalism has to be employed.
 
 The self-interaction correction is a constant that only depends on the elemental composition of the molecule, but not
 on the geometry and is the same for all electronic states. So the final expression for the electron repulsion is
 \begin{equation}
-I[\m{D}]_{IJ} = J[\m{D}]_{IJ} - K^{LSDA}[\m{D}]_{IJ} + \text{SIC} ~ \delta_{IJ}. \label{eqn:electron_repulsion_msdft}
+I[\m{D}]_{IJ} = J[\m{D}]_{IJ} - K^{LSDA}[\m{D}]_{IJ} + C^{LDA}[\m{D}]_{IJ} + \text{SIC} ~ \delta_{IJ}. \label{eqn:electron_repulsion_msdft}
 \end{equation}
 
 \subsection{Example: Water}
@@ -1054,7 +1132,7 @@ swap their \emph{adiabatic} state labels.
   \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bond_breaking.png}
   \caption{\textbf{Electron repulsion in water (bond breaking).} Diagonal (a)
   and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
-  as functions of the O-H$_2$ bond length.}
+  as functions of one OH bond length.}
   \label{fig:electron_repulsion_energies_water_bond_breaking}
 \end{figure}
 
@@ -1083,21 +1161,22 @@ the direct part,
 \end{equation}
 The multistate density functional approximation for the exchange-correlation (XC) energy is
 \begin{equation}
-\text{XC}_{IJ} =  -K^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}.
+\text{XC}_{IJ} =  -K^{LSDA}[\mathbf{D}]_{IJ} + C^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}.
 \end{equation}
 The exact and approximate exchange-correlation energies are compared for the water geometry
 in Figs.~\ref{fig:indirect_electron_repulsion_energies_water_bending} and \ref{fig:indirect_electron_repulsion_energies_water_bond_breaking}.
 For the scan of the bending angle (Fig.~\ref{fig:indirect_electron_repulsion_energies_water_bending}),
 the diagonal matrix elements do not seem to agree very well, but this is an optical illusion created by the narrow plot range:
 All electronic states have exchange-correlation energies in a narrow range around $-9.2$ Hartree and differ only by approximately 1\%. 
-There is more variation in the off-diagonal elements. The curves for $-K^{LSDA}[\mathbf{D}]_{IJ}$ ($I \neq J$)
-follow the exact curves closely and have the correct sign.
+There is more variation in the off-diagonal elements. The curves for $-K^{LSDA}[\mathbf{D}]_{IJ} + C^{LDA}[\mathbf{D}]_{IJ}$ ($I \neq J$)
+follow the exact curves closely and have the correct sign. The shape and sign of the curve is determined by the exchange part,
+which is an order of magnitude larger than the correlation part.
 
 \begin{figure}[h!]
   \includegraphics[width=0.8\textwidth]{figures/indirect_electron_repulsion_energies_water_bending.png}
   \caption{\textbf{Exchange-correlation energy in water (bending).} Diagonal (a)
   and off-diagonal (b) matrix elements of the exact $\text{XC}^{\text{exact}}_{IJ}$ (solid lines)
-  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
+  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + C^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
   as functions of the H-O-H angle.}
   \label{fig:indirect_electron_repulsion_energies_water_bending}
 \end{figure}
@@ -1106,8 +1185,8 @@ follow the exact curves closely and have the correct sign.
   \includegraphics[width=0.8\textwidth]{figures/indirect_electron_repulsion_energies_water_bond_breaking.png}
   \caption{\textbf{Exchange-correlation energy in water (bond breaking).} Diagonal (a)
   and off-diagonal (b) matrix elements of the exact $\text{XC}^{\text{exact}}_{IJ}$ (solid lines)
-  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
-  as functions of the O-H$_2$ bond length.}
+  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + C^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
+  as functions of one OH bond length.}
   \label{fig:indirect_electron_repulsion_energies_water_bond_breaking}
 \end{figure}
 
@@ -1365,7 +1444,7 @@ Table \ref{tbl:lower_bounds_electron_repulsion} compares the lower bounds of Eqn
 \ref{eqn:lieb_oxford_bound_subspace_invariant} with the exact average electron repulsion in the subspace. Both bounds are very similar,
 but neither bound is strictly larger than the other. For some of the example molecules (e.g. He and Li), the subspace invariant
 bound (Eqn.~\ref{eqn:lieb_oxford_bound_subspace_invariant}) is slightly larger,
-whereas for water the sum over states bound (Eqn.~\ref{eqn:lieb_oxford_bound_sum_over_states}) is the larger one. There 
+whereas for water the sum over states bound (Eqn.~\ref{eqn:lieb_oxford_bound_sum_over_states}) is the larger one.
 
 \input{tables/lower_bound_electron_repulsion}
 
@@ -1383,17 +1462,21 @@ whereas for water the sum over states bound (Eqn.~\ref{eqn:lieb_oxford_bound_sum
 \begin{acknowledgement}
 
 \end{acknowledgement}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The same is true for Supporting Information, which should use the
 %% suppinfo environment.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\begin{suppinfo}
-%
-%\end{suppinfo}
+\begin{suppinfo}
 
-% Data Availability Statement
-% TODO: The python scripts used to generate the data are available at github and https://zenodo.org/ .
+\textbf{Data Availability Statement: }
+All calculations can be repeated on a desktop computer using the python scripts
+in the github repository
+\url{https://github.com/humeniuka/multistate_density_functionals-v1/}.
+The program package and data are archived at \url{https://zenodo.org/TODO_ADD_URL}..
 
+\end{suppinfo}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The appropriate \bibliography command should be placed here.

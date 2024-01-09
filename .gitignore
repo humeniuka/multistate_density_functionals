@@ -12,6 +12,9 @@ __pychache__/
 # ignore pyscf temporary files
 tmp*
 
+# old copies
+*.OLD
+
 # From latex
 notes/*.aux
 notes/*.bbl

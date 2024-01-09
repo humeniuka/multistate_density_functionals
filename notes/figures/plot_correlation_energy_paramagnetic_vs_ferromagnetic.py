@@ -6,6 +6,8 @@ energy of the uniform electron gas
 import matplotlib.pyplot as plt
 import numpy
 
+plt.style.use('./latex.mplstyle')
+
 # Parameters of Chachiyo's functional from Eqn.(3) of [Chachiyo]
 a = (numpy.log(2.0)-1.0)/(2*numpy.pi**2)
 # b from Eqn.(3) for the paramagnetic part εᶜ_0
@@ -36,15 +38,20 @@ rs = numpy.linspace(0.001, 10.0, npts)
 rho = 3.0/(4.0*numpy.pi) * pow(rs,-3)
 
 plt.plot(rs, correlation_chachiyo(rho, b_paramagnetic),
-    label=r"$\epsilon_c^0$ paramagnetic")
+    label=r"$\epsilon_{\text{corr}}^0(r_s)$ paramagnetic")
 plt.plot(rs, correlation_chachiyo(rho, b_ferromagnetic),
-    label=r"$\epsilon_c^1$ ferromagnetic",
+    label=r"$\epsilon_{\text{corr}}^1(r_s)$ ferromagnetic",
     ls="-.")
 # Ratio of ferromagnetic to paramagnetic correlation energy
 #plt.plot(rs, correlation_chachiyo(rho, b_ferromagnetic) / correlation_chachiyo(rho, b_paramagnetic), ls="--")
 
 plt.xlabel(r"Wigner-Seitz radius $r_s$ / $a_0$")
-plt.ylabel(r"Correlation Energy $\epsilon_c$ / $E_h$")
+plt.ylabel(r"Correlation Energy $\epsilon_{\text{corr}}$ / $E_h$")
 plt.legend()
+
+plt.tight_layout()
+
+#plt.savefig("correlation_energy_paramagnetic_fs_ferromagnetic.png", dpi=300)
+#plt.savefig("correlation_energy_paramagnetic_fs_ferromagnetic.svg")
 
 plt.show()
