@@ -484,9 +484,8 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
             self,
             mol,
             rhf,
-            cisolver,
-            fcivecs,
-            e_tot):
+            fci,
+            fcivecs):
         """
         This class holds the multistate matrix density and can evaluate
         D(r), ∇D(r) and ∇²D(r) on a grid.
@@ -499,19 +498,23 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
         :param rhf: restricted self-consistent field solution with molecular orbitals
         :type rhf: pyscf.scf.RHF
 
-        :param cisolver: full configuration interaction solved
-        :type cisolver: pyscf.fci.FCI
+        :param fci: full configuration interaction solved
+        :type fci: pyscf.fci.FCI
 
         :param fcivecs: list of solution vectors of the CI problem for
           each electronic state in the subspace
         :type fcivecs: list of numpy.ndarray
-
-        :param e_tot: list of total energies of the electronic states
-          in the subspace.
-        :type e_tot: numpy.ndarray
         """
         # number of atomic orbitals and molecular orbitals
         nao, nmo = rhf.mo_coeff.shape
+
+        # If there is only a single state, the energies and FCI vectors
+        # are not stored as a list.
+        if hasattr(fci.e_tot, '__len__'):
+            eigenenergies = fci.e_tot[:len(fcivecs)]
+        else:
+            eigenenergies = [fci.e_tot]
+            fcivecs = [fcivecs]
 
         def density_matrix_mo2ao(dm_mo):
             """
@@ -543,7 +546,7 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
             for j in range(0, nstate):
                 if i == j:
                     # 1-particle density matrix of state i in MO basis
-                    dm1a, dm1b = cisolver.make_rdm1s(fcivecs[i], nmo, mol.nelec)
+                    dm1a, dm1b = fci.make_rdm1s(fcivecs[i], nmo, mol.nelec)
                     # for spin-up
                     density_matrices[0,i,i,:,:] = density_matrix_mo2ao(dm1a)
                     # for spin-down
@@ -551,15 +554,11 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
                 else:
                     # 1-particle transition density matrix
                     # between electronic states i and j.
-                    tdm1a, tdm1b = cisolver.trans_rdm1s(fcivecs[i], fcivecs[j], nmo, mol.nelec)
+                    tdm1a, tdm1b = fci.trans_rdm1s(fcivecs[i], fcivecs[j], nmo, mol.nelec)
                     # for spin-up
                     density_matrices[0,i,j,:,:] = density_matrix_mo2ao(tdm1a)
                     # for spin-down
                     density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
-
-        # It is possible that more states were solved for than needed,
-        # for instance if nstate==1, 2 states are calculated.
-        eigenenergies = e_tot[:nstate]
 
         # Initialize base class.
         super().__init__(mol, eigenenergies, density_matrices)
@@ -594,28 +593,134 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
         hf.kernel()
 
         # singlet=True enables the use of spin symmetry in the CI calculation.
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff, singlet=spin_symmetry)
+        fci = pyscf.fci.FCI(mol, hf.mo_coeff, singlet=spin_symmetry)
+        # Solve for the lower few electronic states.
+        fci.nroots = nstate
+        fci_energies, fcivecs = fci.kernel()
 
-        # Solve for one state more than requested to avoid
-        # problems when nstate == 1.
-        cisolver.nroots = nstate+1
-        fci_energies, fcivecs = cisolver.kernel()
-        # Remove the additional state again. For small basis sets,
-        # there can be fewer states than requested.
-        if len(fcivecs) == nstate+1:
-            fcivecs = fcivecs[:-1]
+        if hasattr(fci.e_tot, '__len__'):
+            nstate_available = len(fci.e_tot)
+        else:
+            nstate_available = 1
 
-        if len(fcivecs) < nstate and raise_error:
+        if nstate_available < nstate and raise_error:
             raise RuntimeError(
-                f"Size of full CI space ({len(fcivecs)}) is smaller "
+                f"Size of full CI space ({nstate_available}) is smaller "
                 f"than number of requested states ({nstate})")
 
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs, cisolver.e_tot)
+        msmd = MultistateMatrixDensityFCI(mol, hf, fci, fcivecs)
 
         return msmd
 
 
-class MultistateMatrixDensityCISD(MultistateMatrixDensityFCI):
+class MultistateMatrixDensityCISD(MultistateMatrixDensity):
+    def __init__(
+            self,
+            mol,
+            rhf,
+            cisd):
+        """
+        This class holds the multistate matrix density and can evaluate
+        D(r), ∇D(r) and ∇²D(r) on a grid.
+        The state densities and transition densities are constructed from
+        a configuration interaction calculation with singles and doubles (CISD)
+        with pyscf.
+
+        :param mol: molecule with atomic coordinates, basis set and spin
+        :type mol: pyscf.gto.Mole
+
+        :param rhf: restricted self-consistent field solution with molecular orbitals
+        :type rhf: pyscf.scf.RHF
+
+        :param cisd: solved CISD problem
+        :type cisd: pyscf.ci.CISD
+        """
+        # number of atomic orbitals and molecular orbitals
+        nao, nmo = rhf.mo_coeff.shape
+
+        # If there is only a single state, the energies and CISD vectors
+        # are not stored as a list.
+        if hasattr(cisd.e_tot, '__len__'):
+            eigenenergies = cisd.e_tot
+            cisd_vectors = cisd.ci
+        else:
+            eigenenergies = [cisd.e_tot]
+            cisd_vectors = [cisd.ci]
+
+        # number of electronic states
+        nstate = len(cisd_vectors)
+
+        def density_matrix_mo2ao(dm_mo):
+            """
+            transform a density matrix in the MO basis in the AO basis
+
+              P^AO_{a,b}   = sum_{m,n} C*_{a,m} P^MO_{m,n} C_{b,n}
+
+            a,b enumerate atomic orbitals, m,n enumerate molecular orbitals
+            and C_{a,m} are the self-consistent field MO coefficients.
+
+            :param dm_mo: density matrix in MO basis
+            :type dm_mo: numpy.ndarray of shape (nmo,nmo)
+
+            :return dm_ao: density matrix in AO basis
+            :rtype dm_ao: numpy.ndarray of shape (nao,nao)
+            """
+            assert dm_mo.shape == (nmo,nmo)
+            dm_ao = numpy.einsum(
+                'am,mn,bn->ab',
+                rhf.mo_coeff, dm_mo, rhf.mo_coeff)
+            return dm_ao
+
+        # Compute the (transition) density matrices in the AO basis.
+        nspin = 2
+        density_matrices = numpy.zeros((nspin,nstate,nstate,nao,nao))
+        for i in range(0, nstate):
+            for j in range(0, nstate):
+                if i == j:
+                    # 1-particle density matrix of state i in MO basis
+                    if isinstance(cisd, pyscf.ci.cisd.RCISD):
+                        dm = cisd.make_rdm1(
+                            cisd_vectors[i], nmo=nmo, nocc=sum(mol.nelec)//2)
+                        # CISD.make_rdm1 returns the spin-traced density matrix
+                        dm1a, dm1b = 0.5*dm, 0.5*dm
+                    elif isinstance(cisd, pyscf.ci.ucisd.UCISD):
+                        # UCSID.make_rdm1 returns density matrices for spin-up and spin-down.
+                        dm1a, dm1b = cisd.make_rdm1(
+                            cisd_vectors[i], nmo=(nmo,nmo), nocc=mol.nelec)
+                    else:
+                        raise TypeError(
+                            "Argument `cisd` has to be of type `pyscf.ci.cisd.RCISD` "
+                            " or `pyscf.ci.cisd.UCISD`")
+                    # for spin-up
+                    density_matrices[0,i,i,:,:] = density_matrix_mo2ao(dm1a)
+                    # for spin-down
+                    density_matrices[1,i,i,:,:] = density_matrix_mo2ao(dm1b)
+                else:
+                    # 1-particle transition density matrix
+                    # between electronic states i and j.
+                    # 1-particle density matrix of state i in MO basis
+                    if isinstance(cisd, pyscf.ci.cisd.RCISD):
+                        tdm = cisd.trans_rdm1(
+                            cisd_vectors[i], cisd_vectors[j], nmo=nmo, nocc=sum(mol.nelec)//2)
+                        # CISD.trans_rdm1 returns the spin-traced transition density matrix.
+                        tdm1a, tdm1b = 0.5*tdm, 0.5*tdm
+                    elif isinstance(cisd, pyscf.ci.ucisd.UCISD):
+                        # UCSID.trans_rdm1 returns transition density matrices
+                        # for spin-up and spin-down.
+                        tdm1a, tdm1b = cisd.trans_rdm1(
+                            cisd_vectors[i], cisd_vectors[j], nmo=(nmo,nmo), nocc=mol.nelec)
+                    else:
+                        raise TypeError(
+                            "Argument `cisd` has to be of type `pyscf.ci.cisd.RCISD` "
+                            " or `pyscf.ci.cisd.UCISD`")
+                    # for spin-up
+                    density_matrices[0,i,j,:,:] = density_matrix_mo2ao(tdm1a)
+                    # for spin-down
+                    density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
+
+        # Initialize base class.
+        super().__init__(mol, eigenenergies, density_matrices)
+
     @staticmethod
     def create_matrix_density(mol, nstate=4, raise_error=True):
         """
@@ -645,36 +750,21 @@ class MultistateMatrixDensityCISD(MultistateMatrixDensityFCI):
         # number of molecular orbitals
         nmo = hf.mo_coeff.shape[1]
 
-        # The electronic structure is solved with the CISD method. Afterwards the
-        # CISD vectors are converted into Full CI vectors.
+        # The electronic structure is solved with the CISD method.
         cisd = pyscf.ci.CISD(hf)
-        # Solve for one state more than requested to avoid
-        # problems when nstate == 1.
-        cisd.nstates = nstate+1
+        # Solve for the lowest `nstate` states.
+        cisd.nstates = nstate
         # supress printing of CISD energies
         cisd.verbose = 0
         cisd.kernel()
 
-        # Convert the vectors to the format expected by the FCI solver.
-        # This is needed since CISD only computes spin-traced density matrices,
-        # but we need separate spin-up and spin-down density matrices.
-        fcivecs = [cisd.to_fcivec(cisdvec, nmo, mol.nelec) for cisdvec in cisd.ci]
-        # Create a FCI solver for calculating the (transition) density matrices.
-        # singlet=True enables the use of spin symmetry in the CI calculation.
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff, singlet=True)
-
-        # Remove the additional state again. For small basis sets,
-        # there can be fewer states than requested.
-        if len(fcivecs) == nstate+1:
-            fcivecs = fcivecs[:-1]
-
-        if len(fcivecs) < nstate and raise_error:
+        if len(cisd.ci) < nstate and raise_error:
             raise RuntimeError(
-                f"Size of CISD space ({len(fcivecs)}) is smaller "
+                f"Size of CISD space ({len(cisd.ci)}) is smaller "
                 f"than number of requested states ({nstate})")
 
         # The total energies are taken from the CISD solver.
-        msmd = MultistateMatrixDensityCISD(mol, hf, cisolver, fcivecs, cisd.e_tot)
+        msmd = MultistateMatrixDensityCISD(mol, hf, cisd)
 
         return msmd
 

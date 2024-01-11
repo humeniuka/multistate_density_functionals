@@ -431,6 +431,9 @@ class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI, unittest.T
         D_cisd, _, _ = msmd_cisd.evaluate(coords)
         numpy.testing.assert_almost_equal(D_fci, D_cisd)
 
+        # Eigenenergies should also be the same.
+        numpy.testing.assert_almost_equal(msmd_fci.eigenenergies, msmd_cisd.eigenenergies)
+
     def test_cisd_versus_fci(self):
         """
         Check that matrix densities of of 1- and 2-electron systems agree between FCI and CISD.

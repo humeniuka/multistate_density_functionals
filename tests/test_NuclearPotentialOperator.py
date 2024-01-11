@@ -84,17 +84,17 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         # compute self-consistent field
         rhf.kernel()
 
-        cisolver = pyscf.fci.FCI(mol, rhf.mo_coeff)
+        fci = pyscf.fci.FCI(mol, rhf.mo_coeff)
         # Solve for one state more than requested to avoid
         # problems when nstate == 1.
-        cisolver.nroots = nstate+1
-        fci_energies, fcivecs = cisolver.kernel()
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
         # Remove the additional state again. For small basis sets,
         # there can be fewer states than requested.
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs, cisolver.e_tot)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs)
 
         return msmd
 
@@ -154,11 +154,11 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         # compute self-consistent field
         rhf.kernel()
 
-        cisolver = pyscf.fci.FCI(mol, rhf.mo_coeff)
+        fci = pyscf.fci.FCI(mol, rhf.mo_coeff)
         # Solve for one state more than requested to avoid
         # problems when nstate == 1.
-        cisolver.nroots = nstate+1
-        fci_energies, fcivecs = cisolver.kernel()
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
         # Remove the additional state again.
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
@@ -172,7 +172,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         basis_transformation = BasisTransformation.random(nstate)
         
         # The multistate density matrix D(r)
-        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs, cisolver.e_tot)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs)
         # Evaluate V[D(r)] by integration on the grid.
         V = nuclear_potential(msmd)
         # Transform the operator, L V[D(r)] Lᵗ
@@ -181,8 +181,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         # To compute L D(r) Lᵗ we apply the basis transformation to the CI vectors.
         fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
         # The multistate density matrix L D(r) Lᵗ in the transformed basis
-        msmd_transformed = MultistateMatrixDensityFCI(
-            mol, rhf, cisolver, fcivecs_transformed, cisolver.e_tot)
+        msmd_transformed = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs_transformed)
         # Evaluate V[L D(r) Lᵗ] by integration on the grid.
         V_from_transformed_D = nuclear_potential(msmd_transformed)
 

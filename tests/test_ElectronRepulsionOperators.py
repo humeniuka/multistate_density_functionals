@@ -63,17 +63,17 @@ class TestHartreeLikeOperatorFunctional(unittest.TestCase):
         # compute self-consistent field
         hf.kernel()
 
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        fci = pyscf.fci.FCI(mol, hf.mo_coeff)
         # Solve for one state more than requested to avoid
         # problems when nstate == 1.
-        cisolver.nroots = nstate+1
-        fci_energies, fcivecs = cisolver.kernel()
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
         # Remove the additional state again. For small basis sets,
         # there can be fewer states than requested.
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs, cisolver.e_tot)
+        msmd = MultistateMatrixDensityFCI(mol, hf, fci, fcivecs)
 
         return msmd
 
@@ -199,17 +199,17 @@ class ExchangeCorrelationFunctionalTestCase(ABC, unittest.TestCase):
         # compute self-consistent field
         hf.kernel()
 
-        cisolver = pyscf.fci.FCI(mol, hf.mo_coeff)
+        fci = pyscf.fci.FCI(mol, hf.mo_coeff)
         # Solve for one state more than requested to avoid
         # problems when nstate == 1.
-        cisolver.nroots = nstate+1
-        fci_energies, fcivecs = cisolver.kernel()
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
         # Remove the additional state again. For small basis sets,
         # there can be fewer states than requested.
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs, cisolver.e_tot)
+        msmd = MultistateMatrixDensityFCI(mol, hf, fci, fcivecs)
 
         return msmd
 
