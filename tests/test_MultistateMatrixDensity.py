@@ -15,6 +15,7 @@ import pyscf.tddft
 from tqdm import tqdm
 import unittest
 
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityCISD
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityTDDFT
 
@@ -333,6 +334,12 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
                 basis = '6-31g',
                 charge = 0,
                 spin = 0),
+            # 2-electron systems, parallel spins
+            'hydrogen molecule (triplet)': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 2),
             # 3-electron systems, one unpaired spin
             'lithium atom': pyscf.gto.M(
                 atom = 'Li 0 0 0',
@@ -389,6 +396,58 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
             for nstate in [1,2]:
                 with self.subTest(molecule=name, nstate=nstate):
                     self.create_matrix_density(mol, nstate=nstate)
+
+
+class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI, unittest.TestCase):
+    def create_matrix_density(self, mol, nstate=4):
+        # call the static method
+        return MultistateMatrixDensityCISD.create_matrix_density(
+            mol, nstate=nstate, raise_error=False)
+
+    def compare_cisd_and_fci(self, mol, nstate=4):
+        """
+        For one- and two-electron systems CISD and FCI should produce exactly
+        the same matrix densities (up to random global phases)
+        """
+        # Compute D(r) with full CI
+        msmd_fci = MultistateMatrixDensityFCI.create_matrix_density(
+            mol, nstate=nstate, spin_symmetry=True, raise_error=False)
+        # Compute D(r) with CISD
+        msmd_cisd = MultistateMatrixDensityCISD.create_matrix_density(
+            mol, nstate=nstate, raise_error=False)
+        # Remove differing global phases
+        msmd_cisd.align_phases(msmd_fci)
+
+        # The matrix densities are compared at random coordinates.
+        ncoord = 100
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run. Otherwise the test fails occasionally
+        # when the threshold is is too tight.
+        random_number_generator = numpy.random.default_rng(seed=6789)
+        coords = 5.0*(random_number_generator.random((ncoord,3)) - 0.5)
+
+        # Evalute D(r) on the grid.
+        D_fci, _, _ = msmd_fci.evaluate(coords)
+        D_cisd, _, _ = msmd_cisd.evaluate(coords)
+        numpy.testing.assert_almost_equal(D_fci, D_cisd)
+
+    def test_cisd_versus_fci(self):
+        """
+        Check that matrix densities of of 1- and 2-electron systems agree between FCI and CISD.
+        """
+        # Select some test molecules which have at most 2 electrons.
+        test_molecules = self.create_test_molecules()
+        test_molecule_1e_and_2e = {name: test_molecules[name]
+            for name in [
+                'hydrogen molecular ion',
+                'hydrogen molecule',
+                'hydrogen molecule (triplet)'
+            ]
+        }
+        for name, mol in tqdm(test_molecule_1e_and_2e.items()):
+            for nstate in [1,2]:
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.compare_cisd_and_fci(mol, nstate=nstate)
 
 
 class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):

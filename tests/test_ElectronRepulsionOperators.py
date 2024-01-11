@@ -73,7 +73,7 @@ class TestHartreeLikeOperatorFunctional(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs, cisolver.e_tot)
 
         return msmd
 
@@ -209,7 +209,7 @@ class ExchangeCorrelationFunctionalTestCase(ABC, unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, hf, cisolver, fcivecs, cisolver.e_tot)
 
         return msmd
 

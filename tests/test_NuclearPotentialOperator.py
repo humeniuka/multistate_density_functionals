@@ -94,7 +94,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         if len(fcivecs) == nstate+1:
             fcivecs = fcivecs[:-1]
 
-        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs, cisolver.e_tot)
 
         return msmd
 
@@ -172,7 +172,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         basis_transformation = BasisTransformation.random(nstate)
         
         # The multistate density matrix D(r)
-        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, cisolver, fcivecs, cisolver.e_tot)
         # Evaluate V[D(r)] by integration on the grid.
         V = nuclear_potential(msmd)
         # Transform the operator, L V[D(r)] Lᵗ
@@ -182,7 +182,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
         # The multistate density matrix L D(r) Lᵗ in the transformed basis
         msmd_transformed = MultistateMatrixDensityFCI(
-            mol, rhf, cisolver, fcivecs_transformed)
+            mol, rhf, cisolver, fcivecs_transformed, cisolver.e_tot)
         # Evaluate V[L D(r) Lᵗ] by integration on the grid.
         V_from_transformed_D = nuclear_potential(msmd_transformed)
 
