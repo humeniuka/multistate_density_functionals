@@ -513,7 +513,7 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
         if hasattr(fci.e_tot, '__len__'):
             eigenenergies = fci.e_tot[:len(fcivecs)]
         else:
-            eigenenergies = [fci.e_tot]
+            eigenenergies = numpy.array([fci.e_tot])
             fcivecs = [fcivecs]
 
         def density_matrix_mo2ao(dm_mo):
@@ -644,7 +644,7 @@ class MultistateMatrixDensityCISD(MultistateMatrixDensity):
             eigenenergies = cisd.e_tot
             cisd_vectors = cisd.ci
         else:
-            eigenenergies = [cisd.e_tot]
+            eigenenergies = numpy.array([cisd.e_tot])
             cisd_vectors = [cisd.ci]
 
         # number of electronic states
