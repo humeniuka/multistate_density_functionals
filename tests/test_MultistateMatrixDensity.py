@@ -501,7 +501,7 @@ class TestMultistateMatrixDensityCASCI(TestMultistateMatrixDensityFCI, unittest.
         return MultistateMatrixDensityCASCI.create_matrix_density(
             mol, nstate=nstate, raise_error=False)
 
-    def compare_casci_and_fci(self, mol, nstate=2):
+    def compare_casci_and_fci(self, mol, nstate=2, ncas=None, nelecas=None, decimal=7):
         """
         If the active space includes all orbitals and electrons,
         CASCI and FCI should produce exactly the same matrix densities
@@ -512,7 +512,9 @@ class TestMultistateMatrixDensityCASCI(TestMultistateMatrixDensityFCI, unittest.
             mol, nstate=nstate, spin_symmetry=True, raise_error=False)
         # Compute D(r) with CASCI and full active space
         msmd_casci = MultistateMatrixDensityCASCI.create_matrix_density(
-            mol, nstate=nstate, spin_symmetry=True, raise_error=False)
+            mol,
+            nstate=nstate, ncas=ncas, nelecas=nelecas,
+            spin_symmetry=True, raise_error=False)
         # Remove differing global phases
         msmd_casci.align_phases(msmd_fci)
 
@@ -527,10 +529,11 @@ class TestMultistateMatrixDensityCASCI(TestMultistateMatrixDensityFCI, unittest.
         # Evalute D(r) on the grid.
         D_fci, _, _ = msmd_fci.evaluate(coords)
         D_casci, _, _ = msmd_casci.evaluate(coords)
-        numpy.testing.assert_almost_equal(D_fci, D_casci)
+        numpy.testing.assert_almost_equal(D_fci, D_casci, decimal=decimal)
 
         # Eigenenergies should also be the same.
-        numpy.testing.assert_almost_equal(msmd_fci.eigenenergies, msmd_casci.eigenenergies)
+        numpy.testing.assert_almost_equal(
+            msmd_fci.eigenenergies, msmd_casci.eigenenergies, decimal=decimal)
 
     def test_casci_versus_fci(self):
         """
@@ -540,6 +543,24 @@ class TestMultistateMatrixDensityCASCI(TestMultistateMatrixDensityFCI, unittest.
             for nstate in [1,2]:
                 with self.subTest(molecule=name, nstate=nstate):
                     self.compare_casci_and_fci(mol, nstate=nstate)
+
+    def test_casci_water_8e6o_versus_fci(self):
+        """
+        Check that matrix densities agree approximately between FCI and CASCI
+        when core orbitals are double occupied.
+        """
+        # water molecule
+        mol = pyscf.gto.M(
+            atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+            basis = 'sto-3g',
+            # singlet
+            spin = 0)
+        # Oxygen 1s orbital is closed, CAS consists of 8 electrons in 6 orbitals.
+        self.compare_casci_and_fci(
+            mol,
+            nstate=2, ncas=6, nelecas=8,
+            # Maximum deviation is 2 decimals.
+            decimal=2)
 
 
 class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):
