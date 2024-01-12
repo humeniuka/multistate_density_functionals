@@ -15,6 +15,7 @@ import pyscf.tddft
 from tqdm import tqdm
 import unittest
 
+from msdft.MultistateMatrixDensity import MultistateMatrixDensityCASCI
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityCISD
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityTDDFT
@@ -436,9 +437,12 @@ class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI, unittest.T
 
     def test_cisd_versus_fci(self):
         """
-        Check that matrix densities of of 1- and 2-electron systems agree between FCI and CISD.
+        Check that matrix densities of 1- and 2-electron systems agree between FCI and CISD.
         """
         # Select some test molecules which have at most 2 electrons.
+        # Atoms are also excluded, since they have spherical symmetry: The eigensolvers
+        # will produce random linear combinations of degenerate states, so that it is
+        # impossible to compare the matrix densities between FCI and CISD.
         test_molecules = self.create_test_molecules()
         test_molecule_1e_and_2e = {name: test_molecules[name]
             for name in [
@@ -451,6 +455,91 @@ class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI, unittest.T
             for nstate in [1,2]:
                 with self.subTest(molecule=name, nstate=nstate):
                     self.compare_cisd_and_fci(mol, nstate=nstate)
+
+
+class TestMultistateMatrixDensityCASCI(TestMultistateMatrixDensityFCI, unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with different molecules to run the tests on """
+        # Atoms are excluded, since they have spherical symmetry: The eigensolvers
+        # will produce random linear combinations of degenerate states, so that it is
+        # impossible to compare the matrix densities between FCI and CASCI.
+        molecules = {
+            'hydrogen molecular ion': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 1,
+                spin = 1),
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 2-electron systems, parallel spins
+            'hydrogen molecule (triplet)': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 2),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=2):
+        # call the static method
+        return MultistateMatrixDensityCASCI.create_matrix_density(
+            mol, nstate=nstate, raise_error=False)
+
+    def compare_casci_and_fci(self, mol, nstate=2):
+        """
+        If the active space includes all orbitals and electrons,
+        CASCI and FCI should produce exactly the same matrix densities
+        (up to random global phases).
+        """
+        # Compute D(r) with full CI
+        msmd_fci = MultistateMatrixDensityFCI.create_matrix_density(
+            mol, nstate=nstate, spin_symmetry=True, raise_error=False)
+        # Compute D(r) with CASCI and full active space
+        msmd_casci = MultistateMatrixDensityCASCI.create_matrix_density(
+            mol, nstate=nstate, spin_symmetry=True, raise_error=False)
+        # Remove differing global phases
+        msmd_casci.align_phases(msmd_fci)
+
+        # The matrix densities are compared at random coordinates.
+        ncoord = 100
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run. Otherwise the test fails occasionally
+        # when the threshold is is too tight.
+        random_number_generator = numpy.random.default_rng(seed=6789)
+        coords = 5.0*(random_number_generator.random((ncoord,3)) - 0.5)
+
+        # Evalute D(r) on the grid.
+        D_fci, _, _ = msmd_fci.evaluate(coords)
+        D_casci, _, _ = msmd_casci.evaluate(coords)
+        numpy.testing.assert_almost_equal(D_fci, D_casci)
+
+        # Eigenenergies should also be the same.
+        numpy.testing.assert_almost_equal(msmd_fci.eigenenergies, msmd_casci.eigenenergies)
+
+    def test_casci_versus_fci(self):
+        """
+        Check that matrix densities agree between FCI and CASCI with a full active space.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            for nstate in [1,2]:
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.compare_casci_and_fci(mol, nstate=nstate)
 
 
 class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):

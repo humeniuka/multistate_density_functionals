@@ -14,6 +14,7 @@ import scipy.special
 from pyscf.dft import numint
 import pyscf.ci
 import pyscf.fci
+import pyscf.mcscf
 import pyscf.scf
 import pyscf.tddft
 
@@ -698,7 +699,6 @@ class MultistateMatrixDensityCISD(MultistateMatrixDensity):
                 else:
                     # 1-particle transition density matrix
                     # between electronic states i and j.
-                    # 1-particle density matrix of state i in MO basis
                     if isinstance(cisd, pyscf.ci.cisd.RCISD):
                         tdm = cisd.trans_rdm1(
                             cisd_vectors[i], cisd_vectors[j], nmo=nmo, nocc=sum(mol.nelec)//2)
@@ -758,13 +758,177 @@ class MultistateMatrixDensityCISD(MultistateMatrixDensity):
         cisd.verbose = 0
         cisd.kernel()
 
-        if len(cisd.ci) < nstate and raise_error:
+        if hasattr(cisd.e_tot, '__len__'):
+            nstate_available = len(cisd.e_tot)
+        else:
+            nstate_available = 1
+
+        if nstate_available < nstate and raise_error:
             raise RuntimeError(
-                f"Size of CISD space ({len(cisd.ci)}) is smaller "
+                f"Size of full CISD space ({nstate_available}) is smaller "
                 f"than number of requested states ({nstate})")
 
-        # The total energies are taken from the CISD solver.
         msmd = MultistateMatrixDensityCISD(mol, hf, cisd)
+
+        return msmd
+
+
+class MultistateMatrixDensityCASCI(MultistateMatrixDensity):
+    def __init__(
+            self,
+            mol,
+            rhf,
+            casci):
+        """
+        This class holds the multistate matrix density and can evaluate
+        D(r), ∇D(r) and ∇²D(r) on a grid.
+        The state densities and transition densities are constructed from
+        a complete active space configuration interaction (CASCI) calculation
+        with pyscf.
+
+        :param mol: molecule with atomic coordinates, basis set and spin
+        :type mol: pyscf.gto.Mole
+
+        :param rhf: restricted self-consistent field solution with molecular orbitals
+        :type rhf: pyscf.scf.RHF
+
+        :param casci: solved CASCI problem
+        :type casci: pyscf.mcscf.CASCI
+        """
+        # number of atomic orbitals and molecular orbitals
+        nao, nmo = rhf.mo_coeff.shape
+
+        # If there is only a single state, the energies and CI vectors
+        # are not stored as lists.
+        if hasattr(casci.e_tot, '__len__'):
+            eigenenergies = casci.e_tot
+            # CAS space FCI coefficients
+            ci_vectors = casci.ci
+        else:
+            eigenenergies = numpy.array([casci.e_tot])
+            # CAS space FCI coefficients
+            ci_vectors = [casci.ci]
+
+        # number of electronic states
+        nstate = len(ci_vectors)
+
+        def density_matrix_mo2ao(dm_mo):
+            """
+            transform a density matrix in the MO basis in the AO basis
+
+              P^AO_{a,b}   = sum_{m,n} C*_{a,m} P^MO_{m,n} C_{b,n}
+
+            a,b enumerate atomic orbitals, m,n enumerate molecular orbitals
+            and C_{a,m} are the self-consistent field MO coefficients.
+
+            :param dm_mo: density matrix in MO basis
+            :type dm_mo: numpy.ndarray of shape (nmo,nmo)
+
+            :return dm_ao: density matrix in AO basis
+            :rtype dm_ao: numpy.ndarray of shape (nao,nao)
+            """
+            assert dm_mo.shape == (nmo,nmo)
+            dm_ao = numpy.einsum(
+                'am,mn,bn->ab',
+                rhf.mo_coeff, dm_mo, rhf.mo_coeff)
+            return dm_ao
+
+        # Compute the (transition) density matrices in the AO basis.
+        nspin = 2
+        density_matrices = numpy.zeros((nspin,nstate,nstate,nao,nao))
+        for i in range(0, nstate):
+            for j in range(0, nstate):
+                if i == j:
+                    # 1-particle density matrix of state i in MO basis
+                    dm1a, dm1b = casci.fcisolver.make_rdm1s(
+                        ci_vectors[i], casci.ncas, casci.nelecas)
+                    # for spin-up
+                    density_matrices[0,i,i,:,:] = density_matrix_mo2ao(dm1a)
+                    # for spin-down
+                    density_matrices[1,i,i,:,:] = density_matrix_mo2ao(dm1b)
+                else:
+                    # 1-particle transition density matrix
+                    # between electronic states i and j.
+                    tdm1a, tdm1b = casci.fcisolver.trans_rdm1s(
+                        ci_vectors[i], ci_vectors[j], casci.ncas, casci.nelecas)
+                    # for spin-up
+                    density_matrices[0,i,j,:,:] = density_matrix_mo2ao(tdm1a)
+                    # for spin-down
+                    density_matrices[1,i,j,:,:] = density_matrix_mo2ao(tdm1b)
+
+        # Initialize base class.
+        super().__init__(mol, eigenenergies, density_matrices)
+
+    @staticmethod
+    def create_matrix_density(
+            mol,
+            nstate=4,
+            ncas=None,
+            nelecas=None,
+            spin_symmetry=True,
+            raise_error=True):
+        """
+        Compute the multistate matrix density for the lowest few excited states
+        of a small molecule using complete active space configuration interaction (CASCI).
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of electronic states to calculate
+        :type nstate: positive int
+
+        :param ncas: number of active orbitals
+        :type ncas: int > 0 or None to include all orbitals
+
+        :param nelecas: number of active electrons
+        :type nelecas: int > 0 or None to include all electrons
+
+        :param spin_symmetry: use of spin symmetry in the CI calculation
+          States with an undesired spin are shifted up in energy. It can therefore
+          still happens that states with different spin appear in the spectrum.
+        :type spin_symmetry: bool
+
+        :param raise_error: Raise an error if the CASCI space is smaller
+          than the number of requested states `nstate`.
+        :type raise_error: bool
+
+        :return: multistate matrix density
+        :rtype: :class:`~.MultistateMatrixDensity`
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+        # number of molecular orbitals
+        nmo = hf.mo_coeff.shape[1]
+
+        # If ncas and nelecas are None, the full active space is used.
+        if ncas is None:
+            ncas = nmo
+        if nelecas is None:
+            nelecas = mol.nelec
+
+        # The electronic structure is solved with the CASCI method.
+        casci = pyscf.mcscf.CASCI(hf, ncas, nelecas)
+        casci.fcisolver.nstates = nstate
+        # Tighten convergence criteria,
+        # otherwise we get slightly different results than with FCI.
+        casci.fcisolver.conv_tol = 1e-12
+        casci.fcisolver.max_cycle = 1000
+        if spin_symmetry:
+            # States with undesired spins are shifted up in energy.
+            casci.fix_spin(shift=0.5)
+        # supress printing of CASCI energies
+        casci.verbose = 0
+
+        # If the number of requested states is larger then the full CASCI
+        # space, the calculation will fail with something like
+        #  ValueError: kth(=<requested states>) out of bounds (<available states>)
+        casci.kernel()
+
+        msmd = MultistateMatrixDensityCASCI(mol, hf, casci)
 
         return msmd
 
