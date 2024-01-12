@@ -16,14 +16,14 @@ from tqdm import tqdm
 import unittest
 
 from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
-from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
+from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
-class TestHartreeLikeOperatorFunctional(unittest.TestCase):
+class TestHartreeLikeFunctional(unittest.TestCase):
     def create_test_molecules(self):
         """ dictionary with different molecules to run the tests on """
         molecules = {
@@ -94,7 +94,7 @@ class TestHartreeLikeOperatorFunctional(unittest.TestCase):
         :type nstate: int > 0
         """
         # functional for Hartree-like energy J[D(r)]
-        hartree_like_functional = HartreeLikeOperatorFunctional(mol)
+        hartree_like_functional = HartreeLikeFunctional(mol)
 
         # compute D(r) from full CI
         msmd = self.create_matrix_density(mol, nstate=nstate)

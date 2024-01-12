@@ -28,7 +28,7 @@ import numpy
 import pyscf.fci
 import pyscf.scf
 
-from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
+from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -96,7 +96,7 @@ if __name__ == "__main__":
             msmd.align_phases(msmd_ref)
         # Functionals for parts of electron repulsion.
         # J[D]
-        hartree_functional = HartreeLikeOperatorFunctional(mol)
+        hartree_functional = HartreeLikeFunctional(mol)
         # K[D]
         exchange_functional = LSDAExchangeLikeFunctional(mol)
         # C[D]

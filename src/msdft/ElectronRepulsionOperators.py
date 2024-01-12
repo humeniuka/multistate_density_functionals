@@ -30,7 +30,7 @@ import pyscf.dft
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
-class HartreeLikeOperatorFunctional(object):
+class HartreeLikeFunctional(object):
     def __init__(self, mol, level=8):
         """
         The Hartree energy is the interaction of a classical charge density with itself.

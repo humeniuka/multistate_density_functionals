@@ -7,7 +7,7 @@ import pyscf.gto
 from tqdm import tqdm
 import unittest
 
-from msdft.ElectronRepulsionOperators import HartreeLikeOperatorFunctional
+from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.LowerBoundElectronRepulsion import LiebOxfordBound
 from msdft.LowerBoundElectronRepulsion import LowerBoundElectronRepulsionSubspaceInvariant
@@ -81,12 +81,12 @@ class TestLiebOxfordBound(unittest.TestCase):
     def check_direct_Coulomb_energy(self, mol):
         """
         The direct Coulomb energy of the LiebOxfordBound object is compared
-        the Hartree energy of the HartreeLikeOperatorFunctional.
+        the Hartree energy of the HartreeLikeFunctional.
         """
         # Solve the electronic structure for the ground state with full CI.
         msmd = MultistateMatrixDensityFCI.create_matrix_density(mol, nstate=1)
         # The reference Hartree energy.
-        hartree_functional = HartreeLikeOperatorFunctional(mol)
+        hartree_functional = HartreeLikeFunctional(mol)
         hartree_energy_ref = hartree_functional(msmd)[0,0]
 
         lieb_oxford_bound = LiebOxfordBound(mol)
