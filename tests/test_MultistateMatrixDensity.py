@@ -45,16 +45,14 @@ class BaseTestMultistateMatrixDensity(ABC):
         """
         pass
 
-    def check_integrals(self, mol):
+    def check_integrals(self, msmd):
         """
         check that the state density integrates to the correct number of electrons
         and that the transition density integrates to 0.
 
-        :param mol: A test molecule
-        :type mol: gto.Mole
+        :param msmd: The multistate matrix density to be tested.
+        :type msmd: MultistateMatrixDensity
         """
-        # Example density.
-        msmd = self.create_matrix_density(mol)
         # integration grid
         grids = pyscf.dft.gen_grid.Grids(msmd.mol)
         grids.level = 8
@@ -73,11 +71,11 @@ class BaseTestMultistateMatrixDensity(ABC):
                 with self.subTest(i=i, j=j):
                     if i == j:
                         # State densities should integrate to the number of electrons.
-                        self.assertAlmostEqual(integrals[i,i], number_of_electrons, places=3)
+                        self.assertAlmostEqual(number_of_electrons, integrals[i,i], places=3)
                     else:
                         # Integrating the transition density, just gives the overlap between
                         # the states, which should be zero for different eigenstates.
-                        self.assertAlmostEqual(integrals[i,j], 0.0)
+                        self.assertAlmostEqual(0.0, integrals[i,j])
 
         # The trace over spin and electronic states should be equal to
         # (number of electrons) x (number of states)
@@ -88,7 +86,9 @@ class BaseTestMultistateMatrixDensity(ABC):
         """ Check integrals of D(r) for all test molecules """
         for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
-                self.check_integrals(mol)
+                # Example density.
+                msmd = self.create_matrix_density(mol)
+                self.check_integrals(msmd)
 
     def check_gradient_and_laplacian(self, mol):
         """
@@ -561,6 +561,22 @@ class TestMultistateMatrixDensityCASCI(TestMultistateMatrixDensityFCI, unittest.
             nstate=2, ncas=6, nelecas=8,
             # Maximum deviation is 2 decimals.
             decimal=2)
+
+    def test_integrals_2e2o(self):
+        """
+        Check that the matrix densities from a CAS(2e/2o) calculation
+        still integrate to the correct number of electrons.
+        """
+        # water molecule
+        mol = pyscf.gto.M(
+            atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+            basis = 'sto-3g',
+            # singlet
+            spin = 0)
+        # CAS(2e,2o)
+        msmd = MultistateMatrixDensityCASCI.create_matrix_density(
+            mol, nstate=2, ncas=2, nelecas=2)
+        self.check_integrals(msmd)
 
 
 class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest.TestCase):

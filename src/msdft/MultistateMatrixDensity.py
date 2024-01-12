@@ -812,7 +812,7 @@ class MultistateMatrixDensityCASCI(MultistateMatrixDensity):
         # number of electronic states
         nstate = len(ci_vectors)
 
-        def density_matrix_mo2ao(dm_mo, nocc, ncas):
+        def density_matrix_mo2ao(dm_active, nocc, ncas, is_transition_dm):
             """
             transform a density matrix in the MO basis in the AO basis
 
@@ -821,8 +821,8 @@ class MultistateMatrixDensityCASCI(MultistateMatrixDensity):
             a,b enumerate atomic orbitals, m,n enumerate molecular orbitals
             and C_{a,m} are the self-consistent field MO coefficients.
 
-            :param dm_mo: density matrix in basis of active MOs
-            :type dm_mo: numpy.ndarray of shape (ncas,ncas)
+            :param dm_active: density matrix in basis of active orbitals
+            :type dm_active: numpy.ndarray of shape (ncas,ncas)
 
             :param nocc: number of occupied spin orbitals
             :type nocc: int > 0
@@ -830,15 +830,38 @@ class MultistateMatrixDensityCASCI(MultistateMatrixDensity):
             :param ncas: number of active spin orbitals
             :type ncas: int > 0
 
+            :param is_transition_dm: Whether `dm_active` is a transition density
+                matrix (True) or a density matrix for a single state (False)
+            :type is_transition_dm: bool
+
             :return dm_ao: density matrix in AO basis
             :rtype dm_ao: numpy.ndarray of shape (nao,nao)
             """
-            assert dm_mo.shape == (ncas,ncas)
+            assert dm_active.shape == (ncas,ncas)
+            # The (transition) density matrix in the active space of shape (ncas,ncas)
+            # is enlarged to a density matrix of shape (nmo,nmo) by adding
+            # the closed and the virtual blocks.
+            # For density matrices:
+            #    DM(MO) = diag(1,...,1) ⊗ DM(active) ⊗ diag(0,...,0)
+            #               closed       active      virtual
+            # For transition density matrices:
+            #    TDM(MO) = diag(0,...,0) ⊗ DM(active) ⊗ diag(0,...,0)
+            #               closed       active      virtual
+            if is_transition_dm:
+                dm_occupied = numpy.diag([0] * nocc)
+            else:
+                dm_occupied = numpy.diag([1] * nocc)
+            dm_virtual = numpy.diag([0] * (nmo-(nocc+ncas)))
+            # Density matrix in the MO basis
+            dm_mo = scipy.linalg.block_diag(
+                dm_occupied,
+                dm_active,
+                dm_virtual
+            )
             # MO coefficients of active orbitals
-            active_mo_coeff = casci.mo_coeff[:,nocc:nocc+ncas]
             dm_ao = numpy.einsum(
                 'am,mn,bn->ab',
-                active_mo_coeff, dm_mo, active_mo_coeff)
+                casci.mo_coeff, dm_mo, casci.mo_coeff)
             return dm_ao
 
         # Compute the (transition) density matrices in the AO basis.
@@ -852,10 +875,12 @@ class MultistateMatrixDensityCASCI(MultistateMatrixDensity):
                         ci_vectors[i], casci.ncas, casci.nelecas)
                     # for spin-up
                     density_matrices[0,i,i,:,:] = density_matrix_mo2ao(
-                        dm1a, nocc=mol.nelec[0]-casci.nelecas[0], ncas=casci.ncas)
+                        dm1a, nocc=mol.nelec[0]-casci.nelecas[0], ncas=casci.ncas,
+                        is_transition_dm=False)
                     # for spin-down
                     density_matrices[1,i,i,:,:] = density_matrix_mo2ao(
-                        dm1b, nocc=mol.nelec[1]-casci.nelecas[1], ncas=casci.ncas)
+                        dm1b, nocc=mol.nelec[1]-casci.nelecas[1], ncas=casci.ncas,
+                        is_transition_dm=False)
                 else:
                     # 1-particle transition density matrix
                     # between electronic states i and j.
@@ -863,10 +888,12 @@ class MultistateMatrixDensityCASCI(MultistateMatrixDensity):
                         ci_vectors[i], ci_vectors[j], casci.ncas, casci.nelecas)
                     # for spin-up
                     density_matrices[0,i,j,:,:] = density_matrix_mo2ao(
-                        tdm1a, nocc=mol.nelec[0]-casci.nelecas[0], ncas=casci.ncas)
+                        tdm1a, nocc=mol.nelec[0]-casci.nelecas[0], ncas=casci.ncas,
+                        is_transition_dm=True)
                     # for spin-down
                     density_matrices[1,i,j,:,:] = density_matrix_mo2ao(
-                        tdm1b, nocc=mol.nelec[1]-casci.nelecas[1], ncas=casci.ncas)
+                        tdm1b, nocc=mol.nelec[1]-casci.nelecas[1], ncas=casci.ncas,
+                        is_transition_dm=True)
 
         # Initialize base class.
         super().__init__(mol, eigenenergies, density_matrices)
