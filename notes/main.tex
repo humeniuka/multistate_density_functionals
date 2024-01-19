@@ -77,7 +77,7 @@
 %% optional argument to \title.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \title[]
-  {}
+  {Local functionals for multistate density functional theory}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Some journals require a list of abbreviations or keywords to be
@@ -131,17 +131,148 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\section{Introduction}
 
-% Recently Li & Gao have published an interesting article.
+% Recently Lu & Gao have published an interesting article.
 % State the theorems of Li & Gao.
 % Explain how the lowest few electronic states are found -> Parameterize D -> Minimize E_MS -> Diagonalize H.
 %
+% MSDFT before LG theorems \cite{Gao2016}
+% short summary of MSDFT \cite[3.7.11 Gao]{Teale2022dft_exchange}
+% Make clear that "density matrix" and "matrix density" are not the same thing.
+%
+% \cite{Lu2022JCTC}
+%   use ground state Kohn-Sham functional for diagonal energies, H^AA = E_KS[rho_A] (Eqn. (33))
+%   The off-diagonal elements of the correlation energy are obtained by either
+%      (a) Ziegler, Rauk and Baerends multiplet sum method (similar to what Casida is doing) 
+%   or
+%      (b) overlap weighted average of the correlation energies of the two states (Eqn. (36))
+%          obtained with a ground-state functional.
+%   Benchmark calculations on the Loos2018 data set suggests that enforcing the degeneracy of spin-multiplets
+%   gives slightly better excitation energies (RMSE of 0.2 vs 0.5 eV) than the overlap-scaled average correlation energy. \cite{Zhu2023}
+%
+%  In a preprint on Chemrxiv \cite{lu_gao_2021_chemrxiv} Lu and Gao mention that a local ground state functional
+%  can be turned into a matrix functional by applying it to the eigenvalues of the matrix density.
+%  I wish to investigate this idea further.
+
+Some subtle differences between the notation in Lu et al. \cite{Lu2022JPCL,Lu2022JCTC} and this work are worth pointing out:
+The electron repulsion energy is partitioned slightly differently into a Hartree, exchange and correlation part.
+In analogy with the Kohn-Sham scheme \cite{Kohn1965}, Lu et al. compute the kinetic energy from the auxiliary Slater determinants (basis states).
+They call the matrix elements of the electron-repulsion between the basis states,
+$\langle \Phi_A \vert \hat{W} \vert \Phi_B \rangle$, the "Hartree and exchange-interaction matrix".
+In this way some static correlation is included in the Hartree and exchange part.
+The difference with the exact universal functional is lumped in the the correlation functional, which takes the
+form $\mathcal{E}_c = \mathcal{F}[\m{D}] - (\m{T}_{ms} + \m{E}_{Hx})$ \cite[Eqn.~(22)]{Lu2022JPCL}
+and contains some kinetic contribution.
+Evaluating the kinetic energy from orbitals
+makes perfectly sense, since as of now there are no reliable orbital-free kinetic energy functionals, anyway.
+However, using a ground state functional for $\mathcal{E}_c$ can lead to doubly counting of correlation,
+although the negligible energy difference between between ground state energies computed with MSDFT and KS-DFT
+suggests that there is little double counting. \cite{Zhu2023}
+I define the kinetic energy $\m{T}[\m{D}]$, Hartree $\m{J}[\m{D}]$, exchange $\m{X}[\m{D}]$ and correlation energy
+$\m{C}[\m{D}]$ such that each is a functional of the matrix density and behaves properly under basis transformations
+of the state vectors.
+Auxiliary basis states are not used to compute any parts of the Hamiltonian.
+The exchange-correlation matrix is defined as the difference between the
+electron-repulsion operator in the basis of the exact eigenstates
+and the Hartree multistate functional evaluated on the matrix density, $\text{XC}_{IJ} =
+\langle \Psi_I \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J \rangle - \text{J}[\mathbf{D}]_{IJ}$.
+All integrals and partial derivatives of the matrix density are computed numerically on
+multicenter spherical grids \cite{Becke1988grid,Lebedev1976}, the Hartree matrix is obtained by solving the Poisson
+equation. \cite{Becke1988Poisson}
+
+% MS-DFT works very well in practice \cite{Zhu2023}
+
+% Linear-response time-dependent DFT vs. Time-independent DFT
+% Linear-response \cite{Casida1995} TD-DFT \cite{Runge1984} is very popular and efficient,
+% but it has problems with core-excitation,
+% doubly excited states, charge transfer states, Rydberg states and conical intersections to the ground state.
+% Whenever the electronic structure becomes complicated, multi-reference methods have to be employed.
+% MSDFT is akin to state-averaged CAS methods (First the average energy is minimized, then the eigenfunctions
+% are obtained by diagonalizing some Hamiltonian)
 % (Transition) density is a much simpler object than the wavefunction.
 % Variational DFT allows to make simple ansatz -> larger systems.
 % In combination with OF-DFT -> linear scaling
+% static correlation, multi-reference situations
+
+A number of variational density-functional theories for excited states have been formulated \cite{Theophilou1979,Gross1988ReyleighRitz,Levy1999}.
+In those theories, the universal excited-state functional depends on additional parameters apart from an electronic density,
+which allow to distinguish between the excited state and the ground state: In ensemble density functional theory
+\cite{Gross1988ReyleighRitz,Gross1988EnsembleDFT} there is a dependence on a vector of ensemble weights
+and Levy and Nagy's excited state functional \cite{Levy1999} depends on both the excited and the ground state densities.
+In addition the functionals seem to depend on
+the number of electronic states, so that a different functional would be needed for 2,3 etc. states:
+In ensemble DFT the length of the weight vector changes with the number of states $k$;
+in Levy and Nagy's theory the constrained search in Eqn.(2) of Ref.~\cite{Levy1999} is over all wavefunctions that are orthogonal
+to the first $k-1$ states, which introduces an implicit dependence on $k$.
+Ayers showed that the Coulomb interaction is special, because the density of an excited state of a Coulombic system also encodes
+the excitation level, so that no additional parameters are needed. \cite{Ayers2012} The universal functional for
+any electronic state depends only on the electronic density, provided that the external potential is Coulombic. \cite{Ayers2012}
+However, although the existence of those universal functionals can be proven,
+it is not clear how to approximate them for practical calculations
+and if or how they differ from the ground state functional.
+
+Deur et al. worked out the weight-dependent ensemble functional for the asymmetric Hubbard dimer \cite{Deur2017},
+which is a two-state model for H$_2$. However, in the model, the "density" object is a vector of site occupations
+and not on a real space density, therefore the findings are not transferable to realistic molecular Hamiltonians.
+
+% Most publications on time-independent DFT are formal and justify the use of some simpler theory
+% such as $\Delta$SCF which employs a ground state functional.
+
+Numerical calculations using variational DFT methods are rare and usually reuse the ground state functional.
+Pastorczak at al. tested ensemble DFT methods on small molecules using ground state functionals or exact exchange
+with self- and ghost-interaction corrections. \cite{Pastorczak2014} They found that the corrections
+do not necessarily improve the energies and that ensemble DFT cannot compete with TD-DFT in terms of accuracy. \cite{Pastorczak2014}
+
+% They justify why the $\Delta$SCF method sometimes works very well.
+The multistate DFT theory by Lu and Gao \cite{Lu2022JPCL} is better positioned in this regard.
+First of all, the universal functional only depends on a matrix representation of the one-particle density
+operator, the \emph{matrix density}. The matrix density contains the densities of the electronic states on the diagonal
+and the transition densities between them in the off-diagonal elements. It represent the electron density operator
+in a subspace of electronic states. It should not be confused with the density matrix of a single electronic state.
+Each matrix element is a function of space. An although the number of rows and columns of the matrix density is equal
+to the number of electronic states that are considered, I will
+argue that the functional of Lu and Gao does not depend on the number of states,
+because it is an \emph{analytic matrix functional}.
+This property suggests a simple path to an approximate multistate functional: by retaining the functional form
+of an approximate ground state functional and replacing the scalar density with the matrix density \cite{lu_gao_2021_chemrxiv}.
+The universal matrix functional provides not only the state energies but also the off-diagonal elements of the Hamiltonian.
+The resulting theory is somewhat similar to valence bond theory or the multi-configurational self-consistent field (MCSCF) method,
+however it is formulated in terms of electron densities and transition densities rather than wavefunctions.
+Secondly, MSDFT closely resembles state-averaged CASSCF of wavefunction theory and the interaction between
+states is much more transparent than in ensemble DFT,
+where the densities of the individual states are combined into a single ensemble density,
+whose physical meaning is not so obvious.
+%Since the multistate energy of the interacting states is minimized directly, there is no system of non-interacting electrons.
+
 % Ensemble DFT (Theophilou)
-% Gross' Ensemble DFT
+% Gross-Oliveira-Kohn Ensemble DFT
+% Levy & Nagy's variational DFT for individual excited states \cite{Levy1999}
+%
+% How do we get the off-diagonal matrix elements for treating static correlation with DFT
+% in a configuration interaction like manner? (This might be related to Casida's multiplet sum method?)
 %
 % What is missing is a multistate functional. This paper is a first attempt in that direction.
+
+% Skip Kohn-Sham scheme, no need to invoke the system of non-interacting electrons. 
+
+% Two principles will guide the search for the multistate matrix functional:
+% (a) The functional should transform properly under basis transformations.
+% (b) For a single eletronic state, the functional form of an existing ground state functional should be recovered.
+% These criteria are not enough to determine the functional uniquely. When in doubt, one of the simplest alternatives is chosen.
+
+% Multistate extension of the local (spin) density approximation. Thomas-Fermi-Dirac + correlation.
+
+A limitation of this work is that the parameterization of the matrix density in terms of no more than $N^2$ ($N$ = number of states)
+non-orthogonal Slater determinants built from $n \times N^2$ orbitals ($n$ = number of electrons)
+suggested in theorem (3) of Ref.~ \ref{Lu2022JPCL} (and explored further in Ref.~\cite{Lu2022fundamental}) has not been implemented yet. So with the current computer program it is
+not possible to find the matrix density that minimizes the multistate energy. This is left for future work, if the method
+should turn out to be promising. At the current stage, the quality of the multistate functional is assessed as follows:
+The "exact" matrix density for the lowest few electronic states is computed
+with a wavefunction-based method (full configuration interaction (FCI) or complete active space self-consistent field (CASSCF)).
+% The "exact" matrix density is then fed into the multistate DFT energy functional
+The multistate DFT energy functional is then evaluated on the "exact" matrix density
+and the resulting Hamiltonian matrix is compared with the "exact" eigenenergies.
+The matrix elements of the kinetic energy and electron-repulsion predicted by the corresponding matrix functionals
+are compared with the exact ab initio values.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \iffalse
@@ -914,7 +1045,7 @@ Note that eigenvalues and eigenvectors are functions of space. And the fractiona
 In general any analytic scalar function $f : \mathbb{C} \mapsto \mathbb{C}$ can be converted into an analytic
 matrix function $\m{F}[\m{D}]: \mathbb{C}^{N \times N} \mapsto \mathbb{C}^{N \times N}$ by applying $f$ to
 the eigenvalues of $\m{D}$. 
-Acutally applying the ground state exchange functional element-wise is not even possible, since the transition density $D_{IJ}(\vec{r})$
+Actually applying the ground state exchange functional element-wise is not even possible, since the transition density $D_{IJ}(\vec{r})$
 can be negative. For negative arguments the fractional power is not uniquely defined. This problem does not occur for the fractional matrix
 power, since the matrix density is positive definite, so that all eigenvalues are positive everywhere.
 
@@ -1020,7 +1151,8 @@ that are shared by all electronic states. On the other hand, the Hartree-term in
 \end{align}
 In going from the first to the second line, the terms where $K$ is equal to $I$ or $J$ were separated out.
 The first term in Eqn.~\ref{eqn:Hartree_term_offdiagonal} differs from the exact electron repulsion (Eqn.~\ref{eqn:Hartree_exact_electron_repulsion})
-only by the spurious electrostatic interaction of $D_{IJ}$ with $\frac{1}{2} (\vert \phi_I \vert^2 + \vert \phi_J \vert^2)$.
+only by the spurious electrostatic interaction of $D_{IJ}$ with $\frac{1}{2} (\vert \phi_I \vert^2 + \vert \phi_J \vert^2)$
+(I think this interaction is called "ghost interaction", see text below Eqn.(14) in \cite{Pastorczak2014}).
 The additional second term in Eqn.~\ref{eqn:Hartree_term_offdiagonal} involves the electrostatic interaction
 between transition densities of $I$ and $K$. It is much smaller than the first, since densitities have magnitudes
 on the order of $n$ (number of electron), while transition densities are on the order of $<1$.
@@ -1123,7 +1255,7 @@ swap their \emph{adiabatic} state labels.
 \begin{figure}[h!]
   \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bending.png}
   \caption{\textbf{Electron repulsion in water (bending).} Diagonal (a)
-  and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
+  and off-diagonal (b) matrix elements of $\m{I}^{\text{exact}}$ and $\m{I}[\m{D}]$
   as functions of the H-O-H angle.}
   \label{fig:electron_repulsion_energies_water_bending}
 \end{figure}
@@ -1131,10 +1263,16 @@ swap their \emph{adiabatic} state labels.
 \begin{figure}[h!]
   \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_water_bond_breaking.png}
   \caption{\textbf{Electron repulsion in water (bond breaking).} Diagonal (a)
-  and off-diagonal (b) matrix elements of $\m{C}^{\text{exact}}$ and $\m{C}[\m{D}]$
+  and off-diagonal (b) matrix elements of $\m{I}^{\text{exact}}$ and $\m{I}[\m{D}]$
   as functions of one OH bond length.}
   \label{fig:electron_repulsion_energies_water_bond_breaking}
 \end{figure}
+
+The exact matrix elements of the electron-repulsion are obtained by subtracting the kinetic and nuclear-attraction
+matrices from the diagon matrix containing the exact adiabatic eigenenergies:
+\begin{equation}
+ I^{\text{exact}}_{IJ} = E^{\text{exact}}_{I} \delta_{IJ} - \m{T} - \int v(\vec{r}) \m{D}(\vec{r})
+\end{equation}
 
 The relative errors of the diagonal elements and the off-diagonal elements of the electron repulsion
 are less than 1\% and less than 5\%, respectively.
@@ -1189,6 +1327,90 @@ which is an order of magnitude larger than the correlation part.
   as functions of one OH bond length.}
   \label{fig:indirect_electron_repulsion_energies_water_bond_breaking}
 \end{figure}
+
+\FloatBarrier
+\subsection{Example: Ethene}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/ethene_multistate_matrix_density.png}
+\caption{
+  The fundamental variable of MSDFT is the matrix density $\m{D}(\vec{r})$,
+  which is a matrix of functions of a spatial coordinate $\vec{r}$. 
+  Visual representation of the matrix density $D_{IJ}(\vec{r}) = D^{\alpha}_{IJ}(\vec{r}) + D^{\beta}_{IJ}(\vec{r})$
+of ethene for the lowest 3 singlet states (CASSCF(2e/2o)/6-31g*).
+The diagonal blocks show the electronic state densities for $\pi^2$, $\pi\pi^*$ and $\pi^{*2}$.
+With the naked eye it is difficult to discern the small differences between the densities in different states.
+In going from $\pi^2$ to $\pi\pi^*$ and $\pi^{*2}$, the density in the bonding region decreases and is shifted to the carbon atoms.
+The off-diagonal blocks show the transition densities. Since $\pi^{*2}$ is a doubly excited state, its transition
+density to the ground state is low. The transition densities for $\pi^2 \leftrightarrow \pi\pi^*$ and for
+$\pi\pi^* \leftrightarrow \pi^{*2}$ look the same. 
+Isovalues of 0.025 and 0.005 were for the state densities and the transition densities, respectively.}
+\label{fig:ethene_multistate_matrix_density}
+\end{figure}
+
+Ethene is a prototypical example for ultra-fast non-adiabatic transitions to the ground state mediated by a conical intersection.
+A deactivation pathway that connects the Franck-Condon point on the $\pi\pi^*$ state to the ground state
+proceeds via torsion around the broken C=C bond followed by a pyramidalization of one CH$_2$ group. \cite{Barbatti2004}
+The potential energy surfaces at the CASSCF(2e,2o)/6-31g* level of theory along this reaction path are shown
+in Fig.~\ref{fig:ethene_casscf_potential_energy_scan}. Away from the planar equilibrium geometry and in particular close to
+the intersections of the potential energy surfaces, the electronic structure requires a multiconfigurational treatment.
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/ethene_casscf_potential_energy_scan.png}
+  \caption{
+    \textbf{Potential energy curves of ethene} along a photochemical reaction pathway leading
+    from the Franck-Condon point to the pyramidalized conical intersection between $S_1$ and the $S_0$
+    (cf. Figs.~4 and 5 in Ref.~\cite{Barbatti2004}).
+    Energies for the lowest 3 singlet states were compute with state-averaged CASSCF (2 electrons in 2 orbitals)
+    and the 6-31g* basis set using PySCF \cite{Sun2020}.
+    (a) Scan of C=C torsion from planar ($D_{2h}$) to twisted-orthogonal ($D_{2d}$) geometry,
+    (b) scan from twisted-orthogonal to twisted-pyramidalized ($C_1$) geometry,
+    (c) selected geometries along scan.
+  }
+  \label{fig:ethene_casscf_potential_energy_scan}
+\end{figure}
+
+Figure \ref{fig:electron_repulsion_energies_ethene} compares the electron-repulsion energies along the scans.
+Except for a rigid vertical shift by approximately 0.4 $E_h$, the diagonal energies agree
+well. Applying the scalar functional for the electron-repulsion to the individual state densities directly, $J[\rho_I] + XC[\rho_I]$,
+gives almost identical curves. However, the off-diagonal matrix elements, which also agree very well,
+can only be obtained from the matrix functional. The off-diagonal electron-repulsion for the transitions
+$\pi^2 \leftrightarrow \pi\pi^*$ ($I_{0,1}$) and $\pi\pi^* \leftrightarrow \pi^{*2}$ ($I_{1,2}$) vanishes for symmetry reasons: 
+These matrix elements are determined mostly by the Coulomb interaction between
+the transition density and the state densities.
+The transition density changes sign under reflection in the $\sigma_h$ mirror plane,
+whereas the state densities are totally symmetric (see Fig.~\ref{fig:ethene_multistate_matrix_density}),
+so that the positive and negative parts cancel in the integral \ref{eqn:Hartree_term}.
+Away from the $D_{2h}$ symmetric equilibrium geometry the cancelation is not complete.
+The transition density for the double excitation $\pi^2 \leftrightarrow \pi^{*2}$ is totally symmetric
+(see Fig.~\ref{fig:ethene_multistate_matrix_density}), so there is no cancellation for $I_{0,2}$.
+The error in the off-diagonal element is due to the overestimation of the exchange-correlation
+energy. In Fig.~\ref{fig:indirect_electron_repulsion_energies_ethene} the Hartree energy $\m{J}[\m{D}]$ is subtracted from the electron-repulsion.
+The the local matrix functional overestimates the exchange-correlation energy by a factor
+of ~1.5 for the torsion scan (Fig.~\ref{fig:indirect_electron_repulsion_energies_ethene}b)
+and ~2.5 for the pyramidalization scan (Fig.~\ref{fig:indirect_electron_repulsion_energies_ethene}d).
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/electron_repulsion_energies_ethene.png}
+  \caption{\textbf{Electron repulsion in ethene.}
+  Diagonal (a,c) and off-diagonal (b,d) matrix elements of the electron-repulsion along
+  the torsion angle and a pyramidalization coordinate leading to a conical intersection with $S_0$
+  (see Fig.~\ref{fig:ethene_casscf_potential_energy_scan}).
+  Solid lines: exact $\m{I}^{\text{exact}}$, dashed lines: matrix functional $\m{I}[\m{D}]$.}
+  \label{fig:electron_repulsion_energies_ethene}
+\end{figure}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.8\textwidth]{figures/indirect_electron_repulsion_energies_ethene.png}
+  \caption{\textbf{Exchange-correlation energy in ethene.}
+  Diagonal (a,c)
+  and off-diagonal (b,d) matrix elements of the exact $\text{XC}^{\text{exact}}_{IJ}$ (solid lines)
+  and approximate $\text{XC}_{IJ} = -K^{LSDA}[\mathbf{D}]_{IJ} + C^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$ (dashed lines) exchange correlation energies
+  as functions of the scan variable.}
+  \label{fig:indirect_electron_repulsion_energies_ethene}
+\end{figure}
+
+\FloatBarrier
 
 \subsection{Application: Exciton Delocalization Length}
 \textcolor{red}{(THIS IS JUST AN IDEA, MAYBE IT'S NOT FEASIBLE.)}
