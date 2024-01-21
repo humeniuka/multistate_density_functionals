@@ -153,12 +153,139 @@
 %  can be turned into a matrix functional by applying it to the eigenvalues of the matrix density.
 %  I wish to investigate this idea further.
 
+An important open question is how to find approximate multistate density functionals. Before embarking on this project,
+one has to clarify the definition of the functional that should be approximated. Multistate density functional theory (MSDFT)
+\cite{Gao2016} predates the rigorous theorems of Lu and Gao \cite{Lu2022JPCL}
+that establish a existence of a universal functional of the matrix density.
+Originally MSDFT was developed as a hybrid between DFT and wavefunction theory (WFT) for treating multiconfigurational problems
+that combines the best of both worlds. In the spirit of multiconfiguration self-consistent field (MCSCF) dynamic correlation is incorporated
+into the configurations by DFT, while static correlation is accounted for by letting the configurations interact.
+Diagonalizing an effective Hamiltonian leads to the adiabatic eigenstates. MSDFT is akin to multiconfigurational wavefunction-based methods such
+MCSCF or MRCI, but has the advantage that only a minimal number of configurations is needed \cite{Lu2022fundamental} since DFT
+is very good at handling the dynamic correlation.
+The diagonal elements
+of the configuration interaction Hamiltonian $\m{H}$ are obtained by applying ground state Kohn-Sham (KS) theory to the state density $\rho_A$,
+\begin{equation}
+ H_{AA} \approx E^{\text{KS}}[\rho_A]
+\end{equation}
+The coupling between the configurations is approximated by the matrix elements of the configurations (the WFT part)
+and a \emph{transition density functional} (TDF), \cite[Eqn. (5)]{Grofe2017}
+\begin{equation}
+ H_{AB} \approx \langle \Psi_A \vert \hat{H} \vert \Psi_B \rangle + \mathcal{E}^{\text{TDF}}_c[\rho_{AB}],
+\end{equation}
+$\langle \Psi_A \vert \hat{H} \vert \Psi_B \rangle$ captures the static and part of the dynamic correlation,
+while the dynamic correlation that is still missing is added by the transition density functional.
+$\mathcal{E}^{\text{TDF}}_c[\rho_{AB}]$ has been
+approximated as the overlap-weighted average correlation energy of the interacting states, \cite[Eqn.~(6)]{Gao2016}
+\begin{equation}
+  \mathcal{E}^{\text{TDF}}_c[\rho_{AB}] = \frac{1}{2} S_{AB} \left( E_c^{\text{KS}}[\rho_A] + E_c^{\text{KS}}[\rho_B] \right),
+\end{equation}
+or by the multiplet-sum method \cite{Ziegler1977,Grofe2017} that allows the determine the coupling rigorously from the requirement that
+states in a multiplet (same total spin $S$ but different spin projections $S_z$) are degenerate in the absence of a magnetic field.
+These approximations make use of existing, Kohn-Sham density functional approximations (DFA)
+for the ground state. These approximations are born out by encouraging benchmark calculations \cite{Zhu2023} on a varied set
+of excitation energies in small molecules. However, in view of Lu and Gao's multistate equivalent of the Hohenberg-Kohn theorem,
+which states that there is a one-to-one correspondence between the matrix density of the lowest few states and the Hamiltonian matrix,
+it is clear that $\mathcal{E}^{\text{TDF}}_c$ cannot be a functional of a individual state densities $\rho_A$, $\rho_B$
+or the transition density $\rho_{AB}$. Therefore Lu and Gao
+replaced the transition density functional by a \emph{multistate correlation matrix functional} $\mathcal{E}_{c}[\m{D}]$, which depends
+on the whole matrix density $\m{D}(\vec{r})$ rather than on the individual state or transition densities \cite{Lu2022fundamental}.
+
+$\mathcal{E}_{c}[\m{D}(\vec{r})]$ is defined
+as the difference between the universal functional $\mathcal{F}[\m{D}(\vec{r})]$ and an approximation $F_{\text{ms}}$ to it in the vector space spanned
+by the auxiliary states $\{\Omega_A\}$
+\cite[Eqn.~(30)]{Lu2022fundamental},
+\begin{equation}
+\mathcal{E}^{AB}_c[\{\Omega_A\}] = \mathcal{F}[\m{D}(\vec{r})]_{IJ}
+- \underbrace{\langle \Omega_A \vert \hat{T} + \hat{W} \vert \Omega_B \rangle}_{F_{\text{ms}}[\{\Omega_A\}]}
+\label{eqn:correlation_functional_auxiliary_basis_dependence}
+\end{equation}
+Note that the auxiliary basis functions that are sufficient to represent a matrix density $\m{D}(\vec{r})$ exactly, are not necessarily sufficient
+to represent the exact many-electron wavefunctions of the subspace. In analogy to the Kohn-Sham determinant they are just a means to represent
+the matrix density. In the way the correlation matrix is defined in Eqn.~\ref{eqn:correlation_functional_auxiliary_basis_dependence},
+it depends on the auxiliary basis states that give rise to the matrix density $\m{D}(\vec{r})$. This is because the mapping from $\m{D}(\vec{r})$ back to
+the wavefunctions is not unique, unless of course the auxiliary wavefunctions are equal to the lowest-energy eigenstates.
+To turn $F_{\text{ms}}[\{\Omega_A\}]$
+into a matrix functional $\mathcal{F}_{\text{ms}}[\m{D}(\vec{r})]$, which only depends on $\m{D}(\vec{r})$, Lu and Gao \cite{Lu2022fundamental} perform a
+constrained minimization over the (orthogonal) auxiliary states to find the subset that minimizes the expectation value of $F_{\text{ms}}$
+\cite[Eqn.~(28)]{Lu2022fundamental}, while keeping the matrix density $\m{D}(\vec{r})$ constant,
+\begin{equation}
+  \{\Omega_A^{\text{min}}\} = \argmin_{\{\Omega_A\}} \left\{ \sum_{I=1}^{N} 
+    \langle \Omega_I \vert \hat{T} + \hat{W} \vert \Omega_I \rangle \quad \Big\vert \quad \{\Omega_A\} \to \m{D}(\vec{r}) \right\}
+    \label{eqn:constrained_search}
+\end{equation}
+Then 
+\begin{equation}
+\mathcal{F}_{\text{ms}}[\m{D}(\vec{r})]_{AB} = \langle \Omega_A^{\text{min}} \vert \hat{T} + \hat{W} \vert \Omega_B^{\text{min}} \rangle
+\end{equation}
+is truely a functional of $\m{D}(\vec{r})$ and the correlation matrix can be defined as
+\begin{equation}
+ \mathcal{E}_{c}[\m{D}(\vec{r})] = \mathcal{F}[\m{D}(\vec{r})] - \mathcal{F}_{\text{ms}}[\m{D}(\vec{r})].
+ \label{eqn:correlation_functional_matrix_functional}
+\end{equation}
+This functional is not readily computable, since the constrained search while keeping the density fixed cannot be performed.
+In practice the multistate energy is minimized by changing the molecular orbitals and configuration coefficient of the auxiliary
+wavefunctions, which then determine the matrix density. During the MCSCF-like minimization,
+the auxiliary wavefunctions are not necessarily the minimum of the constrained
+search of Eqn.~\ref{eqn:constrained_search}. The definition in Eqn.~\ref{eqn:correlation_functional_matrix_functional}
+is rigorous but purely formal. For actual calculations it would be necessary to find approximations for the correlation matrix
+as defined in Eqn.~\ref{eqn:correlation_functional_auxiliary_basis_dependence}, which is not a well-defined problem.
+
+For a single electronic state, $\{\Omega_A^{\text{min}}\}$ turns into the Hartree-Fock determinant $\Psi_{\text{HF}}$ and $\mathcal{E}_c$
+becomes the correlation energy. This is the quantum chemist's definition of the correlation energy as the energy that is missed by
+Hartree-Fock theory. \cite[2.2.7]{Szabo_Ostlund_book}
+In Hartree-Fock theory the correlation energy is measured relative to the minimum of the
+expectation value of a single Slater determinant, while in MSDFT it is defined relative
+to the minimum in a partially interacting active space. \cite{Lu2022JPCL}
+On the other hand, in Kohn-Sham DFT exchange and correlation
+are often approximated together. The exchange-correlation energy is defined as the difference between the total electron-repulsion
+and the direct (classical) part of the Coulomb interaction. \cite{Lieb1979}
+This has the advantage that it allows a definition of the exchange-correlation energy in terms of the density alone
+without reference to any non- or partially-interacting wavefunctions.
+
+It seems difficult to find good approximations to $\m{\mathcal{E}}_c[\m{D}(\vec{r})]$ as defined in Eqn.~\ref{eqn:correlation_functional_matrix_functional},
+since the functional would need to know how much dynamic correlation is already included via
+the auxiliary wavefunctions. LDA, GGA or even hybrid functionals designed for the ground state are probably too simple for that task.
+Although theorem 3 of Lu and Gao \cite{Lu2022JPCL} guarantees that there is a minimal number of non-orthogonal \cite{Lu2022JPCL}
+or orthogonal \cite{Lu2022fundamental} auxiliary basis functions, one could also use a larger space of auxiliary wavefunctions to
+represent $\m{D}(\vec{r})$. But this affects the defintion of $\mathcal{E}_{c}$. In particular, if the auxiliary basis functions are
+allowed to include the exact eigenfunctions of the Hamiltonian, the correlation energy $\m{\mathcal{E}}_c$ would be zero, since in this case
+$\m{\mathcal{F}} = \m{\mathcal{F}}_{\text{ms}}$.
+
+% In this article I try to find ...
+This article tries to find approximations to the entire universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$
+(not just the residual correlation $\m{\mathcal{E}}_c$), even though this involves an approximate
+matrix functional for the kinetic energy $\m{T}[\m{D}(\vec{r})]$, which comes with a very large error.
+The exchange-correlation matrix functional
+is defined as the difference between the matrix of the electron-repulsion operator in the subspace of the exact, lowest eigenstates
+$\{\Psi_{I}^{\text{exact}}\}$ and
+the multistate Hartree functional $\m{J}[\m{D}(\vec{r})]$,
+\begin{equation}
+ \text{XC}[\m{D}(\vec{r})]_{IJ} = \langle \Psi_I^{\text{exact}} \vert \hat{W} \vert \Psi_J^{\text{exact}} \rangle - J[\m{D}(\vec{r})]_{IJ}.
+\end{equation}
+$J[\m{D}(\vec{r})]$ contains the Coulomb interactions between state densities
+and between state densities and transition densities both in the diagonal and the off-diagonal terms. It transforms 
+in the same manner like $\mathcal{F}[\m{D}(\vec{r})]$, just as a proper matrix functional should.
+This partitioning of the energy is independent of the choice of the auxiliary basis functions.
+For a single electronic state the multistate Hartree functional $\m{J}[\m{D}(\vec{r})]$ reduces to the classical Coulomb interaction
+$\frac{1}{2} \int \int' \frac{\rho(\vec{r}) \rho(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}$ and the multistate exchange-correlation matrix $\m{\text{XC}}[\m{D}]$
+turns into the ground state exchange-correlation energy $E_{xc}[\rho]$ (without the kinetic contribution of Kohn-Sham theory),
+even if the exact eigenstates are used to parameterize the matrix density.
+This allows to reuse a ground state functional $E_{xc}[\rho]$ for $\text{XC}[\m{D}(\vec{r})]$, although the conversion of
+a scalar functional into a matrix functional is not without ambiguities. 
+The resulting functional $\mathcal{F}$ is not suitable for reliable calculations,
+but mostly so because the errors of the diagonal kinetic
+energy are so huge, while the errors of the off-diagonal elements are perfectly acceptable.
+Nevertheless this study provides a clean picture of how well matrix functionals derived from simple ground state functionals
+like LDA can approximate the off-diagonal elements of the Hamiltonian matrix using only the matrix density as input.
+
+
 Some subtle differences between the notation in Lu et al. \cite{Lu2022JPCL,Lu2022JCTC} and this work are worth pointing out:
 The electron repulsion energy is partitioned slightly differently into a Hartree, exchange and correlation part.
 In analogy with the Kohn-Sham scheme \cite{Kohn1965}, Lu et al. compute the kinetic energy from the auxiliary Slater determinants (basis states).
 They call the matrix elements of the electron-repulsion between the basis states,
 $\langle \Phi_A \vert \hat{W} \vert \Phi_B \rangle$, the "Hartree and exchange-interaction matrix".
-In this way some static correlation is included in the Hartree and exchange part.
+In this way some static and dynamic correlation is included in the Hartree and exchange part.
 The difference with the exact universal functional is lumped in the the correlation functional, which takes the
 form $\mathcal{E}_c = \mathcal{F}[\m{D}] - (\m{T}_{ms} + \m{E}_{Hx})$ \cite[Eqn.~(22)]{Lu2022JPCL}
 and contains some kinetic contribution.
