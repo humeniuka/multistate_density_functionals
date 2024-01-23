@@ -131,6 +131,119 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\section{Introduction}
 
+Recently Lu and Gao \cite{Lu2022JPCL} published a new, rigorous density functional theory for excited states, in which the ground
+and excited states are treated on an equal footing. The fundamental variable is the projection
+of the one-particle density operator $\hat{\rho}(\vec{r}) = \sum_{i=1}^{n_e} \delta(\hat{\vec{r}}_i - \vec{r})$ on the subspace
+$\mathbb{V}^N$ of the lowest $N$ eigenstates. The role of the scalar density $\rho(\vec{r})$
+from the Hohenberg-Kohn theorem is taken by the multistate matrix density $\m{D}(\vec{r})$,
+which is a matrix function of position $\vec{r}$
+having the state densities $D_{II}(\vec{r}) = \rho_{I}(\vec{r})$ on its diagonal and the transition densities
+$D_{IJ}(\vec{r}) = \langle \Psi_I \vert \sum_{i=1}^{n_e} \delta(\hat{\vec{r}}_i - \vec{r}) \vert \Psi_J \rangle$ on the off-diagonal.
+Building on Theophilou's theorem \cite{Theophilou1979}, which states that the subspace of the lowest $N$ electronic states is uniquely
+determined by the average density of those states, Lu and Gao prove two theorems that give access to the individual eigenenergies:
+
+(1) Firstly they showed that the projection of the Hamiltonian operator onto the subspace $\mathbb{V}^N$ is a functional $\m{H}[\m{D}(\vec{r})]$ of the
+matrix density $\m{D}(\vec{r})$. \cite[theorem 1]{Lu2022JPCL} This multi-state analogue of the Hohenberg-Kohn theorem implies that the Hamiltonian can be split into an
+external potential (the attractive nuclear potential which differs for each molecule) and a universal functional $\m{F}[\m{D}(\vec{r})]$ for the
+electronic kinetic energy and electron-electron repulsion (that is the same for all systems):
+\begin{equation}
+ \m{H}[\m{D}(\vec{r})] = \m{\mathcal{F}}[\m{D}(\vec{r})] + \int d^3\!r ~ v(\vec{r}) \m{D}(\vec{r})
+\end{equation}
+Both $\m{H}$ and $\m{\mathcal{F}}[\m{D}(\vec{r})]$ are $N \times N$ matrices.
+
+An important consequence of the fact that both $\m{D}(\vec{r})$ and $\m{H}[\m{D}(\vec{r})]$ are projections of operators onto a subspace, is
+that the universal matrix functional transforms bilinearly under a change of basis within the subspace. \cite[(3)]{Lu2022JPCL}
+If the state in the subspace are transformed as $\vert \Psi_I' \rangle = \sum_{J=1}^N L^*_{IJ} \vert \Psi_J \rangle$,
+the matrix density in the new basis becomes
+\begin{equation}
+D_{IJ}'(\vec{r}) = \langle \Psi_I' \vert \hat{\rho}(\vec{r}) \vert \Psi_J' \rangle
+= \sum_{K,L=1}^{N} L_{IK} \langle \Psi_K \vert \hat{\rho}(\vec{r}) \vert \Psi_L \rangle L^*_{JL},
+\end{equation}
+or written in matrix notation
+\begin{equation}
+\m{D}'(\vec{r}) = \m{L} \m{D}(\vec{r}) \m{L}^{\dagger}.
+\end{equation}
+Similarly the Hamiltonian in the new basis becomes
+\begin{equation}
+\m{H}' = \m{L} \m{H} \m{L}^{\dagger}.
+\end{equation}
+This means that the universal functional has to transform as \cite{Lu2022JPCL}
+\begin{equation}
+ \m{\mathcal{F}}[\m{L} \m{D}(\vec{r}) \m{L}^{\dagger}] = \m{L} \m{\mathcal{F}}[\m{D}(\vec{r})] \m{L}^{\dagger} \label{eqn:F_basis_transformation}
+\end{equation}
+under a basis transformation $\m{L}$. Note that $\m{D}(\vec{r})$ is an $N \times N$ matrix function of $\vec{r}$,
+but the basis transformation $\m{L}$ is just an $N \times N$ matrix.
+ The relation \ref{eqn:F_basis_transformation} is very important, since it constrains
+the search for matrix functionals to the class of \emph{analytic matrix functionals}. It also implies that its functional form
+is independent of the number of states in the subspace, so that the same functional holds for $N$ states or for a single state $1$.
+An approximation to the universal matrix functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ automatically gives an approximate universal
+functional of the ground state density $\mathcal{F}[\rho(\vec{r})]$. The reverse direction (deducing $\m{\mathcal{F}}[\m{D}(\vec{r})]$
+from $\mathcal{F}[\rho(\vec{r})]$) is not so easy because of the non-commutativity of matrix multiplication.
+Nevertheless relation \ref{eqn:F_basis_transformation} can guide the search for matrix functionals.
+
+(2) Secondly Lu and Gao formulated a variatonal principle for finding the exact $\m{D}(\vec{r})$, which is a consequence of theorem 2
+of Theophilou's subspace DFT. \cite{Theophilou1979}
+Let the $N$ orthonormal trial vectors $\Psi_I'$ span the subspace $\mathbb{V}^{N'}$.
+Then the average subspace energy, the multistate (MS) energy in the notation of Lu and Gao,
+\begin{equation}
+  E_{\text{MS}}[\{\Psi_I'\}] = \frac{1}{N} \sum_{I=1}^{N} \langle \Psi_I' \vert \hat{H} \vert \Psi_I' \rangle,
+\end{equation}
+of the trial space is larger or equal than
+the subspace energy of the exact subspace (which is spanned by the exact lowest $N$ eigenstates $\Psi_I$),
+\begin{equation}
+E_{\text{MS}}[\mathbb{V}^N] \leq E_{\text{MS}}[\mathbb{V}^{N'}]
+\end{equation}
+Since according to Theophilou's theorems 3 to 5 the subspace is uniquely determined by the subspace density
+$\rho_{\mathbb{V}^N}(\vec{r}) = \frac{1}{N} \sum_{I=1}^{N} D_{II}(\vec{r})$,
+\begin{equation}
+ \m{D}(\vec{r}) \longrightarrow \rho_{\mathbb{V}^N} \longrightarrow \mathbb{V}^N,
+\end{equation}
+it follows (theorem 2 of Lu and Gao \cite{Lu2022JPCL}) that the multistate energy of any trial matrix density $\m{D}'(\vec{r})$
+is larger or equal to the exact multistate energy,
+\begin{equation}
+ E_{\text{MS}}[\m{D}(\vec{r})] \leq E_{\text{MS}}[\m{D}'(\vec{r})].
+\end{equation}
+The equality holds when the subspaces are the same $\mathbb{V}^N = \mathbb{V}^{N'}$, in which case $\m{D}'(\vec{r})$ and
+the exact $\m{D}(\vec{r})$ as well as the Hamiltonians $\m{H}' = \m{H}[\m{D}'(\vec{r})]$ and the exact $\m{H}[\m{D}(\vec{r})]$, respectively,
+ differ only by a basis transformation within the subspace. Therefore the subspace of the lowest eigenstates can be found by minimizing
+$E_{\text{MS}}[\m{D}(\vec{r})]$ as a functional of $\m{D}(\vec{r})$.
+Since the Hamiltonian in the basis of the eigenstates should be diagonal,
+the eigenenergies can be obtained by diagonalizing the $N \times N$ matrix $\m{H}[\m{D}(\vec{r})]$.
+
+(3) Lastly Lu and Gao proved that the matrix density can be represented exactly by no more than $N^2$ non-orthogonal, linearly-independent
+Slater determinant built from $N^2$ different sets of $n_e$ molecular orbitals. \cite{Lu2022JPCL}
+Optimizing the matrix density in terms of these auxiliary basis states ensures
+that the matrix density is derived from antisymmetric wavefunctions. 
+What kind of matrix function constitute a matrix density belonging to Fermionic wavefunctions is the
+multistate version of the $N$-representability problem. Some obvious requirements are that the state densities should
+integrated to the total number of electrons and that the transition densities should integrated to 0 to reflect that
+eigenstates are orthonormal. If the exact universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ (or a good approximation to it)
+were known and it were somehow possible to restrict the minimization to valid Fermionic matrix densities $\m{D}(\vec{r})$,
+the multistate DFT of Lu and Gao would open the way for studying excitations in very large systems in the spirit of orbital-free DFT [CITE].
+The question of parameterizing the matrix density will not be touched further.
+
+% H[D] is a matrix functional of D
+% D can be found by minimizing the MS energy (the average energy)
+% F[D] transforms bilinearly.
+% Not every matrix function is a m (the N-representability problem) -> D(r) has to be parameterized by auxiliary wavefunctions.
+% Lu and Gao prove that such a parameterization is possible in terms of a minimal with no more than N^2 non-orthogonal Slater determinants.
+
+%%% THE FOLLOWING IS KIND OF OBVIOUS, WITHOUT A VARIATIONAL PRINCIPLE A MAPPING FROM THE DENSITY TO THE EIGENSTATES IS NOT HELPFUL.
+%The Hohenberg-Kohn theorem tells us that the ground state density $\rho_0(\vec{r})$
+%contains all information about the external potential $v(\vec{r})$
+%and as such it is formally possible to obtain the entire spectrum from the ground state density alone,
+%\begin{equation}
+%\rho_{0}(\vec{r}) \xrightarrow{\text{HK theorem}} v(\vec{r}) \longrightarrow \hat{H} = \hat{T} + \hat{W} + v(\vec{r}) \xrightarrow{\text{Schr\"{o}dinger eqn.}} \{ E_I, \Psi_I \}.
+%\label{eqn:HK_density_to_spectrum}
+%\end{equation}
+%However, this is of no practical use, since the knowledge that the mapping of Eqn.~\ref{eqn:HK_density_to_spectrum}
+%must exists provides no clue how to get from the left side to the right side.
+%from the ground state density to the excitation energies.
+%%%% 
+
+The significance of the theorems by Lu and Gao is that their
+universal matrix functional can be approximated. Of course the exact functional is unknown, but 
+
 % Recently Lu & Gao have published an interesting article.
 % State the theorems of Li & Gao.
 % Explain how the lowest few electronic states are found -> Parameterize D -> Minimize E_MS -> Diagonalize H.
@@ -165,11 +278,12 @@ MCSCF or MRCI, but has the advantage that only a minimal number of configuration
 is very good at handling the dynamic correlation.
 The diagonal elements
 of the configuration interaction Hamiltonian $\m{H}$ are obtained by applying ground state Kohn-Sham (KS) theory to the state density $\rho_A$,
+\cite[Eqn.~(3)]{Grofe2017} \cite[Eqn.~(12)]{Zhu2023}
 \begin{equation}
  H_{AA} \approx E^{\text{KS}}[\rho_A]
 \end{equation}
 The coupling between the configurations is approximated by the matrix elements of the configurations (the WFT part)
-and a \emph{transition density functional} (TDF), \cite[Eqn. (5)]{Grofe2017}
+and a \emph{transition density functional} (TDF), \cite[Eqn.~(5)]{Grofe2017}
 \begin{equation}
  H_{AB} \approx \langle \Psi_A \vert \hat{H} \vert \Psi_B \rangle + \mathcal{E}^{\text{TDF}}_c[\rho_{AB}],
 \end{equation}
@@ -272,7 +386,7 @@ $\frac{1}{2} \int \int' \frac{\rho(\vec{r}) \rho(\vec{r}')}{\vert \vec{r} - \vec
 turns into the ground state exchange-correlation energy $E_{xc}[\rho]$ (without the kinetic contribution of Kohn-Sham theory),
 even if the exact eigenstates are used to parameterize the matrix density.
 This allows to reuse a ground state functional $E_{xc}[\rho]$ for $\text{XC}[\m{D}(\vec{r})]$, although the conversion of
-a scalar functional into a matrix functional is not without ambiguities. 
+a scalar functional into a matrix functional is not without ambiguities, because matrix multiplication is not commutative.
 The resulting functional $\mathcal{F}$ is not suitable for reliable calculations,
 but mostly so because the errors of the diagonal kinetic
 energy are so huge, while the errors of the off-diagonal elements are perfectly acceptable.
@@ -1146,7 +1260,8 @@ $D_{II}(\vec{r})$ with the transition densities $D_{IJ}(\vec{r}')$ ($I \neq J$).
 The electrostatic energy of a single excited state, which has a classical interpretation, cannot be calculated in
 isolation. It depends on the transition densities, which have no classical analogue.
 Only if the transition densities to other states in the selected subspace vanish everywhere, can the state be
-treated in isolation. This situation might occur for a doubly excited state that is dark.
+treated in isolation. This situation might occur for a doubly excited state that is dark. [THe state is dark because the transition dipole moment
+vanishes, but the density does not have to be zero everywhere!!!]
 Multistate density functional theory thus provides a justification for the applicability of the $\Delta SCF$ method.
 
 % Exchange-energy of uniform electron gas
