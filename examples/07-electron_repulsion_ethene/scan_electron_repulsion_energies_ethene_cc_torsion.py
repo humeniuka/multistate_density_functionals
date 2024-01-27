@@ -15,8 +15,7 @@ with the multi-state local-density approximation
 
 for a range of the ethylene geometries with different torsion angles around the C=C
 double bond.
-The matrix density Dᵢⱼ(r) is calculated using configuration interaction with single
-and double excitations from the Hartree-Fock reference determinant.
+The matrix density Dᵢⱼ(r) is calculated using CASSCF.
 
 The self-interaction correction for the core electrons is a constant that neither depends
 on the geometry nor on the electronic state.
