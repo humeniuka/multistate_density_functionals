@@ -12,8 +12,12 @@ from msdft.MultistateMatrixDensity import MultistateMatrixDensityCASSCF
 
 if __name__ == "__main__":
     # Lithium-fluoride.
+
     # The experimental LiF bond length is 1.564 Å.
-    bond_length = 1.564
+    # The avoided crossing between the two Σ+ states lies approximately at 6.8 Å.
+    #bond_length = 1.564
+    bond_length = 6.8
+
     mol = pyscf.gto.M(
         atom = f"""
         Li {-bond_length/2} 0 0
@@ -39,6 +43,20 @@ if __name__ == "__main__":
     nelecas = 8
     casscf = pyscf.mcscf.CASSCF(hf, ncas, nelecas)
 
+    # CAS: 6 electrons in 21 orbitals
+    ncas = 21
+    nelecas = 6
+    casscf = pyscf.mcscf.CASSCF(hf, ncas, nelecas)
+
+    # In the HF ground state the occupancies for the orbitals by irrep are
+    # irrep         A1  E1x  E1y  E2x  E2y
+    # electrons      8   2    2    0    0
+
+    # Number of active orbitals in each irrep.
+    cas_irrep_nocc = {'A1': 9, 'E1x': 6, 'E1y': 6}
+    # Construct the initial guess for the CASSCF orbitals.
+    mo_guess = pyscf.mcscf.sort_mo_by_irrep(casscf, hf.mo_coeff, cas_irrep_nocc)
+
     # Compute lowest 2 singlet states with in the Σ+ irrep.
     nstate = 2
     casscf.nstate = nstate
@@ -50,7 +68,8 @@ if __name__ == "__main__":
     casscf = casscf.state_average(weights)
     # States with undesired spins are shifted up in energy.
     casscf.fix_spin(shift=0.5)
-    casscf.run()
+    print("CASSCF calculation ...")
+    casscf.kernel(mo_guess)
 
     # Output all determinants coefficients.
     for state in range(0, nstate):

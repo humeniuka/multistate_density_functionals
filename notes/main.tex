@@ -492,7 +492,7 @@ while the errors of the off-diagonal elements are perfectly acceptable.
 Nevertheless this study provides a clean picture of how well matrix functionals derived from simple ground state functionals
 like LDA can approximate the off-diagonal elements of the Hamiltonian matrix using only the matrix density as input.
 
-
+[CHECK THE TEXT BELOW]
 Some subtle differences between the notation in Lu et al. \cite{Lu2022JPCL,Lu2022JCTC} and this work are worth pointing out:
 The electron repulsion energy is partitioned slightly differently into a Hartree, exchange and correlation part.
 In analogy with the Kohn-Sham scheme \cite{Kohn1965}, Lu et al. compute the kinetic energy from the auxiliary Slater determinants (basis states).
@@ -570,15 +570,34 @@ A variational version of pair-density functional theory has been published recen
 Although the exact pair-density functional,
 if it even exists, is unknown, ground state functionals of the total density and spin polarization can be "translated"
 into functionals of the total density and on-top pair density. \cite{LiManni2014}
+When states interact strongly around conical intersections or avoided crossings, they cannot be calculated separately as
+this can lead to spurious crossings of potential energy surfaces. \cite{Sand2018state}
+State-interaction pair-density functional theory (SI-PDFT)
+\cite{Sand2018state} remedies this problem by diagonalizing the effective Hamiltonian in a final step.
+The diagonal elements of the Hamiltonian come from 
+MC-PDFT calculations for each state using the translated functional. 
+For lack of a prescription for the off-diagonal Hamiltonian matrix elements in the DFT framework, a kind of diabatization
+scheme is employed to get non-zero couplings between the states. \cite{Sand2018state}
+Sand et al. state that "the evaluation of off-diagonal elements in an effective Hamiltonian is not well-defined,
+as no density functional that couples two interacting states is available". \cite{Sand2018state}
+The purpose of this artice is to show
+that it is indeed possible to obtain off-diagonal elements with the help of
+matrix density functional theory, and that it is not necessary to treat diagonal and off-diagonal elements differently.
+This observation might also be relevant for evaluating the diabatic couplings
+of constrained DFT configuration interaction (CDFT-CI)\cite{Wu2007configuration}.
+Depending on whether the adiabatic or some diabatic basis is chosen to represent the matrix density,
+the matrix density functional will yield the corresponding adiabatic or diabatic Hamiltonian.
 
-In general variational DFT methods suffer from the lack of a clear route to designing new
-functionals that go beyond repurposing existing KS-DFT functionals.
+In general, existing variational DFT methods suffer from the lack of a clear route to designing new
+functionals that go beyond repurposing existing KS-DFT functionals. The other open question is how
+to compute matrix elements for state interactions consistently with density functional theory.
 
 % They justify why the $\Delta$SCF method sometimes works very well.
-The multistate DFT theory by Lu and Gao \cite{Lu2022JPCL} might be better positioned in this regard.
+The multistate DFT theory by Lu and Gao \cite{Lu2022JPCL} might provide answers to those questions.
+%be better positioned in this regard.
 First of all, the universal functional only depends on a matrix representation of the one-particle density
 operator, the \emph{matrix density}. The matrix density contains the densities of the electronic states on the diagonal
-and the transition densities between them in the off-diagonal elements. It represent the electron density operator
+and the transition densities between them in the off-diagonal elements. It represents the electron density operator
 in a subspace of electronic states. It should not be confused with the density matrix of a single electronic state.
 Each matrix element is a function of space. An although the number of rows and columns of the matrix density is equal
 to the number of electronic states that are considered, I will
@@ -615,7 +634,7 @@ whose physical meaning is not so obvious.
 
 A limitation of this work is that the parameterization of the matrix density in terms of no more than $N^2$ ($N$ = number of states)
 non-orthogonal Slater determinants built from $n \times N^2$ orbitals ($n$ = number of electrons)
-suggested in theorem (3) of Ref.~ \ref{Lu2022JPCL} (and explored further in Ref.~\cite{Lu2022fundamental}) has not been implemented yet. So with the current computer program it is
+suggested in theorem (3) of Ref.~ \cite{Lu2022JPCL} (and explored further in Ref.~\cite{Lu2022fundamental}) has not been implemented yet. So with the current computer program it is
 not possible to find the matrix density that minimizes the multistate energy. This is left for future work, if the method
 should turn out to be promising. At the current stage, the quality of the multistate functional is assessed as follows:
 The "exact" matrix density for the lowest few electronic states is computed
@@ -1697,7 +1716,7 @@ In going from $\pi^2$ to $\pi\pi^*$ and $\pi^{*2}$, the density in the bonding r
 The off-diagonal blocks show the transition densities. Since $\pi^{*2}$ is a doubly excited state, its transition
 density to the ground state is low. The transition densities for $\pi^2 \leftrightarrow \pi\pi^*$ and for
 $\pi\pi^* \leftrightarrow \pi^{*2}$ look the same. 
-Isovalues of 0.025 and 0.005 were for the state densities and the transition densities, respectively.}
+Isovalues of 0.025 and 0.005 were used for the state densities and the transition densities, respectively.}
 \label{fig:ethene_multistate_matrix_density}
 \end{figure}
 
@@ -1762,6 +1781,104 @@ and ~2.5 for the pyramidalization scan (Fig.~\ref{fig:indirect_electron_repulsio
   as functions of the scan variable.}
   \label{fig:indirect_electron_repulsion_energies_ethene}
 \end{figure}
+
+\subsection{Example: LiF}
+In Ref.~\cite{Lu2022JPCL} lithium-fluoride was chosen as a test case, because it has an avoided crossing
+between the lowest ionic and covalent $^1\Sigma^+$ states, the position of which depends sensitively on
+the balance between static and dynamic correlation. The position of the avoided crossing ($7.24~\AA$) can be estimated
+from the experimental ionization energy of lithium, the electron affinity of fluorine and the polarizabilities
+of the two atoms. \cite{Werner1981} However, for MRCI or MCSCF the prediction of the crossing is
+a challenge, since a large number of configurations have to be included. \cite{Werner1981}
+Lu and Gao showed that MSDFT requires much less configurations than CASSCF since the density functional incorporates most of the
+dynamic correlation into the diagonal parts of the Hamiltonian. \cite{Lu2022JPCL} The dissociation curve of
+LiF was also studied with state-interaction pair-density functional theory \cite{Sand2018state}
+and constrained DFT configuration interaction \cite{Wu2007configuration}.
+
+The same system is used to test the LDA-like matrix density functionals described above. Since the implementation
+does not yet allow to find the density that minimizes the subspace energy, a simplified check is performed.
+The exact matrix density is calculated from the exact wavefunctions and is fed into the matrix functionals
+for the electron-repulsion and kinetic energy. The resulting projections of the electron-repulsion $\m{I}[\m{D}]$
+and the kinetic energy $\m{T}[\m{D}]$ into the subspace of the lowest eigenstates are then compared with the
+exact values $\m{I}^{\text{exact}}$ and $\m{T}^{\text{exact}}$ that are evaluated from the exact wavefunctions.
+
+The exact wavefunctions are calculated with PySCF \cite{Sun2020} at the SA(2)-CASSCF level
+with the aug-cc-pVQZ basis set\cite{Dunning1989gaussianI,Kendall1992electron,basis_set_exchange},
+exploiting the $C_{\inf v}$ symmetry of the linear molecule and solving only for the lowest to singlet states
+with $^1\Sigma^+$ symmetry (irrep $A_1$). The complete active space consists of 6 electrons in 21 orbitals.
+The initial guesses for 9 $a_1$ orbitals, 6 $e_{1x}$ orbitals and 6 $e_{1y}$ orbitals are taken from a Hartree-Fock calculation.
+Although the large active space captures
+both static and some dynamic correlation, the avoided crossing is underestimated at $6.8~\AA$. An even larger active space
+should shift the avoided crossing closer to the experimental value, but the calculation would become too
+expensive for a desktop computer. The exact position is of little importance. 
+The goal is to validate the matrix functional at the (almost) exact matrix density.
+
+Figure \ref{fig:lithium-fluoride_potential_energies_and_matrix_density} shows the CASSCF potential energy curves
+and the matrix densities at the experimental minimum and at the avoided crossing.
+With the naked eye it is difficult to discern the small differences between the densities in different states.
+The matrix density is the only input to the matrix functional. 
+The electron-repulsion and kinetic part of the effective Hamiltonian predicted by the L(S)DA matrix functional
+is shown in Fig.~\ref{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies} for different bond lengths. 
+Figures \ref{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies}a) and b)
+suggest that both the diagonal and off-diagonal matrix elements of the electron-repulsion operator are
+perfectly reproduced. After subtracting the large Hartree term, the exchange-correlation matrix still agrees
+well with the exact one (Fig.~\ref{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies}c and d).
+Table \ref{tbl:lithium_fluoride_electron_repulsion_and_kinetic} shows the individual components of the functionals
+and the exact values at the avoided crossing.
+The exchange part accounts for most of the exchange-correlation and is approximately a factor of 10 larger than the correlation energy.
+This statement applies both for the diagonal and the off-diagonal elements.
+
+It is remarkable that the off-diagonal matrix elements match so well. Diagonal and off-diagonal
+matrix elements are treated on the same footing. The off-diagonal elements emerge naturally when turning the
+scalar L(S)DA functional into a matrix functional by keeping its functional form (same coefficients in Taylor expansion)
+and replacing the scalar density $\rho(\vec{r})$ with the matrix density $\m{D}(\vec{r})$.
+Diagonal and off-diagonal elements are not independent of each other. A unitary rotation in the subspace of
+the lowest eigenstates would mix them. Because the matrix density is represented in the adiabatic basis,
+the Hamiltonian $\m{H}[\m{D}(\vec{r})]$ is diagonal. If instead the adiabatic eigenstates $1^1\Sigma^+$ and $2^1\Sigma^+$ were to
+be mixed to form diabatic states, which have ionic (Li$^+$F$^-$) or covalent (Li$^{\bullet}$F$^{\bullet}$) character,
+the matrix functional for the Hamiltonian $\m{H}[\m{D}(\vec{r})]$ would also give the correct diabatic state energies and
+diabatic coupling $H_{01}$ (to the extent
+possible for a simple L(S)DA functional). By construction the functionals of the matrix density transform like
+the Hamiltonian under rotations within the subspace.
+
+The kinetic energy functional on the other hand disappoints
+(Figs.~\ref{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies}e and f).
+While the curve of the off-diagonal element $T_{0,1}$
+follows the exact matrix element at least qualitatively, the diagonal elements are wrong by more than 1 Hartree.
+More importantly, the kinetic energy difference between the two states is overestimated by a factor of two.
+These failures are expected in view of the known difficulties in designing kinetic energy functionals for
+orbitals-free DFT.
+
+\begin{figure}[h!]
+  \includegraphics[width=0.9\textwidth]{figures/lithium-fluoride_potential_energies_and_matrix_density.png}
+\caption{
+\textbf{Lithium-fluoride.}
+(a) SA-2-CASSCF(6,12)/aug-cc-pVQZ potential energy curves
+for the lowest 2 singlet states with $\Sigma^+$ symmetry, inset: zoom around avoided crossing.
+(b,c) Visual representation of the matrix density $D_{IJ}(\vec{r}) = D^{\alpha}_{IJ}(\vec{r}) + D^{\beta}_{IJ}(\vec{r})$
+of lithium-fluoride at the experimental bond length of $1.564~\AA$ (b) and at the avoided curve crossing (c).
+Diagonal blocks show the electronic state densities for the states $1^1\Sigma^+$ and $2^1\Sigma^+$,
+off-diagonal blocks the transition density.
+Isovalues of 0.025 and $\approx 0.001$ were used for the state densities and the transition densities, respectively.}
+%Since the ground state is ionic and the excited state is covalent, the transition density between the
+%two states is low.
+\label{fig:lithium-fluoride_potential_energies_and_matrix_density}
+\end{figure}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.9\textwidth]{figures/lithium-fluoride_electron_repulsion_and_kinetic_energies.png}
+\caption{
+\textbf{Lithium-fluoride.}
+Comparison between exact WFT (solid lines) and approximate DFT matrix elements (dashed lines)
+of the total electron-electron repulsion (a,b), the exchange-correlation (c,d) and the kinetic energy (e,f)
+in the basis of the adiabatic eigenstates $1^1\Sigma^+$ ($I=0$) and $2^1\Sigma^+$ ($I=1$).
+Left column: diagonal elements, Right column: off-diagonal element.
+}
+\label{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies}
+\end{figure}
+
+\FloatBarrier
+
+\input{tables/lithium-fluoride_electron_repulsion_and_kinetic.tex}
 
 \FloatBarrier
 
