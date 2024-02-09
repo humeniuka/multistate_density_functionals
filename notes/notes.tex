@@ -132,6 +132,32 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\section{Introduction}
 
+% Motivation
+Kohn-Sham (KS) density functional theory (DFT) is probably the single most used electronic structure
+method in academia and industry, because it can be operated as a black box and often gives
+reasonable answers without requiring excessive computational time.
+For molecules, linear-response time-dependent DFT (LR-TDDFT) provides excited state properties.
+However, both methods fail when an excited state becomes nearly degenerate with the ground state,
+which cannot be described by a single Slater determinant. This happens at unstable molecular
+geometries, when bonds are broken, at transition states and conical intersections.
+In wavefunction theory (WFT) the near-degenerate states can be included in a multi-state treatment
+through configuration interaction (CI) or multi-configurational self-consistent field (MC-SCF).
+A few important configurations can capture the "static correlation" and give a qualitatively correct
+electronic structure. The remaining configurations each have a very small weight in the wavefunction,
+but since there are many of them, huge CI expansions are needed to get accurate, quantitative energies.
+This energy contribution is termed the "dynamic correlation" energy.
+The distinction between "static" and "dynamic" correlation is somewhat fuzzy, as it depends on the partitioning
+of the Hilbert space into a few strongly interacting states and the rest. However, it is the treatment of the
+"dynamic correlation" by perturbation theory or configuration interaction
+that makes wavefunction-based methods so expensive. In density functional theory, on the other hand, the exchange-correlation
+functional already accounts for the "dynamic correlation", while the "static correlation" is problematic.
+Since DFT is formulated in terms of the electron density rather than wavefunctions, it is not clear how to compute
+the interaction of states, which gives the off-diagonal elements in some effective Hamiltonian.
+
+The development of a multi-configurational DFT is an active research area.
+
+% 
+
 Recently Lu and Gao \cite{Lu2022JPCL} published a new, rigorous density functional theory for excited states, in which the ground
 and excited states are treated on an equal footing. The fundamental variable is the projection
 of the one-particle density operator $\hat{\rho}(\vec{r}) = \sum_{i=1}^{n_e} \delta(\hat{\vec{r}}_i - \vec{r})$ on the subspace
@@ -241,21 +267,24 @@ The question of parameterizing the matrix density will not be touched further.
 % Lu and Gao prove that such a parameterization is possible in terms of a minimal with no more than N^2 non-orthogonal Slater determinants.
 
 %%% THE FOLLOWING IS KIND OF OBVIOUS, WITHOUT A VARIATIONAL PRINCIPLE A MAPPING FROM THE DENSITY TO THE EIGENSTATES IS NOT HELPFUL.
-%The Hohenberg-Kohn theorem tells us that the ground state density $\rho_0(\vec{r})$
-%contains all information about the external potential $v(\vec{r})$
-%and as such it is formally possible to obtain the entire spectrum from the ground state density alone,
-%\begin{equation}
-%\rho_{0}(\vec{r}) \xrightarrow{\text{HK theorem}} v(\vec{r}) \longrightarrow \hat{H} = \hat{T} + \hat{W} + v(\vec{r}) \xrightarrow{\text{Schr\"{o}dinger eqn.}} \{ E_I, \Psi_I \}.
-%\label{eqn:HK_density_to_spectrum}
-%\end{equation}
-%However, this is of no practical use, since the knowledge that the mapping of Eqn.~\ref{eqn:HK_density_to_spectrum}
-%must exists provides no clue how to get from the left side to the right side.
-%from the ground state density to the excitation energies.
-%%%% 
-
-Of course the exact universal functional is unknown, but 
-the significance of the theorems by Lu and Gao is that their
-universal matrix functional can be approximated.
+The Hohenberg-Kohn (HK) theorem tells us that the ground state density $\rho_0(\vec{r})$
+contains all information about the external potential $v(\vec{r})$
+and as such it is formally possible to obtain the entire spectrum from the ground state density alone,
+\begin{equation}
+\rho_{0}(\vec{r}) \xrightarrow{\text{HK theorem}} v(\vec{r}) \longrightarrow \hat{H} = \hat{T} + \hat{W} + v(\vec{r}) \xrightarrow{\text{Schr\"{o}dinger eqn.}} \{ E_I, \Psi_I \}.
+\label{eqn:HK_density_to_spectrum}
+\end{equation}
+However, this is of no practical use, since the knowledge that the mapping of Eqn.~\ref{eqn:HK_density_to_spectrum}
+must exists provides no clue how to get from the left side to the right side.
+ The matrix density $\m{D}(\vec{r})$ has the ground state density as its first element $\rho_{0}(\vec{r}) = D_{0,0}(\vec{r})$ on the diagonal
+and therefore contains more information than strictly needed. For reference, in Theophilou's subspace DFT it is not possible to obtain the
+ground state density $\rho_0(\vec{r})$ easily from the average subspace density $\rho_{\mathbb{V}^N}(\vec{r})$ without determining the subspace
+$\mathbb{V}^N$, which is the difficult part.
+%Of course the exact universal functional is unknown. 
+The significance of the theorems by Lu and Gao, therefore, is not so much the existence of the mapping $\m{D}(\vec{r}) \to \m{H}$ (which is already
+guaranteed by the HK theorem) but that their
+universal matrix functional has the transformation property \ref{eqn:F_basis_transformation}.
+This restricts the structure of the universal functional and gives some hints on how it can be approximated.
 
 An important open question is how to find approximate multistate density functionals. 
 In a preprint on Chemrxiv \cite{lu_gao_2021_chemrxiv} Lu and Gao mention that a local ground state functional
@@ -269,6 +298,8 @@ are approximated by integrals over \emph{functions},
   E_{xc}[\rho(\vec{r})] &= \int d^3\!r ~ \epsilon_{xc}(\rho(\vec{r})), \\
   T[\rho(\vec{r})] &= \int d^3\! ~ t(\rho(\vec{r})).
 \end{align}
+% The definition of $\epsilon_{xc}$ differs from the usual one, it is not the xc-energy per particle, so there is no additional factor of
+% $\rho$ under the integral.
 The energy density $\epsilon_{xc}(\rho)$ and the kinetic energy density $t(\rho)$ are functions
 of a scalar variable. Let us call such a function $f: \mathbb{R} \mapsto \mathbb{R}$.
 Assuming that $f$ is an analytic function, so that all the derivatives $f^{(k)}(\rho) = \frac{d^k f}{d\rho^k}$ exist,
@@ -373,7 +404,7 @@ that combines the best of both worlds. In the spirit of multiconfiguration self-
 into the configurations by DFT, while static correlation is accounted for by letting the configurations interact.
 Diagonalizing an effective Hamiltonian leads to the adiabatic eigenstates. MSDFT is akin to multiconfigurational wavefunction-based methods such
 MCSCF or MRCI, but has the advantage that only a minimal number of configurations is needed \cite{Lu2022fundamental} since DFT
-is very good at handling the dynamic correlation.
+is very good at handling the dynamic correlation. \cite{Leininger1997combining}
 The diagonal elements
 of the configuration interaction Hamiltonian $\m{H}$ are obtained by applying ground state Kohn-Sham (KS) theory to the state density $\rho_A$,
 \cite[Eqn.~(3)]{Grofe2017} \cite[Eqn.~(12)]{Zhu2023}
@@ -567,6 +598,8 @@ It uses CASSCF wavefunctions to calculate the kinetic energy, nuclear attraction
 repulsion energy, while the indirect part is computed from the one-particle density and the on-top pair density using
 a new type of density functional. In this way double counting of the correlation energy is avoided.
 A variational version of pair-density functional theory has been published recently. \cite{Scott2024}
+% Double counting can also be avoided by splitting the Coulomb interaction into a short- and a long-range part and
+% treating the first with DFT and the latter with WFT \cite{Leininger1997combining}.
 Although the exact pair-density functional,
 if it even exists, is unknown, ground state functionals of the total density and spin polarization can be "translated"
 into functionals of the total density and on-top pair density. \cite{LiManni2014}
@@ -578,6 +611,10 @@ The diagonal elements of the Hamiltonian come from
 MC-PDFT calculations for each state using the translated functional. 
 For lack of a prescription for the off-diagonal Hamiltonian matrix elements in the DFT framework, a kind of diabatization
 scheme is employed to get non-zero couplings between the states. \cite{Sand2018state}
+A later multistate (MS) version of PDFT, called VMS-PDFT (V for variational), determines the unitary transformation
+from the SA-CASSCF wavefunctions to a set of intermediate states, which give rise to off-diagonal couplings,
+by maximizing the trace of the effective Hamiltonian. \cite{Bao2020multi} The dependence of the trace on the basis transformation
+is an artifact of making different approximations to the diagonal and off-diagonal elements.
 Sand et al. state that "the evaluation of off-diagonal elements in an effective Hamiltonian is not well-defined,
 as no density functional that couples two interacting states is available". \cite{Sand2018state}
 The purpose of this artice is to show
@@ -587,6 +624,9 @@ This observation might also be relevant for evaluating the diabatic couplings
 of constrained DFT configuration interaction (CDFT-CI)\cite{Wu2007configuration}.
 Depending on whether the adiabatic or some diabatic basis is chosen to represent the matrix density,
 the matrix density functional will yield the corresponding adiabatic or diabatic Hamiltonian.
+The trace of the effective Hamiltonian produced with a matrix functional is unitarily invariant by construction.
+
+% The trace of the effective Hamiltonian is not invariant 
 
 In general, existing variational DFT methods suffer from the lack of a clear route to designing new
 functionals that go beyond repurposing existing KS-DFT functionals. The other open question is how
@@ -599,7 +639,7 @@ First of all, the universal functional only depends on a matrix representation o
 operator, the \emph{matrix density}. The matrix density contains the densities of the electronic states on the diagonal
 and the transition densities between them in the off-diagonal elements. It represents the electron density operator
 in a subspace of electronic states. It should not be confused with the density matrix of a single electronic state.
-Each matrix element is a function of space. An although the number of rows and columns of the matrix density is equal
+Each matrix element is a function of space. And although the number of rows and columns of the matrix density is equal
 to the number of electronic states that are considered, I will
 argue that the functional of Lu and Gao does not depend on the number of states,
 because it is an \emph{analytic matrix functional}.
@@ -612,6 +652,9 @@ Secondly, MSDFT closely resembles state-averaged CASSCF of wavefunction theory a
 states is much more transparent than in ensemble DFT,
 where the densities of the individual states are combined into a single ensemble density,
 whose physical meaning is not so obvious.
+% Another advantage of MSDFT over ensemble DFT \cite[4.4.4 Maitra and Ullrich]{Teale2022dft_exchange}
+% is that it gives the oscillator strengths, since the matrix density contains the transition densities.
+%
 %Since the multistate energy of the interacting states is minimized directly, there is no system of non-interacting electrons.
 
 % Ensemble DFT (Theophilou)
@@ -847,7 +890,7 @@ Since $\m{D}^{(2N)}(\vec{r})$ has at most rank $N$ (the number of wavefunctions 
   \end{pmatrix}
 \end{equation}
 
-Now we right out the Taylor expansion and focus only on the term linear in $\m{D}^{(2N)}(\vec{r})$, but higher-order terms work the same way:
+Now we write out the Taylor expansion and focus only on the term linear in $\m{D}^{(2N)}(\vec{r})$, but higher-order terms work the same way:
 
 \begin{align}
   &\mathcal{F}^{(2N)}[\m{D}^{(2N)}(\vec{r})] = \int d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(2N)}(\vec{r}_1)), \mathcal{N}^{(2N)}(\vec{r}_1) \right) \m{D}^{(2N)}(\vec{r}_1) + \ldots \\
@@ -888,7 +931,7 @@ Now the dimension of the argument is the same on both sides. The above equality 
 \begin{equation}
  \mathcal{F}[\rho(\vec{r})] = T[\rho(\vec{r})] + E_{\text{Hxc}}[\rho(\vec{r})]
 \end{equation}
-However, deducing the multi-state functional from known ground-state kinetic-energy and Hartree-exchange-correlation functionals is not possible. Even if one has a closed expression of the functionals in term of $\rho(\vec{r})$, $\nabla \rho(\vec{r})$, $\ldots$, it is not clear where $\rho(\vec{r})$ has to be replaced by the scalar $\tr(\m{D}(\vec{r}))$ and where by the matrix $\m{D}(\vec{r})$. For $N=1$, all three are the same, i.e. $\rho(\vec{r}) = \tr(\m{D}(\vec{r})) = \m{D}(\vec{r})$.
+However, deducing the exact multi-state functional from known ground-state kinetic-energy and Hartree-exchange-correlation functionals is not possible. Even if one has a closed expression of the functionals in term of $\rho(\vec{r})$, $\nabla \rho(\vec{r})$, $\ldots$, it is not clear where $\rho(\vec{r})$ has to be replaced by the scalar $\tr(\m{D}(\vec{r}))$ and where by the matrix $\m{D}(\vec{r})$. For $N=1$, all three are the same, i.e. $\rho(\vec{r}) = \tr(\m{D}(\vec{r})) = \m{D}(\vec{r})$.
 Nevertheless ground-state functionals can give some guidance.
 
 The next step is to find a multistate matrix density functional, that satisfies the above constraints and ideally reduces to some known ground state functional for $N=1$.
@@ -1586,6 +1629,7 @@ and a correlation-like contribution,
 C[\rho^{\alpha}_{1s}] = \int \rho^{\alpha}_{1s}(\vec{r}) \epsilon_{\text{corr}}(\rho^{\alpha}_{1s}(\vec{r})),
 \end{equation}
 that have to be subtracted from the diagonal elements $I_{II}[\m{D}]$.
+This completely removes a single core electron's repulsion with itself.
 The off-diagonal elements $I_{IJ}[\m{D}]$, $I \neq J$, do not suffer from the self-intersection problem.
 The self-interaction energies from different elements (except the very light ones like hydrogen, lithium etc.) are added.
 Since core orbitals are doubly occupied, a factor two appears.
@@ -1846,7 +1890,7 @@ While the curve of the off-diagonal element $T_{0,1}$
 follows the exact matrix element at least qualitatively, the diagonal elements are wrong by more than 1 Hartree.
 More importantly, the kinetic energy difference between the two states is overestimated by a factor of two.
 These failures are expected in view of the known difficulties in designing kinetic energy functionals for
-orbitals-free DFT.
+orbitals-free DFT \cite{Teale2022dft_exchange}.
 
 \begin{figure}[h!]
   \includegraphics[width=0.9\textwidth]{figures/lithium-fluoride_potential_energies_and_matrix_density.png}
