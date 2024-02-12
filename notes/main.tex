@@ -5,8 +5,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Use single column for preprint.
-%\documentclass[journal=jpclcd,manuscript=letter]{achemso}
-\documentclass[journal=jpclcd,manuscript=letter,layout=twocolumn]{achemso}
+\documentclass[journal=jpclcd,manuscript=letter]{achemso}
+%\documentclass[journal=jpclcd,manuscript=letter,layout=twocolumn]{achemso}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Place any additional packages needed here.  Only include packages
@@ -50,6 +50,7 @@
 \renewcommand\vec[1]{\mathbf{#1}}
 
 \setkeys{acs}{doi = true}
+\SectionNumbersOn
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Meta-data block
@@ -129,7 +130,17 @@
 %% if an abstract is not used by the target journal.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{abstract}
-
+% Recently Lu and Gao [J. Phys. Chem. Lett. 13, 33, 7762-7769 (2022)]
+% published a new, rigorous density functional theory for excited states, in which the ground
+% and excited states are treated on an equal footing. The fundamental variable is the projection
+% of the one-particle density operator on the subspace of the lowest $N$ eigenstates.
+% * Universal functional F does not depend on the number of states
+% * F is an analytical matrix functional.
+%
+% Two principles will guide the search for the multistate matrix functional:
+% (a) The functional should transform properly under basis transformations.
+% (b) For a single eletronic state, the functional form of an existing ground state functional should be recovered.
+% These criteria are not enough to determine the functional uniquely. When in doubt, one of the simplest alternatives is chosen.
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -168,13 +179,727 @@
 %   - LiF dissociation curve
 % * Conclusion
 
+\section{Introduction}
+%%%%% Motivation for developing multiconfigurational DFT
+Kohn-Sham (KS) density functional theory (DFT) \cite{Hohenberg1964inhomogeneous,Kohn1965} is probably the single most used electronic structure
+method in academia and industry, because it can be operated as a black box and often gives
+reasonable answers without requiring excessive computational time.
+For molecules, linear-response \cite{Casida1995} time-dependent \cite{Runge1984} DFT (LR-TDDFT) provides excited state properties very efficiently,
+but it has problems with core-excitations [CITATION],
+doubly excited states \cite{Levine2006conical}, charge transfer states \cite{Dreuw2003long},
+Rydberg states \cite{Dreuw2003long} and conical intersections to the ground state \cite{Levine2006conical}.
+Although some of these issues can be fixed with tuned \cite{Stein2009reliable} range-separated hybrid \cite{Tawada2004long} functionals or spin-flip DFT \cite{Shao2003spin},
+whenever the electronic structure becomes more complicated, multi-reference wavefunction-based methods have to be employed.
+
+In particular, (TD)-DFT fails when an excited state comes close in energy to the ground state,
+which then cannot be described by a single Slater determinant. This happens at unstable molecular
+geometries, when bonds are broken, such as in diradicals, at transition states and conical intersections.
+% Near-degenerate spin states in transition metal coordination complexes are also problematic.
+% Even the open-shell singlet state of the dissociated hydrogen molecule cannot  [I HAVE TO READ MORE ABOUT THIS]
+
+In wavefunction theory (WFT) the near-degenerate states can be included in a multi-state treatment
+through configuration interaction (CI) or multi-configurational self-consistent field (MC-SCF).
+A few important configurations can capture the "static correlation" and give a qualitatively correct
+electronic structure. The remaining configurations each have a very small weight in the wavefunction,
+but since there are many of them, huge CI expansions are needed to get accurate, quantitative energies.
+This energy contribution is termed the "dynamic correlation" energy.
+The distinction between "static" and "dynamic" correlation is somewhat fuzzy, as it depends on the partitioning
+of the Hilbert space into a few strongly interacting states and the rest. However, it is the treatment of the
+"dynamic correlation" by perturbation theory or configuration interaction
+that makes wavefunction-based methods so expensive. In density functional theory, on the other hand, the exchange-correlation
+functional already accounts for the "dynamic correlation", while the "static correlation" is problematic.
+Since DFT is formulated in terms of the electron density rather than wavefunctions, it is not clear how to compute
+the interaction of states, which gives the off-diagonal elements in some effective Hamiltonian.
+The central question in this article therefore is the following: 
+How does one get the off-diagonal matrix elements for treating static correlation with DFT in a configuration-interaction-like manner?
+
+%%%%% State of the art: Multi-configurational and variational DFT
+The development of a multi-configurational and time-independent, variational DFT is an active research area,
+but a far cry from the established TD-DFT.
+A number of variational density-functional theories for excited states have been formulated, most notably
+Theophilou's subspace DFT \cite{Theophilou1979}, Gross-Oliveira-Kohn ensemble DFT \cite{Gross1988ReyleighRitz} and
+Levy \& Nagy's variational DFT for individual excited states \cite{Levy1999}.
+In those theories, the universal excited-state functional depends on additional parameters apart from an electronic density,
+which allow to distinguish between the excited state and the ground state: In ensemble density functional theory
+\cite{Gross1988ReyleighRitz,Gross1988EnsembleDFT} there is a dependence on a vector of ensemble weights
+and Levy \& Nagy's excited state functional \cite{Levy1999} depends on both the excited and the ground state densities.
+In addition the functionals seem to depend on
+the number of electronic states, so that a different functional would be needed for 2,3 etc. states:
+In ensemble DFT the length of the weight vector changes with the number of states $k$;
+in Levy and Nagy's theory the constrained search in Eqn.(2) of Ref.~\cite{Levy1999} is over all wavefunctions that are orthogonal
+to the first $k-1$ states, which introduces an implicit dependence on $k$.
+Ayers showed that the Coulomb interaction is special, because the density of an excited state of a Coulombic system also encodes
+the excitation level, so that no additional parameters are needed. \cite{Ayers2012} The universal functional for
+any electronic state depends only on the electronic density, provided that the external potential is Coulombic. \cite{Ayers2012}
+However, although the existence of those universal functionals can be proven,
+it is not clear how to approximate them for practical calculations
+and if or how they differ from the ground state functional.
+
+Deur et al. worked out the weight-dependent ensemble functional for the asymmetric Hubbard dimer \cite{Deur2017},
+which is a two-state model for H$_2$. However, in the model, the "density" object is a vector of site occupations
+and not on a real space density, therefore the findings are not transferable to realistic molecular Hamiltonians.
+
+Most publications on time-independent DFT are formal. They derive their value from providing justification for
+the use of some simpler theory such as $\Delta$SCF which employs a ground state functional.
+Numerical calculations using variational DFT methods are rare and usually reuse the ground state functional.
+Pastorczak at al. tested ensemble DFT methods on small molecules using ground state functionals or exact exchange
+with self- and ghost-interaction corrections. \cite{Pastorczak2014} They found that the corrections
+do not necessarily improve the energies and that ensemble DFT cannot compete with TD-DFT in terms of accuracy. \cite{Pastorczak2014}
+
+% MSDFT
+Multistate density functional theory (MSDFT)
+\cite{Gao2016} predates the rigorous theorems of Lu and Gao \cite{Lu2022JPCL}
+that establish a existence of a universal functional of the matrix density.
+Originally MSDFT was developed as a hybrid between DFT and wavefunction theory (WFT) for treating multiconfigurational problems
+that combines the best of both worlds. In the spirit of multiconfiguration self-consistent field (MCSCF) dynamic correlation is incorporated
+into the configurations by DFT, while static correlation is accounted for by letting the configurations interact.
+Diagonalizing an effective Hamiltonian leads to the adiabatic eigenstates. MSDFT is akin to multiconfigurational wavefunction-based methods such
+MCSCF or MRCI, but has the advantage that only a minimal number of configurations is needed \cite{Lu2022fundamental} since DFT
+is very good at handling the dynamic correlation. \cite{Leininger1997combining}
+
+% MC-PDFT
+Another approach for combining WFT and DFT is multiconfiguration pair-density functional theory (MC-PDFT). \cite{LiManni2014}
+It uses CASSCF wavefunctions to calculate the kinetic energy, nuclear attraction and direct part of the electron-electron
+repulsion energy, while the indirect part is computed from the one-particle density and the on-top pair density using
+a new type of density functional. In this way double counting of the correlation energy is avoided.
+Double counting can also be avoided by splitting the Coulomb interaction into a short- and a long-range part and
+treating the first with DFT and the latter with WFT \cite{Leininger1997combining}.
+A variational version of pair-density functional theory has been published recently. \cite{Scott2024}
+Although the exact pair-density functional,
+if it even exists, is unknown, ground state functionals of the total density and spin polarization can be "translated"
+into functionals of the total density and on-top pair density. \cite{LiManni2014}
+When states interact strongly around conical intersections or avoided crossings, they cannot be calculated separately as
+this can lead to spurious crossings of potential energy surfaces. \cite{Sand2018state}
+State-interaction pair-density functional theory (SI-PDFT)
+\cite{Sand2018state} remedies this problem by diagonalizing the effective Hamiltonian in a final step.
+The diagonal elements of the Hamiltonian come from 
+MC-PDFT calculations for each state using the translated functional. 
+For lack of a prescription for the off-diagonal Hamiltonian matrix elements in the DFT framework, a kind of diabatization
+scheme is employed to get non-zero couplings between the states. \cite{Sand2018state}
+A later multistate (MS) version of PDFT, called VMS-PDFT (V for variational), determines the unitary transformation
+from the SA-CASSCF wavefunctions to a set of intermediate states, which give rise to off-diagonal couplings,
+by maximizing the trace of the effective Hamiltonian. \cite{Bao2020multi} The dependence of the trace on the basis transformation
+is an artifact of making different approximations to the diagonal and off-diagonal elements.
+Sand et al. state that "the evaluation of off-diagonal elements in an effective Hamiltonian is not well-defined,
+as no density functional that couples two interacting states is available". \cite{Sand2018state}
+The purpose of this artice is to show
+that it is indeed possible to obtain off-diagonal elements with the help of
+matrix density functional theory, and that it is not necessary to treat diagonal and off-diagonal elements differently.
+This observation might also be relevant for evaluating the diabatic couplings
+of constrained DFT configuration interaction (CDFT-CI)\cite{Wu2007configuration}.
+Depending on whether the adiabatic or some diabatic basis is chosen to represent the matrix density,
+the matrix density functional will yield the corresponding adiabatic or diabatic Hamiltonian.
+The trace of the effective Hamiltonian produced with a matrix functional is unitarily invariant by construction.
+
+In general, existing variational DFT methods suffer from the lack of a clear route to designing new
+functionals that go beyond repurposing existing KS-DFT functionals. The other open question is how
+to compute matrix elements for state interactions consistently with density functional theory.
+
+% Lu and Gao's rigorous MSDFT.
+The rigorous, multistate DFT theory by Lu and Gao \cite{Lu2022JPCL} might provide answers to those questions.
+First of all, the universal functional only depends on a matrix representation of the one-particle density
+operator, the \emph{matrix density}. The matrix density contains the densities of the electronic states on the diagonal
+and the transition densities between them in the off-diagonal elements. It represents the electron density operator
+in a subspace of electronic states. It should not be confused with the density matrix of a single electronic state.
+Each matrix element is a function of space. And although the number of rows and columns of the matrix density is equal
+to the number of electronic states that are considered, I will
+argue that the functional of Lu and Gao does not depend on the number of states,
+because it is an \emph{analytic matrix functional}.
+This property suggests a simple path to an approximate multistate functional: by retaining the functional form
+of an approximate ground state functional and replacing the scalar density with the matrix density \cite{lu_gao_2021_chemrxiv}.
+The universal matrix functional provides not only the state energies but also the off-diagonal elements of the Hamiltonian.
+The resulting theory is somewhat similar to valence bond theory or the multi-configurational self-consistent field (MCSCF) method,
+however it is formulated in terms of electron densities and transition densities rather than wavefunctions.
+Secondly, MSDFT closely resembles state-averaged CASSCF of wavefunction theory and the interaction between
+states is much more transparent than in ensemble DFT,
+where the densities of the individual states are combined into a single ensemble density,
+whose physical meaning is not so obvious.
+
+\textbf{Outline of the article:} Section \ref{sec:lu_gao_theorems} summarizes Lu and Gao's theorems and highlights
+the importance of how the universal functional transforms under a change of basis.
+Section \ref{ref:review_transition_functional} reviews the definitions of the
+\emph{transition density functional} and the \emph{multistate correlation matrix functional}
+and argues for partitioning the universal functional in such a way into Hartree, exchange and correlation
+that each part transforms properly under basis transformations.
+The basic recipe for translating ground state Kohn-Sham functionals into matrix density functionals by repurposing
+the coefficients of their Taylor series and the limitations of this approach are outlined in section \ref{sec:basic_ideas_Taylor_series}.
+This idea only works if the universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ has certain mathematical properties: 
+Section \ref{sec:properties_analytic_matrix_functional} introduces the term \emph{analytical matrix functional} to characterize $\m{\mathcal{F}}$
+and sketches a proof that $\m{\mathcal{F}}[\m{D}(\vec{r})]$ does not explicitly depend on the dimension of the subspace,
+i.e. the dimension of the matrix $\m{D}(\vec{r})$.
+...
+
+\subsection{Rigorous MSDFT: Lu \& Gao's Theorems
+\label{sec:lu_gao_theorems}
+}
+Recently Lu and Gao \cite{Lu2022JPCL} published a new, rigorous density functional theory for excited states, in which the ground
+and excited states are treated on an equal footing. The fundamental variable is the projection
+of the one-particle density operator $\hat{\rho}(\vec{r}) = \sum_{i=1}^{n_e} \delta(\hat{\vec{r}}_i - \vec{r})$ on the subspace
+$\mathbb{V}^N$ of the lowest $N$ eigenstates. The role of the scalar density $\rho(\vec{r})$
+from the Hohenberg-Kohn theorem is taken by the multistate matrix density $\m{D}(\vec{r})$,
+which is a matrix function of position $\vec{r}$
+having the state densities $D_{II}(\vec{r}) = \rho_{I}(\vec{r})$ on its diagonal and the transition densities
+$D_{IJ}(\vec{r}) = \langle \Psi_I \vert \sum_{i=1}^{n_e} \delta(\hat{\vec{r}}_i - \vec{r}) \vert \Psi_J \rangle$ on the off-diagonal.
+Building on Theophilou's theorem \cite{Theophilou1979}, which states that the subspace of the lowest $N$ electronic states is uniquely
+determined by the average density of those states, Lu and Gao prove two theorems that give access to the individual eigenenergies:
+
+(1) Firstly they showed that the projection of the Hamiltonian operator onto the subspace $\mathbb{V}^N$ is a functional $\m{H}[\m{D}(\vec{r})]$ of the
+matrix density $\m{D}(\vec{r})$. \cite[theorem 1]{Lu2022JPCL}
+According to Theophilou's theorems \cite{Theophilou1979},
+the subspace $\mathbb{V}^{N}$ is uniquely determined
+by the average subspace density, $\rho_{\mathbb{V}^N}(\vec{r}) = \frac{1}{N} \sum_{I=1}^N D_{II}(\vec{r})$. Two matrix densities
+$\m{D}(\vec{r})$ and $\m{D}'(\vec{r})$ having the same subspace density,
+\begin{equation}
+\frac{1}{N} \tr(\m{D}(\vec{r})) = \frac{1}{N} \tr(\m{D}'(\vec{r}))
+\end{equation}
+define the same subspace $\mathbb{V}^{N}$ and can only differ by a unitary transformation within the subspace. The
+corresponding Hamiltonians $\m{H}'$ and $\m{H}$ differ by the same transformation. Therefore  $\m{D}(\vec{r})$
+determines $\m{H}$ uniquely.
+This multi-state analogue of the Hohenberg-Kohn theorem implies that the Hamiltonian can be split into an
+external potential (the attractive nuclear potential which differs for each molecule) and a universal functional $\m{F}[\m{D}(\vec{r})]$ for the
+electronic kinetic energy and electron-electron repulsion (that is the same for all systems):
+\begin{equation}
+ \m{H}[\m{D}(\vec{r})] = \m{\mathcal{F}}[\m{D}(\vec{r})] + \int d^3\!r ~ v(\vec{r}) \m{D}(\vec{r})
+\end{equation}
+Both $\m{H}$ and $\m{\mathcal{F}}[\m{D}(\vec{r})]$ are $N \times N$ matrices.
+
+An important consequence of the fact that both $\m{D}(\vec{r})$ and $\m{H}[\m{D}(\vec{r})]$ are projections of operators onto a subspace, is
+that the universal matrix functional transforms bilinearly under a change of basis within the subspace. \cite[(3)]{Lu2022JPCL}
+If the states in the subspace are transformed as $\vert \Psi_I' \rangle = \sum_{J=1}^N L^*_{IJ} \vert \Psi_J \rangle$,
+the matrix density in the new basis becomes
+\begin{equation}
+D_{IJ}'(\vec{r}) = \langle \Psi_I' \vert \hat{\rho}(\vec{r}) \vert \Psi_J' \rangle
+= \sum_{K,L=1}^{N} L_{IK} \langle \Psi_K \vert \hat{\rho}(\vec{r}) \vert \Psi_L \rangle L^*_{JL},
+\end{equation}
+or written in matrix notation
+\begin{equation}
+\m{D}'(\vec{r}) = \m{L} \m{D}(\vec{r}) \m{L}^{\dagger}.
+\end{equation}
+Similarly the Hamiltonian in the new basis becomes
+\begin{equation}
+\m{H}' = \m{L} \m{H} \m{L}^{\dagger}.
+\end{equation}
+This means that the universal functional has to transform as \cite{Lu2022JPCL}
+\begin{equation}
+ \m{\mathcal{F}}[\m{L} \m{D}(\vec{r}) \m{L}^{\dagger}] = \m{L} \m{\mathcal{F}}[\m{D}(\vec{r})] \m{L}^{\dagger} \label{eqn:F_basis_transformation}
+\end{equation}
+under a basis transformation $\m{L}$. Note that $\m{D}(\vec{r})$ is an $N \times N$ matrix function of $\vec{r}$,
+but the basis transformation $\m{L}$ is just an $N \times N$ matrix.
+ The relation \ref{eqn:F_basis_transformation} is very important, since it constrains
+the search for matrix functionals to the class of \emph{analytic matrix functionals}, as will be explained later on.
+It also implies that its functional form
+is independent of the number of states in the subspace, so that the same functional holds for $N$ states or for a single state $1$.
+An approximation to the universal matrix functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ automatically gives an approximate universal
+functional of the ground state density $\mathcal{F}[\rho(\vec{r})]$. The reverse direction (deducing $\m{\mathcal{F}}[\m{D}(\vec{r})]$
+from $\mathcal{F}[\rho(\vec{r})]$) is not so easy because of the non-commutativity of matrix multiplication.
+Nevertheless relation \ref{eqn:F_basis_transformation} can guide the search for matrix functionals.
+
+(2) Secondly Lu and Gao formulated a variational principle for finding the exact $\m{D}(\vec{r})$, which is a consequence of theorem 2
+of Theophilou's subspace DFT. \cite{Theophilou1979}
+Let the $N$ orthonormal trial vectors $\Psi_I'$ span the subspace $\mathbb{V}^{N'}$.
+Then the average subspace energy, the multistate (MS) energy in the notation of Lu and Gao,
+\begin{equation}
+  E_{\text{MS}}[\{\Psi_I'\}] = \frac{1}{N} \sum_{I=1}^{N} \langle \Psi_I' \vert \hat{H} \vert \Psi_I' \rangle,
+\end{equation}
+of the trial space is larger or equal than
+the subspace energy of the exact subspace (which is spanned by the exact lowest $N$ eigenstates $\Psi_I$),
+\begin{equation}
+E_{\text{MS}}[\mathbb{V}^N] \leq E_{\text{MS}}[\mathbb{V}^{N'}]
+\end{equation}
+Since according to Theophilou's theorems 3 to 5 the subspace is uniquely determined by the subspace density
+$\rho_{\mathbb{V}^N}(\vec{r}) = \frac{1}{N} \sum_{I=1}^{N} D_{II}(\vec{r})$,
+\begin{equation}
+ \m{D}(\vec{r}) \longrightarrow \rho_{\mathbb{V}^N} \longrightarrow \mathbb{V}^N,
+\end{equation}
+it follows (theorem 2 of Lu and Gao \cite{Lu2022JPCL}) that the multistate energy of any trial matrix density $\m{D}'(\vec{r})$
+is larger or equal to the exact multistate energy,
+\begin{equation}
+ E_{\text{MS}}[\m{D}(\vec{r})] \leq E_{\text{MS}}[\m{D}'(\vec{r})].
+\end{equation}
+The equality holds when the subspaces are the same $\mathbb{V}^N = \mathbb{V}^{N'}$, in which case $\m{D}'(\vec{r})$ and
+the exact $\m{D}(\vec{r})$ as well as the Hamiltonians $\m{H}' = \m{H}[\m{D}'(\vec{r})]$ and the exact $\m{H}[\m{D}(\vec{r})]$, respectively,
+ differ only by a basis transformation within the subspace. Therefore the subspace of the lowest eigenstates can be found by minimizing
+$E_{\text{MS}}[\m{D}(\vec{r})]$ as a functional of $\m{D}(\vec{r})$.
+Since the Hamiltonian in the basis of the eigenstates should be diagonal,
+the eigenenergies can be obtained by diagonalizing the $N \times N$ matrix $\m{H}[\m{D}(\vec{r})]$.
+
+(3) Lastly Lu and Gao proved that the matrix density can be represented exactly by no more than $N^2$ non-orthogonal, linearly-independent
+Slater determinants built from $N^2$ different sets of $n_e$ molecular orbitals. \cite{Lu2022JPCL}
+Optimizing the matrix density in terms of these auxiliary basis states ensures
+that the matrix density is derived from antisymmetric wavefunctions. 
+What kind of matrix function constitute a matrix density belonging to Fermionic wavefunctions is the
+multistate version of the $N$-representability problem. Some obvious requirements are that the state densities should
+integrated to the total number of electrons and that the transition densities should integrated to 0 to reflect that
+eigenstates are orthonormal. If the exact universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ (or a good approximation to it)
+were known and it were somehow possible to restrict the minimization to valid Fermionic matrix densities $\m{D}(\vec{r})$,
+the multistate DFT of Lu and Gao would open the way for studying excitations in very large systems in the spirit of orbital-free DFT [CITE].
+The question of parameterizing the matrix density will not be touched further.
+
+The Hohenberg-Kohn (HK) theorem \cite{Hohenberg1964inhomogeneous} tells us that the ground state density $\rho_0(\vec{r})$
+contains all information about the external potential $v(\vec{r})$
+and as such it is formally possible to obtain the entire spectrum from the ground state density alone,
+\begin{equation}
+\rho_{0}(\vec{r}) \xrightarrow{\text{HK theorem}} v(\vec{r}) \longrightarrow \hat{H} = \hat{T} + \hat{W} + v(\vec{r}) \xrightarrow{\text{Schr\"{o}dinger eqn.}} \{ E_I, \Psi_I \}.
+\label{eqn:HK_density_to_spectrum}
+\end{equation}
+However, this is of no practical use, since the knowledge that the mapping of Eqn.~\ref{eqn:HK_density_to_spectrum}
+must exists provides no clue how to get from the left side to the right side.
+ The matrix density $\m{D}(\vec{r})$ has the ground state density as its first element $\rho_{0}(\vec{r}) = D_{0,0}(\vec{r})$ on the diagonal
+and therefore contains more information than strictly needed. For reference, in Theophilou's subspace DFT it is not possible to obtain the
+ground state density $\rho_0(\vec{r})$ easily from the average subspace density $\rho_{\mathbb{V}^N}(\vec{r})$ without determining the subspace
+$\mathbb{V}^N$, which is the difficult part.
+%Of course the exact universal functional is unknown. 
+The significance of the theorems by Lu and Gao, therefore, is not so much the existence of the mapping $\m{D}(\vec{r}) \to \m{H}$ (which is already
+guaranteed by the HK theorem) but that their
+universal matrix functional has the transformation property \ref{eqn:F_basis_transformation}.
+This restricts the structure of the universal functional and gives some hints on how it can be approximated.
+
+\subsection{Review of Approximate MSDFT Functionals
+\label{ref:review_transition_functional}
+}
+Before embarking on the search for approximate matrix functionals,
+the definition of the functional that should be approximated has to be clarified.
+In MSDFT\cite{Gao2016} the diagonal elements
+of the configuration interaction Hamiltonian $\m{H}$ are obtained by applying ground state Kohn-Sham (KS) theory to the state density $\rho_A$,
+\cite[Eqn.~(3)]{Grofe2017} \cite[Eqn.~(12)]{Zhu2023}
+\begin{equation}
+ H_{AA} \approx E^{\text{KS}}[\rho_A]
+\end{equation}
+The coupling between the configurations is approximated by the matrix elements of the configurations (the WFT part)
+and a \emph{transition density functional} (TDF), \cite[Eqn.~(5)]{Grofe2017}
+\begin{equation}
+ H_{AB} \approx \langle \Psi_A \vert \hat{H} \vert \Psi_B \rangle + \mathcal{E}^{\text{TDF}}_c[\rho_{AB}],
+\end{equation}
+$\langle \Psi_A \vert \hat{H} \vert \Psi_B \rangle$ captures the static and part of the dynamic correlation,
+while the dynamic correlation that is still missing is added by the transition density functional.
+$\mathcal{E}^{\text{TDF}}_c[\rho_{AB}]$ has been
+approximated as the overlap-weighted average correlation energy of the interacting states, \cite[Eqn.~(6)]{Gao2016}
+\begin{equation}
+  \mathcal{E}^{\text{TDF}}_c[\rho_{AB}] = \frac{1}{2} S_{AB} \left( E_c^{\text{KS}}[\rho_A] + E_c^{\text{KS}}[\rho_B] \right),
+\end{equation}
+or by the multiplet-sum method \cite{Ziegler1977,Grofe2017} that allows the determine the coupling rigorously from the requirement that
+states in a multiplet (same total spin $S$ but different spin projections $S_z$) are degenerate in the absence of a magnetic field.
+These approximations make use of existing, Kohn-Sham density functional approximations (DFA)
+for the ground state. These approximations are born out by encouraging benchmark calculations \cite{Zhu2023} on a varied set
+of excitation energies in small molecules. However, in view of Lu and Gao's multistate equivalent of the Hohenberg-Kohn theorem,
+which states that there is a one-to-one correspondence between the matrix density of the lowest few states and the Hamiltonian matrix,
+it is clear that $\mathcal{E}^{\text{TDF}}_c$ cannot be a functional of a individual state densities $\rho_A$, $\rho_B$
+or the transition density $\rho_{AB}$. Therefore Lu and Gao
+replaced the transition density functional by a \emph{multistate correlation matrix functional} $\mathcal{E}_{c}[\m{D}]$, which depends
+on the whole matrix density $\m{D}(\vec{r})$ rather than on the individual state or transition densities \cite{Lu2022fundamental}.
+
+$\mathcal{E}_{c}[\m{D}(\vec{r})]$ is defined
+as the difference between the universal functional $\mathcal{F}[\m{D}(\vec{r})]$ and an approximation $F_{\text{ms}}$ to it in the vector space spanned
+by the auxiliary states $\{\Omega_A\}$
+\cite[Eqn.~(30)]{Lu2022fundamental},
+\begin{equation}
+\mathcal{E}^{AB}_c[\{\Omega_A\}] = \mathcal{F}[\m{D}(\vec{r})]_{IJ}
+- \underbrace{\langle \Omega_A \vert \hat{T} + \hat{W} \vert \Omega_B \rangle}_{F_{\text{ms}}[\{\Omega_A\}]}
+\label{eqn:correlation_functional_auxiliary_basis_dependence}
+\end{equation}
+Note that the auxiliary basis functions that are sufficient to represent a matrix density $\m{D}(\vec{r})$ exactly, are not necessarily sufficient
+to represent the exact many-electron wavefunctions of the subspace. In analogy to the Kohn-Sham determinant they are just a means to represent
+the matrix density. In the way the correlation matrix is defined in Eqn.~\ref{eqn:correlation_functional_auxiliary_basis_dependence},
+it depends on the auxiliary basis states that give rise to the matrix density $\m{D}(\vec{r})$. This is because the mapping from $\m{D}(\vec{r})$ back to
+the wavefunctions is not unique, unless of course the auxiliary wavefunctions are equal to the lowest-energy eigenstates.
+To turn $F_{\text{ms}}[\{\Omega_A\}]$
+into a matrix functional $\mathcal{F}_{\text{ms}}[\m{D}(\vec{r})]$, which only depends on $\m{D}(\vec{r})$, Lu and Gao \cite{Lu2022fundamental} perform a
+constrained minimization over the (orthogonal) auxiliary states to find the subset that minimizes the expectation value of $F_{\text{ms}}$
+\cite[Eqn.~(28)]{Lu2022fundamental}, while keeping the matrix density $\m{D}(\vec{r})$ constant,
+\begin{equation}
+  \{\Omega_A^{\text{min}}\} = \argmin_{\{\Omega_A\}} \left\{ \sum_{I=1}^{N} 
+    \langle \Omega_I \vert \hat{T} + \hat{W} \vert \Omega_I \rangle \quad \Big\vert \quad \{\Omega_A\} \to \m{D}(\vec{r}) \right\}
+    \label{eqn:constrained_search}
+\end{equation}
+Then 
+\begin{equation}
+\mathcal{F}_{\text{ms}}[\m{D}(\vec{r})]_{AB} = \langle \Omega_A^{\text{min}} \vert \hat{T} + \hat{W} \vert \Omega_B^{\text{min}} \rangle
+\end{equation}
+is truely a functional of $\m{D}(\vec{r})$ and the correlation matrix can be defined as
+\begin{equation}
+ \mathcal{E}_{c}[\m{D}(\vec{r})] = \mathcal{F}[\m{D}(\vec{r})] - \mathcal{F}_{\text{ms}}[\m{D}(\vec{r})].
+ \label{eqn:correlation_functional_matrix_functional}
+\end{equation}
+This functional is not readily computable, since the constrained search while keeping the density fixed cannot be performed.
+In practice the multistate energy is minimized by changing the molecular orbitals and configuration coefficient of the auxiliary
+wavefunctions, which then determine the matrix density. During the MCSCF-like minimization,
+the auxiliary wavefunctions are not necessarily the minimum of the constrained
+search of Eqn.~\ref{eqn:constrained_search}. The definition in Eqn.~\ref{eqn:correlation_functional_matrix_functional}
+is rigorous but purely formal. For actual calculations it would be necessary to find approximations for the correlation matrix
+as defined in Eqn.~\ref{eqn:correlation_functional_auxiliary_basis_dependence}, which is not a well-defined problem.
+
+For a single electronic state, $\{\Omega_A^{\text{min}}\}$ turns into the Hartree-Fock determinant $\Psi_{\text{HF}}$ and $\mathcal{E}_c$
+becomes the correlation energy. This is the quantum chemist's definition of the correlation energy as the energy that is missed by
+Hartree-Fock theory. \cite[2.2.7]{Szabo_Ostlund_book}
+In Hartree-Fock theory the correlation energy is measured relative to the minimum of the
+expectation value of a single Slater determinant, while in MSDFT it is defined relative
+to the minimum in a partially interacting active space. \cite{Lu2022JPCL}
+On the other hand, in Kohn-Sham DFT exchange and correlation
+are often approximated together. The exchange-correlation energy is defined as the difference between the total electron-repulsion
+and the direct (classical) part of the Coulomb interaction. \cite{Lieb1979}
+This has the advantage that it allows a definition of the exchange-correlation energy in terms of the density alone
+without reference to any non- or partially-interacting wavefunctions.
+
+It seems difficult to find good approximations to $\m{\mathcal{E}}_c[\m{D}(\vec{r})]$ as defined in Eqn.~\ref{eqn:correlation_functional_matrix_functional},
+since the functional would need to know how much dynamic correlation is already included via
+the auxiliary wavefunctions. LDA, GGA or even hybrid functionals designed for the ground state are probably too simple for that task.
+Although theorem 3 of Lu and Gao \cite{Lu2022JPCL} guarantees that there is a minimal number of non-orthogonal \cite{Lu2022JPCL}
+or orthogonal \cite{Lu2022fundamental} auxiliary basis functions, one could also use a larger space of auxiliary wavefunctions to
+represent $\m{D}(\vec{r})$. But this affects the defintion of $\mathcal{E}_{c}$. In particular, if the auxiliary basis functions are
+allowed to include the exact eigenfunctions of the Hamiltonian, the correlation energy $\m{\mathcal{E}}_c$ would be zero, since in this case
+$\m{\mathcal{F}} = \m{\mathcal{F}}_{\text{ms}}$.
+
+% In this article I try to find ...
+This article tries to find approximations to the entire universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$
+(not just the residual correlation $\m{\mathcal{E}}_c$), even though this involves an approximate
+matrix functional for the kinetic energy $\m{T}[\m{D}(\vec{r})]$, which comes with a very large error.
+The exchange-correlation matrix functional
+is defined as the difference between the matrix of the electron-repulsion operator in the subspace of the exact, lowest eigenstates
+$\{\Psi_{I}^{\text{exact}}\}$ and
+the multistate Hartree functional $\m{J}[\m{D}(\vec{r})]$,
+\begin{equation}
+ \text{XC}[\m{D}(\vec{r})]_{IJ} = \langle \Psi_I^{\text{exact}} \vert \sum_{m < n} 1/r_{mn} \vert \Psi_J^{\text{exact}} \rangle - J[\m{D}(\vec{r})]_{IJ}.
+\end{equation}
+$J[\m{D}(\vec{r})]$ contains the Coulomb interactions between state densities
+and between state densities and transition densities both in the diagonal and the off-diagonal terms. It transforms 
+in the same manner like $\mathcal{F}[\m{D}(\vec{r})]$, just as a proper matrix functional should.
+This partitioning of the energy is independent of the choice of the auxiliary basis functions.
+For a single electronic state the multistate Hartree functional $\m{J}[\m{D}(\vec{r})]$ reduces to the classical Coulomb interaction
+$\frac{1}{2} \int \int' \frac{\rho(\vec{r}) \rho(\vec{r}')}{\vert \vec{r} - \vec{r}' \vert}$ and the multistate exchange-correlation matrix $\m{\text{XC}}[\m{D}]$
+turns into the ground state exchange-correlation energy $E_{xc}[\rho]$ (without the kinetic contribution of Kohn-Sham theory),
+even if the exact eigenstates are used to parameterize the matrix density.
+This allows to reuse a ground state functional $E_{xc}[\rho]$ for $\text{XC}[\m{D}(\vec{r})]$, although the conversion of
+a scalar functional into a matrix functional is not without ambiguities, because matrix multiplication is not commutative.
+
+% Partitioning of universal functional in Hartree, exchange and correlation.
+Some subtle differences between the notation in Lu et al. \cite{Lu2022JPCL,Lu2022JCTC} and this work are worth pointing out:
+The electron repulsion energy is partitioned slightly differently into a Hartree, exchange and correlation part.
+In analogy with the Kohn-Sham scheme \cite{Kohn1965}, Lu et al. compute the kinetic energy from the auxiliary Slater determinants (basis states).
+They call the matrix elements of the electron-repulsion between the basis states,
+$\langle \Phi_A \vert \hat{W} \vert \Phi_B \rangle$, the "Hartree and exchange-interaction matrix".
+In this way some static and dynamic correlation is included in the Hartree and exchange part.
+The difference with the exact universal functional is lumped in the the correlation functional, which takes the
+form $\mathcal{E}_c = \mathcal{F}[\m{D}] - (\m{T}_{ms} + \m{E}_{Hx})$ \cite[Eqn.~(22)]{Lu2022JPCL}
+and contains some kinetic contribution.
+Evaluating the kinetic energy from orbitals
+makes perfectly sense, since as of now there are no reliable orbital-free kinetic energy functionals, anyway.
+Using a ground state functional for $\mathcal{E}_c$ can lead to doubly counting of correlation,
+although the negligible energy difference between between ground state energies computed with MSDFT and KS-DFT
+suggests that there is little double counting. \cite{Zhu2023} However, because all the complexity is packed into one
+functional, it is difficult to reason about the properties of $\mathcal{E}_c$.
+
+I define the kinetic energy $\m{T}[\m{D}]$, Hartree $\m{J}[\m{D}]$, exchange $\m{X}[\m{D}]$ and correlation energy
+$\m{C}[\m{D}]$ such that each is a functional of the matrix density and behaves properly under basis transformations
+of the state vectors.
+Auxiliary basis states are not used to compute any parts of the Hamiltonian.
+% Maybe the following should be moved into the computational section?
+All integrals and partial derivatives of the matrix density are computed numerically on
+multicenter spherical grids \cite{Becke1988grid,Lebedev1976}, the Hartree matrix is obtained by solving the Poisson
+equation. \cite{Becke1988Poisson}
+
+\subsection{Basic Idea of Translating KS Functionals for MSDFT
+\label{sec:basic_ideas_Taylor_series}
+}
+An important open question is how to find approximate multistate density functionals. 
+In a preprint on Chemrxiv \cite{lu_gao_2021_chemrxiv} Lu and Gao mention that a local ground state functional
+can be turned into a matrix functional by applying it to the eigenvalues of the matrix density.
+I wish to investigate this idea further.
+
+In the local density approximation (LDA) the exchange-correlation and kinetic energy \emph{functionals} of the density $\rho(\vec{r})$,
+$E_{xc}[\rho]$ and $T[\rho]$, respectively,
+are approximated by integrals over \emph{functions},
+\begin{align}
+  E_{xc}[\rho(\vec{r})] &= \int d^3\!r ~ \epsilon_{xc}(\rho(\vec{r})), \\
+  T[\rho(\vec{r})] &= \int d^3\! ~ t(\rho(\vec{r})).
+\end{align}
+% The definition of $\epsilon_{xc}$ differs from the usual one, it is not the xc-energy per particle, so there is no additional factor of
+% $\rho$ under the integral.
+The energy density $\epsilon_{xc}(\rho)$ and the kinetic energy density $t(\rho)$ are functions
+of a scalar variable. Let us call such a function $f: \mathbb{R} \mapsto \mathbb{R}$.
+Assuming that $f$ is an analytic function, so that all the derivatives $f^{(k)}(\rho) = \frac{d^k f}{d\rho^k}$ exist,
+$f$ can be expanded in a Taylor series around $\rho=0$,
+\begin{equation}
+ f(\rho) = \sum_{k=0}^{\infty} \frac{1}{k!} f^{(k)}(0) \rho^k.
+\end{equation}
+Now it is easy to turn the function $f(\rho)$ into a matrix function $\m{f}(\m{D}) : \mathbb{R}^{N \times N} \mapsto \mathbb{R}^{N \times N}$
+of the matrix density $\m{D}$, by taking the coefficient of the Taylor series and replacing $\rho$ by $\m{D}$,
+\begin{equation}
+ \m{f}(\m{D}) = \sum_{k=0}^{\infty} \frac{1}{k!} f^{(k)}(0) \m{D}^k,
+\end{equation}
+where $\m{D}^k = \underbrace{\m{D} \cdot \m{D} \cdot \ldots \cdot \m{D}}_{\text{$k$ times}}$ is the $k$-th matrix power.
+The corresponding LDA matrix functional $\m{F}[\m{D}]$ becomes
+\begin{equation}
+ \m{F}[\m{D}(\vec{r})] = \int d^3\!r ~ \m{f}(\m{D}(\vec{r})).
+\end{equation}
+A matrix function can simply be computed by applying the scalar function to each of its eigenvalues, but the definition
+via the Taylor series generalizes more easily to the multivariate case.
+
+If the scalar functional $F[\rho]$ only depends on the total electronic densities (summed over spins), as in the LDA,
+the matrix functional $\m{F}[\m{D}]$ is uniquely determined. However, to account for inhomogeneity or spin-polarization,
+the energy density function has to depend on multiple arguments. For example, the exchange-correlation energy density in
+the generalized gradient approximation (GGA), $\epsilon_{xc}(\rho(\vec{r}),\nabla \rho(\vec{r}))$, 
+or the von-Weizs\"{a}cker kinetic energy density $t_{\text{vW}}(\rho(\vec{r}),\nabla \rho(\vec{r}))$ are functions of both the density and its gradient.
+To translate a function $f(\rho,\nabla \rho)$ into a matrix function $\m{f}(\m{D},\nabla \m{D})$,
+we follow the same recipe as for the single variable case, and expand $f$ into a multivariate Taylor series.
+Denoting the partial derivatives by $f^{(m,n)} = \frac{\partial^{m+n} f}{\partial \rho^{m} (\nabla \rho)^{n}}(0,0)$, the first few terms
+of the series around $(\rho,\nabla \rho) = (0,0)$ are,
+\begin{equation}
+ f(\rho,\nabla \rho) = f(0,0) + f^{(1,0)}~\rho + f^{(0,1)} ~ \nabla \rho + \frac{1}{2} f^{(1,1)} ~ \rho(\nabla \rho) + \ldots.
+\end{equation}
+When substituting the matrices $\m{D}$,$\nabla \m{D}$ for the scalar variables $\rho,\nabla \rho$, ambiguities arise,
+because in matrix multiplication the order of the factors matters. It is not clear, for instance,
+if the term $\rho (\nabla \rho)$
+should be replaced by $\m{D} \cdot \nabla  \m{D}$ or by $\nabla \m{D} \cdot \m{D}$
+or the average of the two. Since $\m{D}(\vec{r})$ and $\nabla \m{D}(\vec{r})$ do not commute,
+$[\m{D}(\vec{r}),\nabla \m{D}(\vec{r})] \neq 0$, any order of factors will give
+a different matrix functional.
+
+Similar ambiguities arise with the local spin-density approximation (LSDA),
+where $\epsilon_{xc}(\rho^{\uparrow}(\vec{r}), \rho^{\downarrow}(\vec{r}))$
+depends on the spin-up and spin-down densities, since the matrix densities for different electron spins
+in general do not commute, $[\m{D}^{\uparrow}(\vec{r}), \m{D}^{\downarrow}(\vec{r})] \neq 0$.
+
+One sees that from one multivariate ground state functional an infinite number of matrix-density functionals can be derived.
+The indeterminacy can be reduced to some extent by enforcing known properties of the exact multistate functional.
+For example, the multistate-equivalent of the von-Weizs\"{a}cker kinetic energy functional should yield the
+exact kinetic energy matrix for one-electron systems.
+
+\section{Theory}
+\subsection{Properties of the Matrix Density Functional.
+\label{sec:properties_analytic_matrix_functional}
+}
+
+% Start with a gentle introduction:
+%  1) What is a function? f(x): x --> f(x)
+%  2) What is a functional? f[x(t)] --> for instance f[x] = \int x(t) dt
+%  3) What is a matrix function? M(x)
+%  4) What is an analytic function? --> admits a Taylor expansion
+%  5) Now define the analytic matrix functional
+
+\textbf{$\mathcal{F}[\m{D}(r)]$ is an analytic matrix functional.}
+Since $\m{D}(\vec{r})$ is the projection of $\hat{\rho}(\vec{r})$ into the subspace $\mathbb{V}^{N}$, while ${\mathcal{H}[\m{D}(\vec{r})] = \mathcal{F}[\m{D}(\vec{r})] + \int d^3r ~ v(\vec{r}) \m{D}(\vec{r})}$ is the projection of the Hamiltonian $\hat{H}$, the matrix density functional has to transform under an arbitrary basis transformation $\m{L} : \mathbb{C}^{N \times N} \to \mathbb{C}^{N \times N}$ as \cite{Lu2022JPCL}
+\begin{equation}
+\mathcal{F}[\m{L} \m{D}(\vec{r}) \m{L}^{-1}] = \m{L} \mathcal{F}[\mathbf{D}(\vec{r})] \mathbf{L}^{-1} \label{eqn:basis_transformation_symmetry}
+\end{equation}
+This transformation property implies that $\mathcal{F}$ is an \emph{analytic matrix functional}. As we know, an analytic function of a scalar variable, $f(z): \mathbb{C} \to \mathbb{C}$ is defined by its Taylor series around some point $z_0$:
+\begin{equation}
+f(z) = \sum_{n=0}^{\infty} \frac{f^{(n)}}{n!} (z-z_0)^n
+\end{equation}
+With the help of the Taylor series the scalar function can be turned into a analytic matrix function, $f(\m{Z}): \mathbb{C}^{N \times N} \to \mathbb{C}^{N \times N}$, where the product of complex numbers is replaced by the matrix product
+\begin{equation}
+f(\m{Z}) = \sum_{n=0}^{\infty} \frac{f^{(n)}}{n!} (\m{Z} - z_0 \m{I})^n
+\end{equation}
+where $\m{I}$ is the identity matrix. If the Taylor series converges everywhere, we can expand around $z_0 = 0$ without loss of generality.
+The coefficients $f^{(n)}$ are independent of the matrix dimension. Under a similarity transformation, an analytic matrix function behaves as
+\begin{equation}
+\begin{split}
+  f(\m{L} \m{Z} \m{L}^{-1}) &= \sum_{n=0}^{\infty} \frac{f^{(n)}}{n!} (\m{L} \m{Z} \m{L}^{-1})^n \\
+  &= f^{(0)} \underbrace{\m{L} \m{L}^{-1}}_{\m{I}} \m{I}
+  + f^{(1)} \m{L} \m{Z} \m{L}^{-1}
+  + \frac{f^{(2)}}{2} \m{L} \m{Z} \underbrace{\m{L}^{-1} \m{L}}_{\m{I}} \m{Z} \m{L}^{-1}
+  + \ldots
+  + \frac{f^{(n)}}{n!} \m{L} \m{Z}^n \m{L}^{-1} + \ldots \\
+  &= \m{L} f(\m{Z}) \m{L}^{-1}.
+\end{split}
+\end{equation}
+The definitions of analytic matrix functions in terms of a Taylor series or the transformation property are equivalent. \cite{Rinehart1955} 
+An analytical matrix \emph{functional} $\mathcal{F}[\m{D}(\vec{r})] : (L^1)^{N \times N} \to \mathbb{C}^{N \times N}$ takes a matrix of $L^1$-integrable functions, which depend on the 3-dimensional spatial coordinate vector $\vec{r}$, as an argument.
+If we interpret $\mathcal{F}$ as a general functional of $N^2$ functions, its functional Taylor expansion around $\m{D}(r) = 0$ would be
+\begin{equation}
+  \begin{split}
+    \mathcal{F}[\m{D}(\vec{r})] & = \sum_{n=0}^{\infty} \frac{1}{n!} \int d^3\!r_1 d^3\!r_2 \cdots d^3\!r_n ~ \\
+    & \quad \sum_{A,B,C,D,\ldots}^{N} \frac{\delta^{n} \mathcal{F}[\m{D}(\vec{r})]}{\delta D_{AB}(\vec{r}_1) \delta D_{CD}(\vec{r}_2) \ldots \delta D_{YZ}(\vec{r}_n)} D_{AB}(\vec{r}_1) D_{CD}(\vec{r}_2) \ldots D_{YZ}(\vec{r}_n).
+  \end{split}
+\end{equation}
+where the Taylor coefficients are themselves $N^{2 n}$-dimensional tensors of functionals of the spatial coordinates $\vec{r}_1,\ldots,\vec{r}_n$.
+However, because of the transformation property of Eqn.~\ref{eqn:basis_transformation_symmetry} the Taylor expansion of the matrix density functional
+$\mathcal{F}[\m{D}(\vec{r})]$ is constrained to have the form
+\begin{equation}
+ \begin{split}
+   \mathcal{F}[\m{D}(\vec{r})] &= \sum_{n=0}^{\infty} \frac{1}{n!} \int d^3\!r_1 d^3\!r_2 \cdots d^3\!r_n ~ \\
+   & \quad f^{(n)}(\vec{r}_1,\ldots,\vec{r}_n; \mathcal{N}(\vec{r}), \tr(\m{D}(\vec{r})), \ldots) \m{D}(\vec{r}_1) \m{D}(\vec{r}_2) \cdots \m{D}(\vec{r}_n) \label{eqn:functional_taylor_expansion}
+ \end{split}
+\end{equation}
+The coefficients $f^{(n)}$ are scalar functions and the matrix density occurs either as a matrix product or in scalar quantities that are invariant under basis transformations, such as the trace $\tr(\mathbf{D}(\vec{r}))$. The translation property does not exclude the possibility that the functional depends explicitly on the dimension of the subspace, which can be expressed as $\mathcal{N}(\vec{r}) = \tr\{\m{D}(\vec{r}) \m{D}^{-1}(\vec{r})\}$ and therefore is also a functional of the matrix density.
+The following expressions, for instance, are formally valid analytical matrix functionals
+\begin{align}
+  \mathcal{G}_{AC}[\m{D}(\vec{r})] &= \int d^3\!r_1 \int d^3\!r_2 \frac{\sum_{B=1}^{N} D_{AB}(\vec{r}_1) D_{BC}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert} \\
+  \mathcal{G}_{AB}[\m{D}(\vec{r})] &= \int d^3\!r \nabla \rho_{V}(\vec{r}) \cdot \nabla D_{AB}(\vec{r})
+\end{align}
+because they satisfy the transformation property of Eqn.~\ref{eqn:basis_transformation_symmetry}. On the other hand, expressions like
+\begin{equation}
+ \mathcal{G}_{AB}[\m{D}(\vec{r})] = \int d^3\!r_1 \int d^3\!r_2 \frac{D_{AA}(\vec{r}_1) D_{BB}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert}
+\end{equation}
+are not analytical, because they do not transform correctly under basis transformations.
+
+\textbf{$\mathcal{F}[\m{D}(\vec{r})]$ does not depend on the subspace dimension.}
+Although an analytical matrix functional can accept a matrix density of any dimension, it is not immediately obvious that the functional has to be the same independently of the dimension of the subspace. The ensemble density functional theory of Gross, Oliveira and Kohn \cite{Gross1988ReyleighRitz,Gross1988EnsembleDFT} certainly depends on the weights of the states, so that there is a different functional for an ensemble of 2,3,4,... states. It is conceivable that a similar dependence on the subspace dimension exists for the matrix density functional $\mathcal{F}[\m{D}(\vec{r})]$.
+However, the following considerations (which falls short of a rigorous proof) suggests that this is not the case and that the same matrix functional applies to all subspace dimensions:
+Let us suppose that the matrix functional could be different and denote the functional for a subspace with dimension $N$ as $\mathcal{F}^{(N)}$.
+Let $v(r)$ be the external potential (for instance the Coulomb attraction to the nuclei in a molecule) that is localized around the origin $\vec{O}$. $v(r)$ decays like $\propto -\frac{1}{r}$ or faster with distance. A copy of the same nuclei is put at a distant point $\vec{R}$, so that the total external potential is $v(\vec{r}) + v(\vec{r}-\vec{R})$ as shown in Fig.\ref{fig:repeated_effective_potential}
+
+\begin{figure}[h!]
+  \includegraphics[width=0.9\linewidth]{figures/repeated_effective_potential.png}
+  \caption{\label{fig:repeated_effective_potential} Effective potential of two identical molecules separated by a large distance $R$. The localized wavefunction in the left and right potential wells are identical except for the rigid shift.}
+\end{figure}
+
+$\mathbb{V}_{\vec{O}}^N$ is the subspace spanned by $N$ bound, electronic wavefunctions (not necessarily eigenstates) that are localized around the origin $\vec{O}$.
+These wavefunctions decay exponentially with distance \cite{Katriel1980asymptotic}. $\mathbb{V}_{\vec{R}}^N$ is spanned by the same wavefunctions rigidly translated to the center $\vec{R}$. A subspace of twice the dimension is formed by combining the subspaces of the left and right molecules,
+\begin{equation}
+  \begin{split}
+    \mathbb{V}^{2N} = \mathbb{V}^{N}_{\vec{O}} \cup \mathbb{V}^{N}_{\vec{R}} = \Span\Big\{ &
+                  \Psi_1(\vec{r}_1,\vec{r}_2,\ldots),
+                  \Psi_2(\vec{r}_1,\vec{r}_2,\ldots), \ldots,
+                  \Psi_N(\vec{r}_1,\vec{r}_2,\ldots), \\
+    &             \Psi_1(\vec{r}_1-\vec{R},\vec{r}_2-\vec{R},\ldots),
+                  \Psi_2(\vec{r}_1-\vec{R},\vec{r}_2-\vec{R},\ldots), \ldots,
+                  \Psi_N(\vec{r}_1-\vec{R},\vec{r}_2-\vec{R},\ldots) \Big\}.
+  \end{split}
+\end{equation}
+Because of the large distance $R$, the transition densities between states localized at $\vec{O}$ and those at $\vec{R}$ vanishes. The state densities and transition densities among the states localized on the same molecule are the same for both moleules except for a rigid shift. The matrix density for the combined subspace therefore consists of two blocks of size $N$, each:
+\begin{equation}
+  \m{D}^{(2N)}(\vec{r}) =
+  \begin{pmatrix}
+    \m{D}^{(N)}(\vec{r}) & 0 \\
+    0 & \m{D}^{(N)}(\vec{r}-\vec{R})
+  \end{pmatrix}
+\end{equation}
+As the distance between the two molecules is increased ($R \to \infty$), the matrix elements of the Hamiltonian vanishes, $\langle \Psi_{A} \vert \hat{H} \vert \Psi_{B} \rangle \to 0$, if the wavefunctions $\Psi_A$ and $\Psi_B$ are localized on different molecules. The matrix elements of the kinetic energy decrease exponentially, $\langle \Psi_{A} \vert \hat{T} \vert \Psi_{B} \rangle \propto \exp(-\alpha R)$, for the Coulomb operator the decrease is like $\langle \Psi_{A} \vert \hat{W} \vert \Psi_{B} \rangle \propto \frac{1}{R}$.
+Therefore, in the limit $R \to \infty$, the universal part of the Hamiltonian in the subspace $\mathbb{V}^{(2 N)}$ is just block-diagonal, $\hat{H}^{(2N)}_0 = \hat{H}^{(N)} \oplus \hat{H}^{(N)}$. The projection of $\hat{H}_0$ into the combined subspace $\mathbb{V}^{(2N)}$ is a functional of the matrix density $\m{D}^{(2N)}$, and the Hamiltonians in the individual subspaces $\mathbb{V}^{(N)}_{\vec{O}}$ and $\mathbb{V}^{(N)}_{\vec{R}}$ are functionals of the matrix densities $\m{D}^{(N)}(\vec{r})$ and $\m{D}^{(N)}(\vec{r}-\vec{R})$, respectively. Furthermore the universal functional should be translationally invariant, so that $\mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r}-\vec{R})] = \mathcal{F}^{(N)}[\m{D}^{(N)}(\vec{r})] = \m{H}^{(N)}_0$. Therefore the following relation holds between the functionals $\mathcal{F}^{(2N)}$ and $\mathcal{F}^{(N)}$:
+\begin{equation}
+  \mathcal{F}^{(2N)}
+  \left[
+    \begin{pmatrix}
+      \m{D}^{(N)}(\vec{r}) & 0 \\
+      0 & \m{D}^{(N)}(\vec{r}-\vec{R})
+    \end{pmatrix}
+    \right]
+  =
+  \begin{pmatrix}
+    \m{H}^{(N)}_{0} & 0 \\
+    0 & \m{H}^{(N)}_{0}
+  \end{pmatrix}
+  =
+  \begin{pmatrix}
+    \mathcal{F}^{(N)}[\m{D}(\vec{r})] & 0 \\
+    0 & \mathcal{F}^{(N)}[\m{D}(\vec{r})]
+  \end{pmatrix} \label{eqn:relation_F2N_FN}
+\end{equation}
+
+The plan is to plug the functional Taylor expansion of Eqn.~\ref{eqn:functional_taylor_expansion} into Eqn.~\ref{eqn:relation_F2N_FN} in order to work out the relation between the functional $\mathcal{F}^{(2N)}$ and $\mathcal{F}^{(N)}$. A priori it is assumed that the functional could be different for different subspace dimensions. It will be shown that this is not the case. However, Eqn.~\ref{eqn:relation_F2N_FN} is not yet in a suitable form to compare the two functionals, since on its LHS the functional $\mathcal{F}^{(2N)}$ operates on a matrix density of dimension $2N$, while on the RHS the arguments of the functional $\mathcal{F}^{(N)}$ have dimension $N$. So we have to transform the expession in such a way, that $\mathcal{F}^{(2N)}$ operates on a matrix density of dimension $N$.
+%%%
+
+First some preliminaries.
+The functional Taylor expansion involves integrations over three-dimensional space.
+The three-dimensional space is partitioned into Voronoi polyhedra. Each point $\vec{r}$ is assigned to the closest molecule,
+\begin{align}
+  V_{\vec{O}} &= \{\vec{r}: \vert \vec{r} \vert < \vert \vec{r} - \vec{R} \vert \} \\
+  V_{\vec{R}} &= \{\vec{r}: \vert \vec{r} - \vec{R} \vert \leq \vert \vec{r} \vert \} \\
+  \mathbb{R}^3 &= V_{\vec{O}} \cup V_{\vec{R}}.
+\end{align}
+Integration over space is split into separate integrations over the Voronoi polyhedra,
+\begin{equation}
+ \int_{\mathbb{R}^3} \ldots d^3\!r = \int_{V_{\vec{O}}} \ldots d^3\!r + \int_{V_{\vec{R}}} \ldots d^3\!r.
+\end{equation}
+Since the wavefunctions are localized around the potential at either $\vec{O}$ or $\vec{R}$, there is no point in space where $\m{D}(\vec{r})$ and $\m{D}(\vec{r}-\vec{R})$ are simultaneously non-zero. So dependening on where the point $\vec{r}$ lies, the projection of the density operator in the subspace $\mathbb{V}^{2N}$ has only one non-zero block at the top or at the bottom:
+\begin{equation}
+  \m{D}^{(2N)}(\vec{r}) = \m{D}^{(N)}(\vec{r}) \oplus \m{D}^{(N)}(\vec{r}-\vec{R}) =
+  \begin{cases}
+    \m{D}^{(N)}(\vec{r}) \oplus 0 & \text{if } \vec{r} \in V_{\vec{O}} \\
+    0 \oplus \m{D}^{(N)}(\vec{r}-\vec{R}) & \text{if } \vec{r} \in V_{\vec{R}} \label{eqn:D_split}
+  \end{cases}
+\end{equation}
+Similarly we get for the trace,
+\begin{equation}
+  \tr\left(\m{D}^{(2N)}(\vec{r}) \right)
+  =
+  \tr\left(\m{D}^{(N)}(\vec{r}) \oplus \m{D}^{(N)}(\vec{r}-\vec{R}) \right)
+  =
+  \begin{cases}
+    \tr(\m{D}(\vec{r})) & \text{if } \vec{r} \in V_{\vec{O}} \\
+    \tr(\m{D}(\vec{r}-\vec{R}) & \text{if } \vec{r} \in V_{\vec{R}} \label{eqn:tr_split}
+  \end{cases}
+\end{equation}
+If the functional should depend explicitly on the subspace dimension, the number of electronic states has to be expressed as a functional of the matrix density. One way to do this is
+\begin{equation}
+ \mathcal{N}(\vec{r}) = \tr\left\{ \m{D}(\vec{r}) \m{D}^{-1}(\vec{r}) \right\}.
+\end{equation}
+If at some point the matrix density does not have full rank and therefore is not invertible, the pseudinverse is used instead of the inverse. $\mathcal{N}(\vec{r})$ always equals the rank of the matrix density.
+Since $\m{D}^{(2N)}(\vec{r})$ has at most rank $N$ (the number of wavefunctions that are simultaneously non-zero is at most $N$),
+\begin{equation}
+  \mathcal{N}^{(2N)}(\vec{r})
+  =
+  \begin{pmatrix}
+    \mathcal{N}^{(N)}(\vec{r}) & \text{if } \vec{r} \in V_{\vec{O}} \\
+    \mathcal{N}^{(N)}(\vec{r}-\vec{R}) & \text{if } \vec{r} \in V_{\vec{R}}. \label{eqn:N_split}
+  \end{pmatrix}
+\end{equation}
+
+Now we write out the Taylor expansion and focus only on the term linear in $\m{D}^{(2N)}(\vec{r})$, but higher-order terms work the same way:
+
+\begin{align}
+  &\mathcal{F}^{(2N)}[\m{D}^{(2N)}(\vec{r})] = \int d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(2N)}(\vec{r}_1)), \mathcal{N}^{(2N)}(\vec{r}_1) \right) \m{D}^{(2N)}(\vec{r}_1) + \ldots \\
+    =& \int d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(2N)}(\vec{r}_1)), \mathcal{N}^{(2N)}(\vec{r}_1) \right)
+    \begin{pmatrix}
+      \m{D}^{(N)}(\vec{r}_1) & 0 \\
+      0 & \m{D}^{(N)}(\vec{r}_1 - \vec{R})
+    \end{pmatrix} + \ldots \\
+    =& \int_{V_{\vec{O}}} d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(N)}(\vec{r}_1)), \mathcal{N}^{(N)}(\vec{r}_1) \right)
+    \begin{pmatrix}
+      \m{D}^{(N)}(\vec{r}_1) & 0 \\
+      0 & 0
+    \end{pmatrix} \\
+    & + \int_{V_{\vec{R}}} d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(N)}(\vec{r}_1-\vec{R})), \mathcal{N}^{(N)}(\vec{r}_1-\vec{R}) \right)
+    \begin{pmatrix}
+      0 & 0 \\
+      0 & \m{D}^{(N)}(\vec{r}_1-\vec{R})
+    \end{pmatrix} + \ldots \\
+    =&
+    \begin{pmatrix}
+      \int_{\mathbb{R}^3} d^3\!r_1 ~ f^{(1)}\left(\vec{r}_1; \tr(\m{D}^{(N)}(\vec{r}_1)), \mathcal{N}^{(N)}(\vec{r}_1) \right) \m{D}^{(N)}(\vec{r}_1) + \ldots & 0 \\
+      0 & \int_{\mathbb{R}^3} d^3\!r_1 ~ f^{(1)}\left(\ldots \right) \m{D}^{(N)}(\vec{r}_1-\vec{R}) + \ldots\\
+    \end{pmatrix} \\
+    =&
+    \begin{pmatrix}
+      \mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r})] & 0 \\
+      0 & \mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r})]
+    \end{pmatrix} \label{eqn:relation_F2N_FN_same_dim}
+\end{align}
+
+In going from line 2 to 3, the integration was split up and the corresponding cases from Eqns.~\ref{eqn:D_split},\ref{eqn:tr_split},\ref{eqn:N_split} were used inside each integration volume. In going from lines 3 and 4 to line 5, the integration range was extended again over the entire $\mathbb{R}^3$, since the respective integrands vanish on the additional volume. Finally, to get to the last line, we sum up the Taylor expansion again to obtain $\mathcal{F}^{(2N)}$ evaluated on the matrix density in the subspaces $\mathbb{V}_{\vec{O}}$ and $\mathbb{V}_{\vec{R}}$, respectively. As the universal functional has translational invariance, we can use $\mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r}-\vec{R})] = \mathcal{F}^{(2N)}[\m{D}^{(N)}(\vec{r})]$.
+Comparison of Eqn.~\ref{eqn:relation_F2N_FN_same_dim} with Eqn.~\ref{eqn:relation_F2N_FN} shows that
+\begin{equation}
+ \mathcal{F}^{(2N)}[\m{D}^{N}(\vec{r})] = \mathcal{F}^{(N)}[\m{D}^{N}(\vec{r})]
+\end{equation}
+for any matrix density $\m{D}^{(N)}(\vec{r})$ that decays exponentially with distance.
+% [READ \cite{Katriel1980asymptotic} and \cite{Levy1984exact}, wavefunction and density of bound states should decay exponentially with distance]
+Now the dimension of the argument is the same on both sides. The above equality suggests that the same universal functional applies to all subspace dimensions and one can drop the superscript writing simply $\mathcal{F}[\m{D}(\vec{r})]$. For $N=1$ it is equal to the ground-state kinetic and Hartree-exchange-correlation (Hxc) functionals,
+\begin{equation}
+ \mathcal{F}[\rho(\vec{r})] = T[\rho(\vec{r})] + E_{\text{Hxc}}[\rho(\vec{r})]
+\end{equation}
+However, deducing the exact multi-state functional from known ground-state kinetic-energy and Hartree-exchange-correlation functionals is not possible. Even if one has a closed expression of the functionals in term of $\rho(\vec{r})$, $\nabla \rho(\vec{r})$, $\ldots$, it is not clear where $\rho(\vec{r})$ has to be replaced by the scalar $\tr(\m{D}(\vec{r}))$ and where by the matrix $\m{D}(\vec{r})$. For $N=1$, all three are the same, i.e. $\rho(\vec{r}) = \tr(\m{D}(\vec{r})) = \m{D}(\vec{r})$.
+Nevertheless ground-state functionals can give some guidance.
+
+The next step is to find a multistate matrix density functional, that satisfies the above constraints and ideally reduces to some known ground state functional for $N=1$.
+
+
+\section{Conclusion}
+The resulting functional $\mathcal{F}$ is not suitable for reliable calculations,
+but mostly so because the errors of the diagonal kinetic
+energy are so huge,
+while the errors of the off-diagonal elements are perfectly acceptable.
+Nevertheless this study provides a clean picture of how well matrix functionals derived from simple ground state functionals
+like LDA can approximate the off-diagonal elements of the Hamiltonian matrix using only the matrix density as input.
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The "Acknowledgement" section can be given in all manuscript
 %% classes.  This should be given within the "acknowledgement"
 %% environment, which will make the correct section or running title.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{acknowledgement}
-
+A.H. thanks Prof. Toshinori Suzuki for the kind support.
 \end{acknowledgement}
 
 
