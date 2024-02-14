@@ -303,7 +303,6 @@ class BaseTestMultistateMatrixDensity(ABC):
         D_aligned, _, _ = msmd_ref.evaluate(grids.coords)
         numpy.testing.assert_almost_equal(D_ref, D_aligned)
 
-    @unittest.skip("This test crashes on github with 'Floating point exception(core dumped)'")
     def test_align_phases(self):
         """ Check that global phases can be found and removed. """
         for name, mol in tqdm(self.create_test_molecules().items()):
