@@ -38,11 +38,6 @@ if __name__ == "__main__":
     # compute self-consistent field
     hf.kernel()
 
-    # CAS: 8 electrons in 8 orbitals
-    ncas = 8
-    nelecas = 8
-    casscf = pyscf.mcscf.CASSCF(hf, ncas, nelecas)
-
     # CAS: 6 electrons in 21 orbitals
     ncas = 21
     nelecas = 6

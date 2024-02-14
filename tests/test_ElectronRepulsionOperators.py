@@ -114,7 +114,7 @@ class TestHartreeLikeFunctional(unittest.TestCase):
 
     def test_hartree_like_matrix(self):
         """
-        Compare nuclear potential from numerical integration with exact matrix elements
+        Compare Hartree term J[D(r)] from numerical integration with exact matrix elements.
         """
         for name, mol in tqdm(
                 self.create_test_molecules().items()):
