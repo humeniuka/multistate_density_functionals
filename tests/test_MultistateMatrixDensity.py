@@ -767,4 +767,4 @@ class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest
 
 
 if __name__ == "__main__":
-    unittest.main(failfast=True)
+    unittest.main(failfast=True, verbosity=2)
