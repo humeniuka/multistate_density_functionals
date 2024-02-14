@@ -375,6 +375,48 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
         return MultistateMatrixDensityFCI.create_matrix_density(
             mol, nstate=nstate, spin_symmetry=False, raise_error=False)
 
+    def check_hartree_matrix_product(self, mol, nstate=1):
+        """
+        The Hartree-like energy is calculated in two different ways:
+         1) Using get_jk(...) to first compute the electrostatic potential of D(r)
+            and then contracting with D(r). This does not require keeping all
+            electron integrals in memory.
+         2) By contracting the electron repulsion integrals (ab|cd) in the
+            AO basis with the AO (transition) density matrices (exact).
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: Number of electronic states in the subspace.
+           The full CI problem is solved for the lowest nstate states.
+        :type nstate: int > 0
+        """
+        # compute D(r) from full CI
+        msmd = self.create_matrix_density(mol, nstate=nstate)
+
+        # Evaluate J[D(r)] using J-build.
+        J_msdft = msmd.hartree_matrix_product()
+
+        # The exact potential energy matrix is calculated by contracting the
+        # (transition) density matrices in the AO basis with the electron
+        # repulsion integrals.
+
+        # Electron repulsion integrals (ab|cd)
+        coulomb_integrals = msmd.exact_coulomb_energy()
+        J_exact = 0.5 * numpy.einsum('ikkj->ij', coulomb_integrals)
+
+        numpy.testing.assert_almost_equal(J_msdft, J_exact)
+
+    def test_hartree_matrix_product(self):
+        """
+        Compare Hartree matrix product J[D(r)] from J-build with exact matrix elements
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules().items()):
+            for nstate in tqdm([1,2]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_hartree_matrix_product(mol, nstate=nstate)
+
     def test_exact_electron_repulsion(self):
         """
         If there is only a single electron, the matrix elements for the
