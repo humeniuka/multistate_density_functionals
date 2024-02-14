@@ -143,6 +143,50 @@ class MultistateMatrixDensity(ABC):
 
         return coulomb_integrals
 
+    def hartree_matrix_product(self):
+        """
+        compute the Hartree product of a matrix density with itself,
+
+            J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∫∫' Dᵢₖ(r) Dₖⱼ(r')/|r-r'|,
+
+        using the representation of D(r) in the Gaussian AO basis,
+
+            D(r)ᵢⱼ = sum_{a,b} P^{i,j}_{a,b} χ_a(r) χ_b(r),
+
+        and the two-electron integrals (ab|cd),
+
+            J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∑_{a,b,c,d} P^{i,k}_{a,b} P^{k,j}_{c,d} (ab|cd)
+
+        The contraction with the two-electron integrals does not require storing
+        all integrals in memory.
+
+        :return hartree_like_matrix: The Hartree-like matrix Jᵢⱼ in the subspace
+           of the electronic states i,j=1,...,nstate
+        :rtype hartree_like_matrix: numpy.ndarray of shape (nstate,nstate)
+        """
+        nspin, nstate, nstate, nao, nao = self.density_matrices.shape
+        # sum over spin
+        dm_spin_trace = self.density_matrices[0,...] + self.density_matrices[1,...]
+
+        # According to the above doc-string, the contraction string should be
+        # 'abcd,cd->ab', get_jk(...) requires that the contraction string contains
+        # the indices ijkl.
+        # Compute the electrostatic potential of the (transition) density matrices.
+        # V[k,j,a,b] = ∑_{c,d} P^{k,j}_{c,d} (ab|cd)
+        potential_list = pyscf.scf.jk.get_jk(
+            self.mol,
+            dm_spin_trace.reshape((nstate*nstate,nao,nao)),
+            ['ijkl,kl->ij']*nstate*nstate)
+        V = numpy.array(potential_list).reshape((nstate,nstate,nao,nao))
+        # Contract density matrices with electrostatic potential.
+        # J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∑_{a,b} P^{i,k}_{a,b} V[k,j,a,b]
+        hartree_like_matrix = 0.5 * numpy.einsum(
+            'ikab,kjab->ij',
+            dm_spin_trace,
+            V)
+
+        return hartree_like_matrix
+
     def exact_electron_repulsion(self):
         """
         Compute the matrix elements of the electron-repulsion operator between
