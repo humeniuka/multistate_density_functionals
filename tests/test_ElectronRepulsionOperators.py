@@ -17,6 +17,7 @@ import unittest
 
 from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
+from msdft.ElectronRepulsionOperators import HartreeLikeFunctionalPoisson
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
@@ -24,6 +25,106 @@ from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
 class TestHartreeLikeFunctional(unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with different molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4):
+        """
+        Compute multistate matrix density for the lowest few excited states
+        of a small molecule using full configuration interaction.
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: number of excited states to calculate
+        :type nstate: positive int
+
+        :return: multistate matrix density
+        :rtype: MultistateMatrixDensity
+        """
+        assert nstate > 0
+        hf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        hf.verbose = 0
+        # compute self-consistent field
+        hf.kernel()
+
+        fci = pyscf.fci.FCI(mol, hf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
+        # Remove the additional state again. For small basis sets,
+        # there can be fewer states than requested.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+
+        msmd = MultistateMatrixDensityFCI(mol, hf, fci, fcivecs)
+
+        return msmd
+
+    def check_exact_hartree_energy(self, mol, nstate=1):
+        """
+        The Hartree-like energy is calculated in two different ways:
+         1) By applying get_jk(...) to each (transition) density and
+            contracting the resulting electrostatic potential V(r) with
+            the matrix density D(r).
+         2) By contracting the electroc repulsion integrals (ab|cd) in the
+            AO basis with the AO (transition) density matrices (reference).
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: Number of electronic states in the subspace.
+           The full CI problem is solved for the lowest nstate states.
+        :type nstate: int > 0
+        """
+        # functional for Hartree-like energy J[D(r)]
+        hartree_like_functional = HartreeLikeFunctional(mol)
+
+        # compute D(r) from full CI
+        msmd = self.create_matrix_density(mol, nstate=nstate)
+
+        # Evaluate J[D(r)] using J-build.
+        J_msdft = hartree_like_functional(msmd)
+
+        # The reference potential energy matrix is calculated by contracting the
+        # (transition) density matrices in the AO basis with the electron
+        # repulsion integrals.
+
+        # Electron repulsion integrals (ab|cd)
+        coulomb_integrals = msmd.exact_coulomb_energy()
+        J_ref = 0.5 * numpy.einsum('ikkj->ij', coulomb_integrals)
+
+        numpy.testing.assert_almost_equal(J_msdft, J_ref, decimal=3)
+
+    def test_hartree_like_matrix(self):
+        """
+        Compare Hartree term J[D(r)] from numerical integration with exact matrix elements.
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules().items()):
+            for nstate in tqdm([1,2]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_exact_hartree_energy(mol, nstate=nstate)
+
+
+class TestHartreeLikeFunctionalPoisson(unittest.TestCase):
     def create_test_molecules(self):
         """ dictionary with different molecules to run the tests on """
         molecules = {
@@ -94,7 +195,7 @@ class TestHartreeLikeFunctional(unittest.TestCase):
         :type nstate: int > 0
         """
         # functional for Hartree-like energy J[D(r)]
-        hartree_like_functional = HartreeLikeFunctional(mol)
+        hartree_like_functional = HartreeLikeFunctionalPoisson(mol)
 
         # compute D(r) from full CI
         msmd = self.create_matrix_density(mol, nstate=nstate)
