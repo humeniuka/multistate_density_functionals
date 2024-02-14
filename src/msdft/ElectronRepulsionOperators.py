@@ -31,6 +31,44 @@ from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
 class HartreeLikeFunctional(object):
+    def __init__(self, mol):
+        """
+        The Hartree energy is the interaction of a classical charge density with itself.
+        There is no equivalent of the Hartree term in the multistate density functional
+        formalism, because the Hartree part of the Coulomb energy does not correspond to
+        an operator. We can define a functional of the matrix density D(r) that reduces
+        to the Hartree energy in the case of a single electronic state, which is an
+        analytical functional and transforms correctly under basis transformations U,
+        i.e. `U⁻¹ J[D(r)] U = J[U⁻¹ D(r) U]` :
+
+          J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∫∫' Dᵢₖ(r) Dₖⱼ(r')/|r-r'|
+
+        If there are multiple electronic state, the diagonals J[D(r)]ᵢᵢ differ from the
+        classical Coulomb interaction of the state density of state i with itself, because
+        the matrix product ∑ₖDᵢₖ(r) Dₖⱼ(r') mixes in transition densities to other
+        states k≠i.
+
+        :param mol: Not used.
+        :type mol: pyscf.gto.Mole
+        """
+        pass
+
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity):
+        """
+        compute the Hartree-like part of the electron-electron repulsion operator
+        in the subspace of electronic states,
+
+          J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∫∫' Dᵢₖ(r) Dₖⱼ(r')/|r-r'|
+
+        where Dᵢⱼ(r) is the electronic density of the state Ψᵢ, Dᵢᵢ(r) = ρᵢ(r),
+        or the transition density between the states Ψᵢ and Ψⱼ, Dᵢⱼ(r).
+        """
+        return msmd.hartree_matrix_product()
+
+
+class HartreeLikeFunctionalPoisson(object):
     def __init__(self, mol, level=8):
         """
         The Hartree energy is the interaction of a classical charge density with itself.
@@ -47,6 +85,9 @@ class HartreeLikeFunctional(object):
         classical Coulomb interaction of the state density of state i with itself, because
         the matrix product ∑ₖDᵢₖ(r) Dₖⱼ(r') mixes in transition densities to other
         states k≠i.
+
+        NOTE: :class:`~.HartreeLikeFunctionalPoisson` is much slower than :class:`~.HartreeLikeFunctional`
+            because the Poisson equation is solved numerically on a grid.
 
         :param mol: The molecule defines the integration grid.
         :type mol: pyscf.gto.Mole
