@@ -7,7 +7,7 @@ import pyscf.gto
 from tqdm import tqdm
 import unittest
 
-from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
+from msdft.ElectronRepulsionOperators import HartreeLikeFunctionalPoisson
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.LowerBoundElectronRepulsion import LiebOxfordBound
 from msdft.LowerBoundElectronRepulsion import LowerBoundElectronRepulsionSubspaceInvariant
@@ -86,7 +86,7 @@ class TestLiebOxfordBound(unittest.TestCase):
         # Solve the electronic structure for the ground state with full CI.
         msmd = MultistateMatrixDensityFCI.create_matrix_density(mol, nstate=1)
         # The reference Hartree energy.
-        hartree_functional = HartreeLikeFunctional(mol)
+        hartree_functional = HartreeLikeFunctionalPoisson(mol)
         hartree_energy_ref = hartree_functional(msmd)[0,0]
 
         lieb_oxford_bound = LiebOxfordBound(mol)
