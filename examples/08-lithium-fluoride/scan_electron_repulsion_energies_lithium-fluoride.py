@@ -233,6 +233,8 @@ if __name__ == "__main__":
         T_TF = kinetic_functional_TF(msmd)
         print("calculating T_vW[D] ...")
         T_vW = kinetic_functional_vW(msmd)
+        # The factor 1/9 is explained in section 6.7 "Conventional gradient correction"
+        # in Parr & Yang's book.
         T_approximate = T_TF + 1.0/9.0 * T_vW
 
         # Compare approximate and exact kinetic energy.
