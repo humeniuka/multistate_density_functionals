@@ -19,6 +19,7 @@ from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctionalPoisson
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
+from msdft.ElectronRepulsionOperators import LDAExchangeLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -401,7 +402,44 @@ class TestLSDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
     def test_local_density_exchange_functional(self):
         """
         Check that for a single closed-shell electronic state the multistate LSDA exchange energy
-        functional to the LSDA functional.
+        functional agrees with the ground state LSDA functional.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for exchange energy, K[D(r)]
+                exchange_functional_multi = self.xc_functional_class(mol)
+                exchange_functional_single = LDAExchangeFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state exchange functionals.
+                exchange_matrix_multi = exchange_functional_multi(msmd)
+                exchange_matrix_single = exchange_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    exchange_matrix_single, exchange_matrix_multi)
+
+
+class TestLDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+    @property
+    def xc_functional_class(self):
+        """ The functional to be tested. """
+        return LDAExchangeLikeFunctional
+
+    def test_chunk_size(self):
+        """
+        Check that the exchange energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
+
+    def test_local_density_exchange_functional(self):
+        """
+        Check that for a single closed-shell electronic state the multistate LDA exchange energy
+        functional agrees with the ground state LDA functional.
         """
         for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
             with self.subTest(molecule=name):

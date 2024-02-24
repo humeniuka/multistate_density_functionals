@@ -4,10 +4,10 @@
 Matrix elements of the electron-repulsion operator between two
 n-electron wavefunctions Ψᵢ and Ψⱼ
 
-   Iᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
+    Wᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
 
 with xᵦ=(rᵦ,σᵦ), are approximated a matrix functional of the matrix density,
-i.e. I[D(r)].
+i.e. W[D(r)].
 """
 from abc import ABC, abstractmethod
 
@@ -312,8 +312,8 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
         D(r)⁴ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
 
-        The value of the prefactor Cₓ = 0.7937 is taken from the "Gaussian" approximation in
-        Eqn. (6.5.25) of chapter 6 in Ref. [Yang&Parr]
+        The value of the prefactor Cₓ = 0.7386 is taken from Dirac's approximation in
+        Eqn. (6.1.20) of chapter 6 in Ref. [Yang&Parr]
 
         References
         ----------
@@ -398,6 +398,98 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
                 assert numpy.sum(abs(exchange_energy_r.imag)) < 1.0e-10
 
                 XED[s,:,:,r] = exchange_energy_r
+
+        return XED
+
+class LDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
+    # The prefactor Cₓ for the exchange energy.
+    Cx = Cx_Dirac
+
+    def __init__(self, mol, level=8):
+        """
+        Multi-state exchange energy according to the local density approximation
+        (eqn. 6.5.29 in Ref. [Yang&Parr]),
+
+        K[D(r)] = Cₓ ∫ D(r)⁴ᐟ³ dr
+
+        D(r)⁴ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
+
+        The value of the prefactor Cₓ = 0.7386 is taken from Dirac's approximation in
+        Eqn. (6.1.20) of chapter 6 in Ref. [Yang&Parr]
+
+        References
+        ----------
+        [Yang&Parr] Parr & Yang (1989), "Density Functional Theory of Atoms and Molecules".
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the energy density for the exchange-like part of the electron-electron
+        repulsion operator in the subspace of electronic states,
+
+          XED[D]ᵢⱼ(r) = Cₓ [D(r)⁴ᐟ³]ᵢⱼ
+
+        NOTE: At odds with the usual definition of the exchange energy density,
+        (εₓ,ᵢⱼ(r) ∝ ρ(r)¹ᐟ³), XED contains an additional factor of D(r)
+        (XED(r) ∝ D(r)⁴ᐟ³), since the exchange energy is calculated
+        as K[D] = ∫ XED(r) dr rather than K[ρ] = ∫ ρ(r) εₓ(r) dr.
+
+        :param msmd: The multistate matrix density in the electronic subspace
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the exchange energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: XEDᵢⱼ(r), exchange energy density
+        :rtype: numpy.ndarray of shape (1,Mstate,Mstate,Ncoord)
+           XED[0,i,j,r] is the exchange energy density between the
+           electronic states i and j at position coords[r,:].
+           There is only one spin component, since XED operates on the spin-traced
+           density.
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+
+        # exchange-energy density  XED[D]ᵢⱼ(r) = Cₓ [D(r)⁴ᐟ³]ᵢⱼ
+        XED = numpy.zeros((1,nstate,nstate,ncoord))
+
+        # Evaluate Dᵅ(r) on the integration grid.
+        D, _, _ = msmd.evaluate(coords)
+
+        # Sum over spins to get total density D = Dᵅ(r) + Dᵝ(r).
+        total_density = D[0,...] + D[1,...]
+        for r in range(0, ncoord):
+            # Compute eigenvalues Λ and eigenvectors U of the symmetric matrix D.
+            L, U = numpy.linalg.eigh(total_density[:,:,r])
+            # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+            assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
+
+            # The fractional matrix power is obtained from the eigenvalue decomposition
+            # as D⁴ᐟ³(r) = U(r) Λ⁴ᐟ³(r) Uᵀ(r)
+            D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 4.0/3.0), U)
+            # LDA exchange energy density
+            exchange_energy_r = self.Cx * D_matrix_power
+            # Check that the exchange energy density is real.
+            assert numpy.sum(abs(exchange_energy_r.imag)) < 1.0e-10
+
+            XED[0,:,:,r] = exchange_energy_r
 
         return XED
 
