@@ -580,6 +580,75 @@ class LSDAThomasFermiFunctional(KineticOperatorFunctional):
         return KED
 
 
+class LDAThomasFermiFunctional(KineticOperatorFunctional):
+    """
+    A Thomas-Fermi-like functional that maps the matrix density D(r)=D(up)+D(down)
+    to the matrix of the kinetic energy in the subspace.
+
+      Tᵢⱼ = 3/10 (3π²)²ᐟ³ ∫ (D(r)⁵ᐟ³)ᵢⱼ dr
+
+    Note that the power of 5/3 is not taken element-wise. D(r)⁵ᐟ³ is a matrix
+    power that mixes the different elements of D(r).
+    """
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the kinetic energy density of the free electron gas
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (1,Mstate,Mstate,Ncoord)
+           KED[1,i,j,r] is the kinetic energy density between the electronic states i and j
+           at position coords[r,:]. There is only one spin component because the functional
+           operates on the total (spin-traced) density.
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+
+        # kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((1,nstate,nstate,ncoord))
+
+        # Evaluate D(r) on the integration grid.
+        D, _, _ = msmd.evaluate(coords)
+
+        # Sum over spins to get total D = Dᵅ(r) + Dᵝ(r)
+        total_density = D[0,...] + D[1,...]
+
+        # The kinetic energy density
+        #
+        #  KEDᵢⱼ(r) = 3/10 (3π²)²ᐟ³ (D(r)⁵ᐟ³)ᵢⱼ
+        prefactor = 3.0/10.0 * pow(3.0*numpy.pi**2, 2.0/3.0)
+        for r in range(0, ncoord):
+            # Compute eigenvalues Λ and eigenvectors U of the symmetric
+            # matrix D.
+            L, U = numpy.linalg.eigh(total_density[:,:,r])
+            # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+            assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
+
+            # The fractional matrix power is obtained from the eigenvalue decomposition
+            # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
+            D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 5.0/3.0), U)
+            # Thomas-Fermi kinetic energy density
+            ked_r = prefactor * D_matrix_power
+            # Check that the kinetic energy density is real.
+            assert numpy.sum(abs(ked_r.imag)) < 1.0e-10
+
+            KED[0,:,:,r] = ked_r.real
+
+        return KED
+
+
 class EigendecompositionKineticFunctional(KineticOperatorFunctional):
     """
     This kinetic energy functional is based on an eigenvalue decomposition

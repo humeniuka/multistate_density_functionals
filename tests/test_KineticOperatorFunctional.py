@@ -17,12 +17,13 @@ import unittest
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctionalII
 from msdft.KineticOperatorFunctional import KineticOperatorFunctional
-from msdft.KineticOperatorFunctional import MatrixSquareRootKineticFunctional
+from msdft.KineticOperatorFunctional import LDAThomasFermiFunctional
 from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctionalII
 from msdft.KineticOperatorFunctional import LDAVonWeizsaeckerFunctional
 from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
+from msdft.KineticOperatorFunctional import MatrixSquareRootKineticFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
+from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctionalII
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
@@ -458,7 +459,7 @@ class TestVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class ThomasFermiFunctionalSingleState(object):
+class LDAThomasFermiFunctionalSingleState(object):
     """
     The Thomas-Fermi density functional of the kinetic energy:
 
@@ -505,14 +506,14 @@ class ThomasFermiFunctionalSingleState(object):
         return kinetic_matrix
 
 
-class TestThomasFermiFunctional(KineticFunctionalTestCase):
+class TestLSDAThomasFermiFunctional(KineticFunctionalTestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
         return LSDAThomasFermiFunctional
 
     def create_test_molecules(self):
-        """ dictionary with molecules to run the tests on """
+        """ dictionary with closed-shell molecules to run the tests on """
         molecules = {
             # 2-electron systems, paired spins
             'hydrogen molecule': pyscf.gto.M(
@@ -540,7 +541,53 @@ class TestThomasFermiFunctional(KineticFunctionalTestCase):
 
             # functionals for kinetic operator, T[D(r)]
             kinetic_functional_multi = LSDAThomasFermiFunctional(mol)
-            kinetic_functional_single = ThomasFermiFunctionalSingleState(mol)
+            kinetic_functional_single = LDAThomasFermiFunctionalSingleState(mol)
+
+            # Compare the multistate and the single-state TF functionals.
+            kinetic_matrix_multi = kinetic_functional_multi(msmd)
+            kinetic_matrix_single = kinetic_functional_single(msmd)
+
+            with self.subTest(molecule=name):
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
+
+
+class TestLDAThomasFermiFunctional(KineticFunctionalTestCase):
+    @property
+    def kinetic_functional_class(self):
+        """ The functional to be tested. """
+        return LDAThomasFermiFunctional
+
+    def create_test_molecules(self):
+        """ dictionary with closed-shell molecules to run the tests on """
+        molecules = {
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def test_Thomas_Fermi_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the Thomas-Fermi functional for a closed shell molecule.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            # scalar D(r) from single electronic state
+            msmd = self.create_matrix_density(mol, nstate=1)
+
+            # functionals for kinetic operator, T[D(r)]
+            kinetic_functional_multi = LDAThomasFermiFunctional(mol)
+            kinetic_functional_single = LDAThomasFermiFunctionalSingleState(mol)
 
             # Compare the multistate and the single-state TF functionals.
             kinetic_matrix_multi = kinetic_functional_multi(msmd)
