@@ -18,10 +18,10 @@ from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctionalII
 from msdft.KineticOperatorFunctional import KineticOperatorFunctional
 from msdft.KineticOperatorFunctional import MatrixSquareRootKineticFunctional
-from msdft.KineticOperatorFunctional import ThomasFermiFunctional
+from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctionalII
-from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
+from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
@@ -247,7 +247,7 @@ class TestVonWeizsaeckerFunctional(KineticFunctionalTestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
-        return VonWeizsaeckerFunctional
+        return LSDAVonWeizsaeckerFunctional
 
     def create_test_molecules(self):
         """ dictionary with molecules to run the tests on """
@@ -278,7 +278,7 @@ class TestVonWeizsaeckerFunctional(KineticFunctionalTestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaeckerFunctional(mol)
+                kinetic_functional_multi = LSDAVonWeizsaeckerFunctional(mol)
                 kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
@@ -385,7 +385,7 @@ class TestThomasFermiFunctional(KineticFunctionalTestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
-        return ThomasFermiFunctional
+        return LSDAThomasFermiFunctional
 
     def create_test_molecules(self):
         """ dictionary with molecules to run the tests on """
@@ -415,7 +415,7 @@ class TestThomasFermiFunctional(KineticFunctionalTestCase):
             msmd = self.create_matrix_density(mol, nstate=1)
 
             # functionals for kinetic operator, T[D(r)]
-            kinetic_functional_multi = ThomasFermiFunctional(mol)
+            kinetic_functional_multi = LSDAThomasFermiFunctional(mol)
             kinetic_functional_single = ThomasFermiFunctionalSingleState(mol)
 
             # Compare the multistate and the single-state TF functionals.

@@ -201,7 +201,7 @@ class VonWeizsaecker1eFunctional(KineticOperatorFunctional):
         return KED
 
 
-class VonWeizsaeckerFunctional(KineticOperatorFunctional):
+class LSDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.
@@ -413,7 +413,7 @@ class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
         return KED
 
 
-class ThomasFermiFunctional(KineticOperatorFunctional):
+class LSDAThomasFermiFunctional(KineticOperatorFunctional):
     """
     A Thomas-Fermi-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.

@@ -34,8 +34,8 @@ import pyscf.tools.molden as molden
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
-from msdft.KineticOperatorFunctional import ThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaeckerFunctional
+from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
+from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityCASSCF
 from msdft.SelfInteractionCorrection import CoreSelfInteractionCorrection
 
@@ -191,8 +191,8 @@ if __name__ == "__main__":
         correlation_functional = LDACorrelationLikeFunctional(mol)
         # kinetic energy
         # T[D] = T_{TF}[D] + 1/9 T_{vW}[D]
-        kinetic_functional_TF = ThomasFermiFunctional(mol)
-        kinetic_functional_vW = VonWeizsaeckerFunctional(mol)
+        kinetic_functional_TF = LSDAThomasFermiFunctional(mol)
+        kinetic_functional_vW = LSDAVonWeizsaeckerFunctional(mol)
 
         # exact electron repulsion
         # Iᵢⱼ = ∫dx1 ∫dx2...∫dxn Ψ*ᵢ(x1,x2,...,xn) ∑ᵦ<ᵧ 1/|rᵦ-rᵧ| Ψⱼ(x1,x2,...,xn)
