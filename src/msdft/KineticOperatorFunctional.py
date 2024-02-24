@@ -283,6 +283,81 @@ class LSDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
         return KED
 
 
+class LDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
+    """
+    A von-Weizsäcker-like functional that maps the matrix density D(r)
+    to the matrix of the kinetic energy in the subspace.
+
+    The von-Weizsäcker functional for the electronic ground state
+
+                        (∇ρ)²
+           T[ρ] = ∫ 1/8 ----
+                          ρ
+
+    is turned into a matrix-density functional by replacing the density
+    with the matrix density, ρ(r) -> D(r),
+
+           T[D]ᵢⱼ = ∫ 1/8 ∑ₖ∑ₗ ∇Dᵢₖ D⁻¹ₖₗ ∇Dₗⱼ
+
+    The matrix-inverse of D is placed symmetrically between the gradients.
+
+    This functional does not give the exact kinetic energy matrix for
+    1-electron systems.
+    """
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (1,Mstate,Mstate,Ncoord)
+           KED[0,i,j,r] is the kinetic energy density
+           between the electronic states i and j at position coords[r,:].
+           There is only a single spin component because the functional
+           operates on the total density D=Dᵅ+Dᵝ
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+
+        # kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((1,nstate,nstate,ncoord))
+
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(coords)
+
+        # Sum over spins to get total D = Dᵅ(r) + Dᵝ(r)
+        total_density = D[0,...] + D[1,...]
+        # and its gradient
+        grad_total_density = grad_D[0,...] + grad_D[1,...]
+
+        # (pseudo) inverse of matrix density, D⁻¹ₖₗ(r) at each grid point
+        invD = numpy.zeros_like(total_density)
+        for r in range(0, ncoord):
+            invD[:,:,r] = scipy.linalg.pinv(total_density[:,:,r], rtol=1.0e-12)
+        #
+        # KED_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
+        #
+        KED[0,...] = 1.0/8.0 * numpy.einsum(
+            'ikar,klr,ljar->ijr',
+            grad_total_density, invD, grad_total_density)
+
+        return KED
+
+
 class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)

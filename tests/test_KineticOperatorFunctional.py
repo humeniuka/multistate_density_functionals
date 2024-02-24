@@ -21,12 +21,13 @@ from msdft.KineticOperatorFunctional import MatrixSquareRootKineticFunctional
 from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctionalII
+from msdft.KineticOperatorFunctional import LDAVonWeizsaeckerFunctional
 from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
-class VonWeizsaeckerFunctionalSingleState(object):
+class LSDAVonWeizsaeckerFunctionalSingleState(object):
     """
     The von Weizsäcker density functional of the kinetic energy:
 
@@ -90,6 +91,70 @@ class VonWeizsaeckerFunctionalSingleState(object):
             #  ∫ -1/2 ϕᵢ*(r) ∇²ϕⱼ(r) = ∫ 1/2 ∇ϕᵢ*(r) ∇ϕⱼ(r)
             #
             kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, KED)
+
+        return kinetic_matrix
+
+
+class LDAVonWeizsaeckerFunctionalSingleState(object):
+    """
+    The von Weizsäcker density functional of the kinetic energy:
+
+                        (∇ρ)²
+           T[ρ] = ∫ 1/8 -----
+                          ρ
+
+    Note that the kinetic energy is calculated from the total density ρ = ρ(↑↑) + ρ(↓↓).
+    """
+    def __init__(self, mol, level=8):
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def __call__(
+            self,
+            msmd : MultistateMatrixDensity):
+        """
+        Compute the von Weizsaecker kinetic energy for the density of a single
+        electronic state.
+
+        :param msmd: A multistate density matrix with only a single electronic state
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :return kinetic_energy: A 1x1 matrix with the scalar kinetic energy.
+        :rtype kinetic_energy: numpy.ndarray of shape (1,1)
+        """
+        # number of electronic states
+        nstate = msmd.number_of_states
+        assert nstate == 1, \
+           "The von Weizsaecker functional is only defined for a single electronic state."
+
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(self.grids.coords)
+
+        # Sum over spins to get total D = Dᵅ(r) + Dᵝ(r)
+        total_density = D[0,...] + D[1,...]
+        # and its gradient
+        grad_total_density = grad_D[0,...] + grad_D[1,...]
+
+        # Trace out electronic states to get tr(D)(r)
+        trace_total_density = numpy.einsum('iir->r', total_density)
+
+        # matrix element of the kinetic energy operator <i|Top|j>
+        kinetic_matrix = numpy.zeros((nstate,nstate))
+
+        # von Weizsäcker
+        KED = 1.0/8.0 * (
+            numpy.einsum('ikar,kjar->ijr', grad_total_density, grad_total_density) /
+            numpy.expand_dims(trace_total_density, axis=(0,1))
+        )
+
+        # The matrix of the kinetic energy operator in the subspace is obtained
+        # by integration T_{i,j}(r) over space
+        #
+        #  ∫ -1/2 ϕᵢ*(r) ∇²ϕⱼ(r) = ∫ 1/2 ∇ϕᵢ*(r) ∇ϕⱼ(r)
+        #
+        kinetic_matrix += numpy.einsum('r,ijr->ij', self.grids.weights, KED)
 
         return kinetic_matrix
 
@@ -229,7 +294,7 @@ class TestVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
 
                 # functionals for kinetic operator, T[D(r)]
                 kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
-                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+                kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
@@ -239,7 +304,7 @@ class TestVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class TestVonWeizsaeckerFunctional(KineticFunctionalTestCase):
+class TestLSDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
     """
     NOTE: This von-Weizsaecker-like kinetic energy function is NOT exact
           for 1-electron systems but it performs better for many electron systems.
@@ -279,7 +344,66 @@ class TestVonWeizsaeckerFunctional(KineticFunctionalTestCase):
 
                 # functionals for kinetic operator, T[D(r)]
                 kinetic_functional_multi = LSDAVonWeizsaeckerFunctional(mol)
-                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+                kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state vW functionals.
+                kinetic_matrix_multi = kinetic_functional_multi(msmd)
+                kinetic_matrix_single = kinetic_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
+
+    def test_chunk_size(self):
+        """
+        Check that the kinetic energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
+
+
+class TestLDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
+    """
+    NOTE: This von-Weizsaecker-like kinetic energy function is NOT exact
+          for 1-electron systems.
+    """
+    @property
+    def kinetic_functional_class(self):
+        """ The functional to be tested. """
+        return LDAVonWeizsaeckerFunctional
+
+    def create_test_molecules(self):
+        """ dictionary with molecules to run the tests on """
+        molecules = {
+            # H2
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 -0.375; H 0 0 0.375',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+        }
+        return molecules
+
+    def test_von_Weizsaecker_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the von Weizsäcker functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for kinetic operator, T[D(r)]
+                kinetic_functional_multi = LDAVonWeizsaeckerFunctional(mol)
+                kinetic_functional_single = LDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
@@ -324,7 +448,7 @@ class TestVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
 
                 # functionals for kinetic operator, T[D(r)]
                 kinetic_functional_multi = VonWeizsaecker1eFunctionalII(mol)
-                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+                kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
@@ -333,7 +457,7 @@ class TestVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
-                
+
 class ThomasFermiFunctionalSingleState(object):
     """
     The Thomas-Fermi density functional of the kinetic energy:
@@ -453,7 +577,7 @@ class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
 
                 # functionals for kinetic operator, T[D(r)]
                 kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
-                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+                kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
@@ -489,7 +613,7 @@ class TestEigendecompositionKineticFunctionalII(KineticFunctionalTestCase):
 
                 # functionals for kinetic operator, T[D(r)]
                 kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
-                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+                kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
@@ -517,7 +641,7 @@ class TestMatrixSquareRootKineticFunctional(KineticFunctionalTestCase):
 
                 # functionals for kinetic operator, T[D(r)]
                 kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
-                kinetic_functional_single = VonWeizsaeckerFunctionalSingleState(mol)
+                kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
