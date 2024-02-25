@@ -1283,6 +1283,9 @@ Unfortunately the agreement gets worse for many-electron systems. The \textbf{vW
 The Thomas-Fermi model gives the kinetic energy of a free non-interacting electron gas in terms of the electron density.
 
 \cite[6.1]{ParrYangBook}
+% The factor 1/9 in T[rho] = T_TF[rho] + 1/9 T_vW[rho] 
+% is explained in section 6.7 "Conventional gradient correction"
+% in Parr & Yang's book.      
 
 \begin{equation}
 T[\rho_{\sigma}] = \frac{3}{10} (6 \pi^2)^{2/3} \int d^3r ~ \rho(\vec{r})_{\sigma}^{5/3}
@@ -1897,7 +1900,7 @@ orbitals-free DFT \cite{Teale2022dft_exchange}.
   \includegraphics[width=0.9\textwidth]{figures/lithium-fluoride_potential_energies_and_matrix_density.png}
 \caption{
 \textbf{Lithium-fluoride.}
-(a) SA-2-CASSCF(6,12)/aug-cc-pVQZ potential energy curves
+(a) SA-2-CASSCF(6,21)/aug-cc-pVQZ potential energy curves
 for the lowest 2 singlet states with $\Sigma^+$ symmetry, inset: zoom around avoided crossing.
 (b,c) Visual representation of the matrix density $D_{IJ}(\vec{r}) = D^{\alpha}_{IJ}(\vec{r}) + D^{\beta}_{IJ}(\vec{r})$
 of lithium-fluoride at the experimental bond length of $1.564~\AA$ (b) and at the avoided curve crossing (c).
@@ -1910,7 +1913,7 @@ Isovalues of 0.025 and $\approx 0.001$ were used for the state densities and the
 \end{figure}
 
 \begin{figure}[h!]
-  \includegraphics[width=0.9\textwidth]{figures/lithium-fluoride_electron_repulsion_and_kinetic_energies.png}
+  \includegraphics[width=0.9\textwidth]{figures/lithium-fluoride_electron_repulsion_and_kinetic_energies-lsda.png}
 \caption{
 \textbf{Lithium-fluoride.}
 Comparison between exact WFT (solid lines) and approximate DFT matrix elements (dashed lines)
