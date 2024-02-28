@@ -22,8 +22,9 @@ from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
 from msdft.KineticOperatorFunctional import LDAVonWeizsaeckerFunctional
 from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
 from msdft.KineticOperatorFunctional import MatrixSquareRootKineticFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctionalII
+from msdft.KineticOperatorFunctional import LDAVonWeizsaecker1eFunctional
+from msdft.KineticOperatorFunctional import LSDAVonWeizsaecker1eFunctional
+from msdft.KineticOperatorFunctional import LSDAVonWeizsaecker1eFunctionalII
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
@@ -269,11 +270,11 @@ class KineticFunctionalTestCase(ABC, unittest.TestCase):
                 kinetic_matrix, kinetic_matrix_ref)
 
 
-class TestVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
+class TestLSDAVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
-        return VonWeizsaecker1eFunctional
+        return LSDAVonWeizsaecker1eFunctional
 
     def test_1electron_systems(self):
         """ Check that the kinetic energy functional is exact for one-electron systems """
@@ -294,8 +295,44 @@ class TestVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
+                kinetic_functional_multi = LSDAVonWeizsaecker1eFunctional(mol)
                 kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
+
+                # Compare the multistate and the single-state vW functionals.
+                kinetic_matrix_multi = kinetic_functional_multi(msmd)
+                kinetic_matrix_single = kinetic_functional_single(msmd)
+
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_multi, kinetic_matrix_single)
+
+
+class TestLDAVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
+    @property
+    def kinetic_functional_class(self):
+        """ The functional to be tested. """
+        return LDAVonWeizsaecker1eFunctional
+
+    def test_1electron_systems(self):
+        """ Check that the kinetic energy functional is exact for one-electron systems """
+        for name, mol in tqdm(
+                self.create_test_molecules_1electron().items()):
+            for nstate in tqdm([1,2,3,4]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_exact_kinetic_energy(mol, nstate=nstate)
+
+    def test_von_Weizsaecker_functional(self):
+        """
+        Check that for a single electronic state the multistate kinetic energy functional
+        reduces to the von Weizsäcker functional.
+        """
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # functionals for kinetic operator, T[D(r)]
+                kinetic_functional_multi = LDAVonWeizsaecker1eFunctional(mol)
+                kinetic_functional_single = LDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
                 kinetic_matrix_multi = kinetic_functional_multi(msmd)
@@ -423,11 +460,11 @@ class TestLDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
                 self.check_chunk_size(mol)
 
 
-class TestVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
+class TestLSDAVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
-        return VonWeizsaecker1eFunctionalII
+        return LSDAVonWeizsaecker1eFunctionalII
 
     def test_1electron_systems(self):
         """ Check that the kinetic energy functional is exact for one-electron systems """
@@ -448,7 +485,7 @@ class TestVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaecker1eFunctionalII(mol)
+                kinetic_functional_multi = LSDAVonWeizsaecker1eFunctionalII(mol)
                 kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
@@ -623,7 +660,7 @@ class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
+                kinetic_functional_multi = LSDAVonWeizsaecker1eFunctional(mol)
                 kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
@@ -659,7 +696,7 @@ class TestEigendecompositionKineticFunctionalII(KineticFunctionalTestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
+                kinetic_functional_multi = LSDAVonWeizsaecker1eFunctional(mol)
                 kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.
@@ -687,7 +724,7 @@ class TestMatrixSquareRootKineticFunctional(KineticFunctionalTestCase):
                 msmd = self.create_matrix_density(mol, nstate=1)
 
                 # functionals for kinetic operator, T[D(r)]
-                kinetic_functional_multi = VonWeizsaecker1eFunctional(mol)
+                kinetic_functional_multi = LSDAVonWeizsaecker1eFunctional(mol)
                 kinetic_functional_single = LSDAVonWeizsaeckerFunctionalSingleState(mol)
 
                 # Compare the multistate and the single-state vW functionals.

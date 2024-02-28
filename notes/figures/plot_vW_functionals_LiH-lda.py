@@ -10,9 +10,8 @@ import numpy
 import pyscf.fci
 import pyscf.scf
 
-from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
-from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
+from msdft.KineticOperatorFunctional import LSDAVonWeizsaecker1eFunctional
+from msdft.KineticOperatorFunctional import LDAVonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
@@ -36,8 +35,8 @@ def compare_vW_kinetic_energy_densities(mol, nstate=2):
     coords[:,2] = r
         
     # Functionals for kinetic energy matrix.
-    kinetic_vW1e = VonWeizsaecker1eFunctional(mol)
-    kinetic_vW = LSDAVonWeizsaeckerFunctional(mol)
+    kinetic_vW1e = LSDAVonWeizsaecker1eFunctional(mol)
+    kinetic_vW = LDAVonWeizsaeckerFunctional(mol)
 
     # Evalute kinetic energy density along the cut ...
     # ... with the approximate functionals from the matrix density

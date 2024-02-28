@@ -12,7 +12,7 @@ import pyscf.scf
 import pyscf.tddft
 
 from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
-from msdft.KineticOperatorFunctional import VonWeizsaecker1eFunctional
+from msdft.KineticOperatorFunctional import LSDAVonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityTDDFT
 

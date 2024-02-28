@@ -95,7 +95,7 @@ class KineticOperatorFunctional(ABC):
         return kinetic_matrix
 
 
-class VonWeizsaecker1eFunctional(KineticOperatorFunctional):
+class LSDAVonWeizsaecker1eFunctional(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.
@@ -201,6 +201,108 @@ class VonWeizsaecker1eFunctional(KineticOperatorFunctional):
         return KED
 
 
+class LDAVonWeizsaecker1eFunctional(KineticOperatorFunctional):
+    """
+    A von-Weizsäcker-like functional that maps the matrix density D(r)
+    to the matrix of the kinetic energy in the subspace.
+
+    This functional should give the exact kinetic energy matrix for
+    1-electron systems.
+    """
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = -1/2 ϕᵢ*(r) ∇²ϕⱼ(r)
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (1,Mstate,Mstate,Ncoord)
+           KED[0,i,j,r] is the kinetic energy density between the
+           electronic states i and j at position coords[r,:].
+           There is only one spin component, because the functional
+           operates on the spin-traced matrix density.
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+
+        # kinetic energy density KEDᵢⱼ(r)
+        KED = numpy.zeros((1,nstate,nstate,ncoord))
+
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(coords)
+
+        # Sum over spins to get total D = Dᵅ(r) + Dᵝ(r)
+        total_density = D[0,...] + D[1,...]
+        # and its gradient
+        grad_total_density = grad_D[0,...] + grad_D[1,...]
+
+        # Trace over electronic states to get tr(D)(r) and ∇tr(D)(r) = tr(∇D(r))
+        trace_total_density = numpy.einsum('iir->r', total_density)
+        grad_trace_total_density = numpy.einsum('iiar->ar', grad_total_density)
+
+        #
+        # R_{i,j}(r) = D_{i,j}(r) / tr(D(r))
+        #
+        R = total_density / numpy.expand_dims(trace_total_density, axis=(0,1))
+        #                  ∑ₖ∇D_{i,k}·∇D_{k,j}
+        # C_{i,j}(r) = 1/2 -------------------
+        #                        tr(D)
+        #
+        C_numerator = numpy.einsum('ikar,kjar->ijr', grad_total_density, grad_total_density)
+        C_denominator = numpy.expand_dims(trace_total_density, axis=(0,1))
+        C = 0.5 * C_numerator / C_denominator
+
+        # For each grid point we have to solve the linear equation
+        #  (1 - K)·T = C
+        # where T_{i,j}(r) and C_{i,j}(r) are interpreted as vectors in ℂ^{Mstate x Mstate}
+        dim2 = nstate*nstate
+        # identity matrix
+        delta = numpy.eye(nstate)
+        # K_{i,j;m,n} =  - R_{i,j} delta_{m,n}  - delta_{i,m} R_{n,j}  - R_{i,m} delta_{n,j}
+        K = numpy.zeros((dim2,dim2,ncoord))
+        # ij is a multiindex that runs over all combinations of (i,j) (rows of K)
+        ij = 0
+        for i in range(0, nstate):
+            for j in range(0, nstate):
+                # mn is a multiindex that runs over all combinations of (m,n) (columns of K)
+                mn = 0
+                for m in range(0, nstate):
+                    for n in range(0, nstate):
+                        K[ij,mn,:] = (
+                            -R[i,j,:]*delta[m,n]) -delta[i,m]*R[n,j,:] -R[i,m,:]*delta[n,j]
+                        # increase column counter
+                        mn += 1
+                # increase row counter
+                ij += 1
+
+        # The kinetic energy density
+        #
+        #  KEDᵢⱼ(r) = 1/2 ∇ϕᵢ*(r) ∇ϕⱼ(r)
+        #
+        # is obtained by solving (1 - K).T = C for each grid point
+        Id = numpy.eye(dim2)
+        for r in range(0, ncoord):
+            Cvec = C[:,:,r].flatten()
+            Tvec = numpy.linalg.solve(Id - K[:,:,r], Cvec)
+            # Reinterpret the vector Tvec as a square matrix.
+            KED[0,:,:,r] = numpy.reshape(Tvec, (nstate,nstate))
+
+        return KED
+
+
 class LSDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)
@@ -221,7 +323,7 @@ class LSDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
 
     This functional does not give the exact kinetic energy matrix for
     1-electron systems but it performs much better on many-electron systems
-    then :class:`~.VonWeizsaecker1eFunctional`.
+    then :class:`~.LSDAVonWeizsaecker1eFunctional`.
     """
     def kinetic_energy_density(
             self,
@@ -358,7 +460,7 @@ class LDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
         return KED
 
 
-class VonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
+class LSDAVonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
     """
     A von-Weizsäcker-like functional that maps the matrix density D(r)
     to the matrix of the kinetic energy in the subspace.

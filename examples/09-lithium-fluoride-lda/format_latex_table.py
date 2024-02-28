@@ -51,7 +51,7 @@ zero-decimal-to-integer
 \begin{table}[ht]
   \centering
   \caption{
-\label{tbl:lithium_fluoride_electron_repulsion_and_kinetic}
+\normalfont
 Electron repulsion and kinetic energy matrices in the basis of the exact eigenstates
 $1^1\Sigma^+$ (I=0) and $2^1\Sigma^+$ (I=1) of LiF at the avoided crossing ($6.8~\AA$).
 (a) Exact electron repulsion matrix $W_{IJ}^{\text{exact}}$, multistate DFT approximation
@@ -63,6 +63,7 @@ and self-interaction correction for core electrons ($\text{SIC} \delta_{IJ}$).
 Thomas-Fermi ($T_{\text{TF}}[\m{D}]_{IJ}$) and von-Weizs\"{a}cker ($T_{\text{vW}}[\m{D}]_{IJ}$)
 kinetic energy matrices.
 All energies are in Hartree.}
+\label{tbl:lithium_fluoride_electron_repulsion_and_kinetic}
 """
     # Tables for electron-repulsion
     tex += """
