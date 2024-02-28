@@ -10,7 +10,6 @@ import numpy
 import pyscf.fci
 import pyscf.scf
 
-from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
 from msdft.KineticOperatorFunctional import LSDAVonWeizsaecker1eFunctional
 from msdft.KineticOperatorFunctional import LSDAVonWeizsaeckerFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
