@@ -58,6 +58,7 @@ zero-decimal-to-integer
 
 \caption{
 \label{tbl:lower_bounds_electron_repulsion}
+\normalfont
 The exact subspace electron repulsion energy
 $\\frac{1}{N} \sum_{I=1}^{N} \langle \Psi_I \\vert \\frac{1}{2} \sum_{i \\neq j} \\frac{1}{\\vert \\vec{r}_i - \\vec{r}_j \\vert} \\vert \Psi_I \\rangle$
 (\\textbf{Exact}) is bounded from below by
