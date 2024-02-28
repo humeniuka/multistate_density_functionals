@@ -1057,7 +1057,8 @@ each grid point and then integrating the kinetic energy density numerically.
 \textbf{Multistate von-Weizs\"{a}cker kinetic functional II (vW). \label{sec:vWII}}
 For a single electron, the kinetic energy matrix-functional defined by Eqn.~\ref{eqn:solution_geometric_series} gives the exact kinetic energy matrix.
 Unfortunately the functional does not perform well for multiple electrons.
-So one has to find a different generalization of the von-Weizs\"{a}cker functional to multiple electronic states. A ground state functional can be turned in multistate functional by reusing its functional form and simply replacing occurances of the density $\rho(\vec{r})$ by the matrix density $\m{D}(\vec{r})$. For the von-Weizs\"{a}cker functional this ad-hoc prescription gives,
+So one has to find a different generalization of the von-Weizs\"{a}cker functional to multiple electronic states. A ground state functional can be turned in multistate functional by reusing its functional form and simply replacing occurances of the density $\rho(\vec{r})$ by the matrix density $\m{D}(\vec{r})$.
+For the von-Weizs\"{a}cker functional this ad-hoc prescription gives,
 \begin{equation}
 T_W[\m{D}(\vec{r})]_{IJ} = \int d^3\!r ~ \frac{1}{8} \sum_{K} \sum_{L} \nabla D_{IK}(\vec{r}) \left(\m{D}^{-1}(\vec{r}) \right)_{KL} \nabla D_{KL}(\vec{r}) . \label{eqn:von_Weizasecker_many_electrons}
 \end{equation}
@@ -1192,7 +1193,8 @@ However, this is not the only conceivable extension. One could also use the grad
 \begin{equation}
 T_{IJ}[\m{D}(\vec{r})] = \frac{1}{8} \int d^3\!r ~ \sum_{K}^N \nabla (D^{1/2})_{IK}(\vec{r}) \nabla (D^{1/2})_{KJ}(\vec{r}). \label{eqn:vW_ms_extension_matrix_square_root}
 \end{equation}
-Since $\nabla \m{D}$ and $\m{D}$ do not commute, $\nabla \m{D}^{1/2} \cdot \nabla \m{D}^{1/2} \neq \nabla \m{D} \m{D}^{-1} \nabla \m{D}$, unlike in the single-state case, where $\left(\nabla \sqrt{\rho}\right)^2 = \nabla \rho^2 / \rho$. For the small systems studied, equations \ref{eqn:vW_ms_extension} and \ref{eqn:vW_ms_extension_matrix_square_root} give slightly different results, but it is not clear which one is superior.
+Since $\nabla \m{D}$ and $\m{D}$ do not commute, $\nabla \m{D}^{1/2} \cdot \nabla \m{D}^{1/2} \neq \nabla \m{D} \m{D}^{-1} \nabla \m{D}$, unlike in the single-state case, where $\left(\nabla \sqrt{\rho}\right)^2 = \nabla \rho^2 / \rho$.
+For the small systems studied, equations \ref{eqn:vW_ms_extension} and \ref{eqn:vW_ms_extension_matrix_square_root} give slightly different results, but it is not clear which one is superior.
 
 Figures \ref{fig:vW_kinetic_energy_HMI} and \ref{fig:vW_kinetic_energy_LiH} compare the kinetic energy densities of two von-Weizs\"{a}cker-like functionals with the exact results computed with full configuration interaction as implemented in the PySCF \cite{Sun2020} software package. Clearly \textbf{vW1e} is exact for 1-electron systems but significantly understimates the kinetic energy density for multiple electrons.
 The \textbf{vW} functional works well in the vicinity of the nuclei where the electron density is high, but less so in the bonding regions. But both functionals reproduce the transition density accurately.
@@ -1204,7 +1206,7 @@ The \textbf{vW} functional works well in the vicinity of the nuclei where the el
 \end{figure}
 
 \begin{figure}[h!]
-\includegraphics[width=0.8\textwidth]{figures/vW_kinetic_energy_LiH.png}
+\includegraphics[width=0.8\textwidth]{figures/vW_kinetic_energy_LiH-lsda.png}
 \caption{\textbf{Lithium hydride.} Cut through the kinetic energy density (KED) of lithium hydride, LiH, along the bond axis for the lowest four electronic states $I,J=0,1,2,3$. Solid, thick lines represent the exact kinetic energy density from a FCI/6-31g calculation using PySCF. Dashed, thin lines are the KEDs computed with approximate kinetic energy functionals according to Eqn.~\ref{eqn:solution_geometric_series} (\textbf{vW1e}) and Eqn.~\ref{eqn:von_Weizasecker_many_electrons} (\textbf{vW}). Diagonal state KED's $(I,I)$ are shown on the left (log), transition KED's $(I,J)$ on the right.}
 \label{fig:vW_kinetic_energy_LiH}
 \end{figure}
@@ -1926,7 +1928,7 @@ Left column: diagonal elements, Right column: off-diagonal element.
 
 \FloatBarrier
 
-\input{tables/lithium-fluoride_electron_repulsion_and_kinetic.tex}
+\input{tables/lithium-fluoride_electron_repulsion_and_kinetic-lsda.tex}
 
 \FloatBarrier
 
