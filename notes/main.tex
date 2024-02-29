@@ -109,7 +109,7 @@
 %% the title and author information, if needed.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \abbreviations{}
-\keywords{}
+\keywords{excited states, time-independent density functional theory, multiconfigurational DFT}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The manuscript does not need to include \maketitle, which is
@@ -148,17 +148,44 @@
 %% if an abstract is not used by the target journal.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{abstract}
+Recently Lu and Gao [J. Phys. Chem. Lett. 13, 33, 7762-7769 (2022)]
+published a new, rigorous density functional theory for excited states and proved that the
+projection of the kinetic and electron repulsion operators into the subspace of the lowest electronic states
+are a universal functional of the matrix density.
+This is the first attempt to find an approximation to the multistate universal functional $\mathcal{F}$.
+It is shown that $\mathcal{F}$ (i) does not explicitly depend on the number of electronic states and (ii)
+is an analytical matrix functional. 
+The Thomas-Fermi-Dirac-von Weizs\"{a}cker model and the correlation energy of the homogeneous electron gas
+are turned into matrix functionals guided by two principles: That each matrix functional should transform
+properly under basis set transformations, and that the ground state functional should be recovered for a single state.
+Lieb-Oxford-like bounds on the average kinetic and electron repulsion energies in the subspace are given.
+When evaluated on the numerically exact matrix density of LiF, this simple approximation
+reproduces the matrix elements of the Hamiltonian in the basis of the exact eigenstates accurately for all bond lengths.
+In particular the off-diagonal elements of the effective Hamiltonian that come from the
+interactions of different electronic states can be calculated with the same or better accuracy than the diagonal elements.
+Unsurprisingly, the largest error comes from the kinetic energy functional.
+More exact conditions that constrain the functional form of $\mathcal{F}$ are needed to go beyond the local density approximation.
+
+% Diagonal and off-diagonal matrix elements of an effective Hamiltonian can be computed with matrix functional...
+% Local density approximation Thomas-Fermi-Dirac-von Weizs\"{a}cker
+% Lower bounds
 % Recently Lu and Gao [J. Phys. Chem. Lett. 13, 33, 7762-7769 (2022)]
 % published a new, rigorous density functional theory for excited states, in which the ground
 % and excited states are treated on an equal footing. The fundamental variable is the projection
 % of the one-particle density operator on the subspace of the lowest $N$ eigenstates.
 % * Universal functional F does not depend on the number of states
 % * F is an analytical matrix functional.
+% This is the first attempt to find an approximation to the multistate universal functional.
 %
 % Two principles will guide the search for the multistate matrix functional:
 % (a) The functional should transform properly under basis transformations.
 % (b) For a single eletronic state, the functional form of an existing ground state functional should be recovered.
 % These criteria are not enough to determine the functional uniquely. When in doubt, one of the simplest alternatives is chosen.
+% How to incorporate 
+
+% LDA-like functional
+% test on LiH
+% off-diagonal matrix elements of the effective Hamiltonian
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
