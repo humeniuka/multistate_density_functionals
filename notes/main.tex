@@ -203,26 +203,6 @@ More exact conditions that constrain the functional form of $\mathcal{F}$ are ne
 %  - author listed on "DFT exchange: sharing perspectives on the workhorse of quantum chemistry and materials science", 
 %    Phys. Chem. Chem. Phys., 2022, 24, 28700, DOI: 10.1039/d2cp02827a
 %
-% Outline:
-% * Introduction
-%   - variational DFT for excited states (ensemble DFT, MC-PDFT), shortcomings of existing methods
-%   - Summarize Lu and Gao's theorems in my own words
-%   - Explanation of the basic ideas with the help of Taylor series.
-% * Theory
-%   - F[D(r)] as an analytic matrix functional
-%   - proof that F does not depend explicitly on N
-%   - L(S)DA matrix functional
-%     - Hartree term
-%     - exchange term
-%     - correlation term
-%     - kinetic energy
-%        - von-Weizsaecker term
-%        - Use additional flexibility to make vW term exact for 1e systems (not used in calculations)
-%        - Thomas-Fermi term
-%   - Lower bounds for matrix functional
-% * Example
-%   - LiF dissociation curve
-% * Conclusion
 
 \section{Introduction}
 %%%%% Motivation for developing multiconfigurational DFT
@@ -230,10 +210,11 @@ Kohn-Sham (KS) density functional theory (DFT) \cite{Hohenberg1964inhomogeneous,
 method in academia and industry, because it can be operated as a black box and often gives
 reasonable answers without requiring excessive computational time.
 For molecules, linear-response \cite{Casida1995} time-dependent \cite{Runge1984} DFT (LR-TDDFT) provides excited state properties very efficiently,
-but it has problems with core-excitations [CITATION],
+but it has problems with core-excitations \cite{Imamura2006time,Janesko2023projected},
 doubly excited states \cite{Levine2006conical}, charge transfer states \cite{Dreuw2003long},
 Rydberg states \cite{Dreuw2003long} and conical intersections to the ground state \cite{Levine2006conical}.
-Although some of these issues can be fixed with tuned \cite{Stein2009reliable} range-separated hybrid \cite{Tawada2004long} functionals or spin-flip DFT \cite{Shao2003spin},
+Although some of these issues can be fixed with tuned \cite{Stein2009reliable} range-separated \cite{Tawada2004long}
+or projected \cite{Janesko2023projected} hybrid functionals or spin-flip DFT \cite{Shao2003spin},
 whenever the electronic structure becomes more complicated, multi-reference wavefunction-based methods have to be employed.
 
 In particular, (TD)-DFT fails when an excited state comes close in energy to the ground state,
@@ -372,13 +353,14 @@ This idea only works if the universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})
 Section \ref{sec:properties_analytic_matrix_functional} introduces the term \emph{analytical matrix functional} to characterize $\m{\mathcal{F}}$
 and sketches a proof that $\m{\mathcal{F}}[\m{D}(\vec{r})]$ does not explicitly depend on the dimension of the subspace,
 i.e. the dimension of the matrix $\m{D}(\vec{r})$.
-In section \label{sec:approximate_lda_msdft} a local density approximation to the universal functional is presented.
-Section \label{sec:exact_constraints} discusses incorporating exact conditions to constrain the multistate matrix functional.
-Section \label{sec:heg_msdft} explores whether there is a many-electron system for which the LDA multistate functional is exact.
-Lieb-Oxford-style lower bounds on the kinetic and electron repulsion energies are formulated in section \label{sec:lower_bounds}.
-The functional is tested on the avoided crossing in LiF (section \label{sec:results}).
+In section \ref{sec:approximate_lda_msdft} a local density approximation to the universal functional is presented.
+Section \ref{sec:exact_constraints} discusses incorporating exact conditions to constrain the multistate matrix functional.
+Section \ref{sec:heg_msdft} explores whether there is a many-electron system for which the LDA multistate functional is exact.
+Lieb-Oxford-style lower bounds on the average kinetic and electron repulsion energies in the subspace
+are formulated in section \ref{sec:lower_bounds}.
+The approximate functional is tested on the avoided crossing in LiF (section \ref{sec:results}).
 %\label{sec:dicussion}
-Section \label{sec:conclusion} concludes.
+Section \ref{sec:conclusion} concludes.
 
 \subsection{Rigorous MSDFT: Lu \& Gao's Theorems
 \label{sec:lu_gao_theorems}
@@ -481,9 +463,7 @@ that the matrix density is derived from antisymmetric wavefunctions.
 What kind of matrix function constitute a matrix density belonging to Fermionic wavefunctions is the
 multistate version of the $N$-representability problem. Some obvious requirements are that the state densities should
 integrated to the total number of electrons and that the transition densities should integrated to 0 to reflect that
-eigenstates are orthonormal. If the exact universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ (or a good approximation to it)
-were known and it were somehow possible to restrict the minimization to valid Fermionic matrix densities $\m{D}(\vec{r})$,
-the multistate DFT of Lu and Gao would open the way for studying excitations in very large systems in the spirit of orbital-free DFT [CITE].
+eigenstates are orthonormal.
 The question of parameterizing the matrix density will not be touched further.
 
 The Hohenberg-Kohn (HK) theorem \cite{Hohenberg1964inhomogeneous} tells us that the ground state density $\rho_0(\vec{r})$
@@ -950,7 +930,7 @@ While the projection of the external potential into any subspace is trivially a 
 the functionals for $\hat{T}$ and $\hat{W}$ have to be approximated. The kinetic energy multistate functional
 will be derived from the Thomas-Fermi and von-Weizs\"{a}cker ground state functionals. The electron-electron repulsion
 is split into a Hartree-like direct term, a Dirac-like exchange term, a correlation-like term based on Chachiyo's fit to
-the correlation energy of the homogeneous electron gas and a self-interaction correction. Let us start
+the correlation energy of the homogeneous electron gas and a self-interaction correction for the core electrons. Let us start
 with the electron-electron repulsion.
 
 \subsubsection{Electron Repulsion Functional}
@@ -1570,6 +1550,11 @@ for the electron-repulsion and kinetic energy.
 The resulting projections of the electron-repulsion $\m{W}[\m{D}]$ (Eqn.~\ref{eqn:electron_repulsion_msdft})
 and the kinetic energy $\m{T}[\m{D}]$ (Eqn.~\ref{eqn:electron_repulsion_msdft}) into the subspace of the lowest eigenstates are then compared with the
 exact values $\m{W}^{\text{exact}}$ and $\m{T}^{\text{exact}}$ that are evaluated from the exact wavefunctions.
+The exact matrix elements of the electron-repulsion are obtained by subtracting the kinetic and nuclear-attraction
+matrices from the diagon matrix containing the exact adiabatic eigenenergies:
+\begin{equation}
+ W^{\text{exact}}_{IJ} = E^{\text{exact}}_{I} \delta_{IJ} - \m{T} - \int v(\vec{r}) \m{D}(\vec{r})
+\end{equation}
 
 The exact wavefunctions are calculated with PySCF \cite{Sun2020} at the SA(2)-CASSCF level
 with the aug-cc-pVQZ basis set\cite{Dunning1989gaussianI,Kendall1992electron,basis_set_exchange},
@@ -1590,7 +1575,7 @@ Figure \ref{fig:lithium-fluoride_potential_energies_and_matrix_density} shows th
 and the matrix densities at the experimental minimum and at the avoided crossing.
 With the naked eye it is difficult to discern the small differences between the densities in different states.
 The matrix density is the only input to the matrix functional. 
-The electron-repulsion and kinetic part of the effective Hamiltonian predicted by the L(S)DA matrix functional
+The electron-repulsion and kinetic part of the effective Hamiltonian predicted by the LDA matrix functional
 is shown in Fig.~\ref{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies} for different bond lengths. 
 Figures \ref{fig:lithium-fluoride_electron_repulsion_and_kinetic_energies}a) and b)
 suggest that both the diagonal and off-diagonal matrix elements of the electron-repulsion operator are
@@ -1601,9 +1586,14 @@ and the exact values at the avoided crossing.
 The exchange part accounts for most of the exchange-correlation and is approximately a factor of 10 larger than the correlation energy.
 This statement applies both for the diagonal and the off-diagonal elements.
 
-It is remarkable that the off-diagonal matrix elements match so well. Diagonal and off-diagonal
+The relative errors of the diagonal elements and the off-diagonal elements of the electron repulsion
+are less than 1\% and less than 5\%, respectively.
+It is remarkable that the off-diagonal elements $W_{IJ}$, which have no equivalent
+in single-state density functional theory, also match well.
+
+Diagonal and off-diagonal
 matrix elements are treated on the same footing. The off-diagonal elements emerge naturally when turning the
-scalar L(S)DA functional into a matrix functional by keeping its functional form (same coefficients in Taylor expansion)
+scalar LDA functional into a matrix functional by keeping its functional form (same coefficients in Taylor expansion)
 and replacing the scalar density $\rho(\vec{r})$ with the matrix density $\m{D}(\vec{r})$.
 Diagonal and off-diagonal elements are not independent of each other. A unitary rotation in the subspace of
 the lowest eigenstates would mix them. Because the matrix density is represented in the adiabatic basis,
@@ -1611,7 +1601,7 @@ the Hamiltonian $\m{H}[\m{D}(\vec{r})]$ is diagonal. If instead the adiabatic ei
 be mixed to form diabatic states, which have ionic (Li$^+$F$^-$) or covalent (Li$^{\bullet}$F$^{\bullet}$) character,
 the matrix functional for the Hamiltonian $\m{H}[\m{D}(\vec{r})]$ would also give the correct diabatic state energies and
 diabatic coupling $H_{01}$ (to the extent
-possible for a simple L(S)DA functional). By construction the functionals of the matrix density transform like
+possible for a simple LDA functional). By construction the functionals of the matrix density transform like
 the Hamiltonian under rotations within the subspace.
 
 The kinetic energy functional on the other hand disappoints
@@ -1652,8 +1642,40 @@ Left column: diagonal elements, Right column: off-diagonal element.
 
 \FloatBarrier
 
-\section{Discussion}
-\label{sec:dicussion}
+\section{Conclusion}
+\label{sec:conclusion}
+
+%\section{Discussion}
+%\label{sec:dicussion}
+A local functional of the matrix density reproduces the effective Hamiltonian in the subspace of the lowest electronic states.
+In contrast to the $\Delta$SCF method, where a ground state functional is applied to the density of a single excited state configuration,
+the multistate functional yields both the energies of the configurations and the interactions between them.
+By construction the average energy of the lowest states is invariant under basis transformations within the subspace.
+
+When turning ground state functionals into multistate functionals, ambiguities arise because scalar descriptors of the
+density become non-commuting matrices. As illustrated for the kinetic energy, exact conditions of the unknown functional
+can help to constrain its functional form.
+
+The multistate functional was tested on the dissociation curve of LiF.
+The exchange part of the functional makes the largest contribution to the state interactions,
+while the correlation part is an order of magnitude smaller.
+The tested functional is not yet suitable for reliable calculations,
+but mostly so because the errors of the diagonal kinetic energy are so huge,
+while the errors of the off-diagonal elements are acceptable.
+
+A limitation of this work is that the matrix functional was not determined by minimizing the subspace energy.
+Using an efficient parameterization of the matrix density \cite[theorem (3)]{Lu2022JPCL} \cite{Lu2022fundamental},
+multi-configurational self-consistent field calculations with an effective Hamiltonian computed from the mulistate functional
+should be possible. This is left for future work.
+
+If a good approximation to the universal mulitstate functional
+were known and it were somehow possible to restrict the minimization to valid Fermionic matrix densities,
+the multistate DFT of Lu and Gao would open the way for studying excitations in very large systems
+in the spirit of orbital-free DFT.
+
+%, but first better matrix functionals of GGA quality are needed.
+
+
 
 % Need more exact conditions (such as for vW functional, exact 1e )
 
@@ -1664,8 +1686,11 @@ Left column: diagonal elements, Right column: off-diagonal element.
 %not possible to find the matrix density that minimizes the multistate energy. This is left for future work, if the method
 %should turn out to be promising.
 
-\section{Conclusion}
-\label{sec:conclusion}
+% Correlation energy seems to go the wrong way.
+
+% Diagonal elements are trivial. One could have just applied a ground state functional to the density that belongs to a configuration
+% which is orthogonal to the ground state, as done in Delta-SCF. But the off-diagonals are new.... (something like that)
+
 %The resulting functional $\mathcal{F}$ is not suitable for reliable calculations,
 %but mostly so because the errors of the diagonal kinetic
 %energy are so huge,
@@ -1673,6 +1698,7 @@ Left column: diagonal elements, Right column: off-diagonal element.
 
 %Nevertheless this study provides a clean picture of how well matrix functionals derived from simple ground state functionals
 %like LDA can approximate the off-diagonal elements of the Hamiltonian matrix using only the matrix density as input.
+% Searching for better matrix functionals is therefore worth the effort.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1691,11 +1717,14 @@ A.H. thanks Prof. Toshinori Suzuki for the kind support.
 %% suppinfo environment.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{suppinfo}
+Comparison of paramagnetic and ferromagnetic correlation energy,
+proof of Klein's trace inequality,
+proof of Lieb-Oxford bound for Coulomb energy of subspace.
 
 \textbf{Code and Data Availability:}
 All calculations can be repeated on a desktop computer using the python scripts
 in the github repository
-\url{https://github.com/humeniuka/multistate_density_functionals-v1/}.
+\url{https://github.com/humeniuka/multistate_density_functionals/}.
 The program package and data are archived at \url{https://zenodo.org/TODO_ADD_URL}.
 
 \end{suppinfo}
