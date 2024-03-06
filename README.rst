@@ -1,15 +1,18 @@
 
-Multistate Density Functional Theory for Excited States
--------------------------------------------------------
-This python package implements a multistate kinetic energy density matrix functional.
-For a single electronic state it reduces to the von Weizsäcker kinetic energy functional.
+Approximate Functionals for Multistate Density Functional Theory
+----------------------------------------------------------------
+This python package implements approximate multistate matrix functionals for
+the electron-electron repulsion and the kinetic energy.
+For a single electronic state they reduce to the local density approximation and the
+Thomas-Fermi-von Weizsäcker kinetic energy functional.
 
 Requirements
 ------------
 
 Required python packages:
 
- * matplotlib, numpy, scipy, tqdm
+ * becke-multicenter-integration
+ * matplotlib, numpy, pandas, psutil, scipy, tqdm
  * pyscf
 
 A conda environment with the required packaged can be created with
