@@ -37,7 +37,9 @@ a set of tests should be run with
 
 Getting Started
 ---------------
-
+An example calculation of LiF is provided in the folder :file:`examples/09-lithium-fluoride-lda/`.
+There are scripts for evaluating the LDA-like multistate density functional along the
+dissociation curve of lithium fluoride.
 
 ----------
 References
@@ -45,3 +47,5 @@ References
 .. [1] Yangyi Lu, Jiali Gao, "Multistate Density Functional Theory for Excited States",
     J. Phys. Chem. Lett. 2022, 13, 7762-7769,
     https://doi.org/10.1021/acs.jpclett.2c02088
+.. [2] Alexander Humeniuk, "Approximate Functionals for Multistate Density Functional Theory",
+    ChemRxiv (2024)
