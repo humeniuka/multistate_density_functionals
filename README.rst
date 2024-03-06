@@ -37,7 +37,7 @@ a set of tests should be run with
 
 Getting Started
 ---------------
-An example calculation of LiF is provided in the folder :file:`examples/09-lithium-fluoride-lda/`.
+An example calculation of LiF is provided in the folder ``examples/09-lithium-fluoride-lda/``.
 There are scripts for evaluating the LDA-like multistate density functional along the
 dissociation curve of lithium fluoride.
 
