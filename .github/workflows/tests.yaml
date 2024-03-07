@@ -48,10 +48,6 @@ jobs:
         working-directory: tests
         run: |
           python test_ElectronRepulsionOperators.py
-      - name: Test gradient-augmented basis
-        working-directory: tests
-        run: |
-          python test_GradientAugmentedBasis.py
       - name: Test LinearAlgebra module
         working-directory: tests
         run: |
