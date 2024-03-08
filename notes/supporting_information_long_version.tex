@@ -59,7 +59,7 @@
 \renewcommand{\thefigure}{S\arabic{figure}}
 \renewcommand{\thetable}{S\arabic{table}}
 
-% For referring to equations in main.tex
+% For referring to equations in the main text
 \makeatletter
 \newcommand*{\addFileDependency}[1]{% argument=file name and extension
   \typeout{(#1)}
@@ -73,7 +73,7 @@
     \addFileDependency{#1.tex}%
     \addFileDependency{#1.aux}%
 }
-\myexternaldocument{main}
+\myexternaldocument{main_long_version}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Meta-data block
