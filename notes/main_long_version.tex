@@ -153,19 +153,19 @@ Recently Lu and Gao [J. Phys. Chem. Lett. 13, 33, 7762-7769 (2022)]
 published a new, rigorous density functional theory for excited states and proved that the
 projection of the kinetic and electron repulsion operators into the subspace of the lowest electronic states
 are a universal functional of the matrix density $\m{D}(\vec{r})$.
-This is the first attempt to find an approximation to the multistate universal functional $\mathcal{F}[\m{D}(\vec{r})]$.
-It is shown that $\mathcal{F}$ (i) does not explicitly depend on the number of electronic states and (ii)
+This is the first attempt to find an approximation to the multistate universal functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$.
+It is shown that $\m{\mathcal{F}}$ (i) does not explicitly depend on the number of electronic states and (ii)
 is an analytic matrix functional. 
 The Thomas-Fermi-Dirac-von Weizs\"{a}cker model and the correlation energy of the homogeneous electron gas
 are turned into matrix functionals guided by two principles: That each matrix functional should transform
 properly under basis set transformations, and that the ground state functional should be recovered for a single electronic state.
 Lieb-Oxford-like bounds on the average kinetic and electron repulsion energies in the subspace are given.
 When evaluated on the numerically exact matrix density of LiF, this simple approximation
-reproduces the matrix elements of the Hamiltonian in the basis of the exact eigenstates accurately for all bond lengths.
+reproduces the matrix elements of the electron repulsion operator in the basis of the exact eigenstates accurately for all bond lengths.
 In particular the off-diagonal elements of the effective Hamiltonian that come from the
 interactions of different electronic states can be calculated with the same or better accuracy than the diagonal elements.
 Unsurprisingly, the largest error comes from the kinetic energy functional.
-More exact conditions that constrain the functional form of $\mathcal{F}$ are needed to go beyond the local density approximation.
+More exact conditions that constrain the functional form of $\m{\mathcal{F}}$ are needed to go beyond the local density approximation.
 
 % Diagonal and off-diagonal matrix elements of an effective Hamiltonian can be computed with matrix functional...
 % Local density approximation Thomas-Fermi-Dirac-von Weizs\"{a}cker
@@ -255,6 +255,8 @@ the number of electronic states, so that a different functional would be needed 
 In ensemble DFT the length of the weight vector changes with the number of states $N$;
 in Levy and Nagy's theory the constrained search in Eqn.(2) of Ref.~\cite{Levy1999} is over all wavefunctions that are orthogonal
 to the first $N-1$ states, which introduces an implicit dependence on $N$.
+In G\"{o}rling's Kohn-Sham formalism for excited states the functionals
+depends on the ground state density and the index of the excited state. \cite{Goerling1996density}
 Ayers showed that the Coulomb interaction is special, because the density of an excited state of a Coulombic system also encodes
 the excitation level, so that no additional parameters are needed. \cite{Ayers2012} The universal functional for
 any electronic state depends only on the electronic density, provided that the external potential is Coulombic. \cite{Ayers2012}
@@ -484,7 +486,7 @@ ground state density $\rho_0(\vec{r})$ easily from the average subspace density 
 $\mathbb{V}^N$, which is the difficult part.
 %Of course the exact universal functional is unknown. 
 The significance of the theorems by Lu and Gao, therefore, is not so much the existence of the mapping $\m{D}(\vec{r}) \to \m{H}$ (which is already
-guaranteed by the HK theorem) but that their
+guaranteed by the HK theorem \cite{Goerling1996density}) but that their
 universal matrix functional has the transformation property \ref{eqn:F_basis_transformation}.
 This restricts the structure of the universal functional and gives some hints on how it can be approximated.
 
@@ -622,7 +624,7 @@ although the negligible energy difference between between ground state energies 
 suggests that there is little double counting. \cite{Zhu2023} However, because all the complexity is packed into one
 functional, it is difficult to reason about the properties of $\mathcal{E}_c$.
 
-I define the kinetic energy $\m{T}[\m{D}]$, Hartree $\m{J}[\m{D}]$, exchange $\m{X}[\m{D}]$ and correlation energy
+I define the kinetic energy $\m{T}[\m{D}]$, Hartree $\m{J}[\m{D}]$, exchange $-\m{K}[\m{D}]$ and correlation energy
 $\m{C}[\m{D}]$ such that each is a functional of the matrix density and behaves properly under basis transformations
 of the state vectors.
 Auxiliary basis states are not used to compute any parts of the Hamiltonian.
@@ -756,7 +758,7 @@ $\mathcal{F}[\m{D}(\vec{r})]$ is constrained to have the form
  \end{split}
 \end{equation}
 The coefficients $f^{(k)}$ are scalar functions and the matrix density occurs either as a matrix product or in scalar quantities that are invariant under basis transformations, such as the trace $\tr(\mathbf{D}(\vec{r}))$.
-The translation property does not exclude the possibility that the functional depends implicitly on the dimension of the subspace, which can be expressed as $\mathcal{N}(\vec{r}) = \tr\{\m{D}(\vec{r}) \m{D}^{-1}(\vec{r})\}$ and therefore is also a functional of the matrix density.
+The transformation property does not exclude the possibility that the functional depends implicitly on the dimension of the subspace, which can be expressed as $\mathcal{N}(\vec{r}) = \tr\{\m{D}(\vec{r}) \m{D}^{-1}(\vec{r})\}$ and therefore is also a functional of the matrix density.
 The following expressions, for instance, are formally valid analytic matrix functionals
 \begin{align}
   \mathcal{G}_{AC}[\m{D}(\vec{r})] &= \int d^3\!r_1 \int d^3\!r_2 \frac{\sum_{B=1}^{N} D_{AB}(\vec{r}_1) D_{BC}(\vec{r}_2)}{\vert \vec{r}_1 - \vec{r}_2 \vert} \\
@@ -909,7 +911,7 @@ Comparison of Eqn.~\ref{eqn:relation_F2N_FN_same_dim} with Eqn.~\ref{eqn:relatio
 \end{equation}
 for any matrix density $\m{D}^{(N)}(\vec{r})$ that decays exponentially with distance.
 % [READ \cite{Katriel1980asymptotic} and \cite{Levy1984exact}, wavefunction and density of bound states should decay exponentially with distance]
-Now the dimension of the argument is the same on both sides. The above equality suggests that the same universal functional applies to all subspace dimensions and one can drop the superscript writing simply $\mathcal{F}[\m{D}(\vec{r})]$. For $N=1$ it is equal to the ground-state kinetic and Hartree-exchange-correlation (Hxc) functionals,
+Now the dimension of the argument is the same on both sides. The above equality suggests that the same universal functional applies to all subspace dimensions and one can drop the superscript and simply write $\mathcal{F}[\m{D}(\vec{r})]$. For $N=1$ it is equal to the ground-state kinetic and Hartree-exchange-correlation (Hxc) functionals,
 \begin{equation}
  \mathcal{F}[\rho(\vec{r})] = T[\rho(\vec{r})] + E_{\text{Hxc}}[\rho(\vec{r})]
 \end{equation}
