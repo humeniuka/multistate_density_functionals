@@ -12,7 +12,7 @@
 # will build the supporting information for the long or short manuscript.
 #
 
-all: notes.pdf
+all: notes.pdf main_short_version.pdf supporting_information_short_version.pdf main_long_version.pdf supporting_information_long_version.pdf
 
 %.pdf: %.tex references.bib   build_always
 	pdflatex $<
