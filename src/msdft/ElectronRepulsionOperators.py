@@ -294,8 +294,8 @@ class ExchangeCorrelationLikeFunctional(ABC):
         return xc_like_matrix
 
 
-# Cₓ = (3/4) (3/pi)¹ᐟ³ = 0.738 from Dirac's exchange-energy, Eqn. (6.1.20) in [Parr&Yang]
-Cx_Dirac = 0.7386
+# Cₓ = (3/4) (3/pi)¹ᐟ³ = 0.7386 from Dirac's exchange-energy, Eqn. (6.1.20) in [Parr&Yang]
+Cx_Dirac = 3.0/4.0 * pow(3.0/numpy.pi, 1.0/3.0)
 # Cₓ from the "Gaussian" approximation in Eqn. (6.5.25) of [Parr&Yang]
 Cx_Gaussian = 0.7937
 
