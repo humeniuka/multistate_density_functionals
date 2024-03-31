@@ -595,6 +595,13 @@ class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase
         """
         Check that the implementation of Becke's 1988 GGA exchange functional gives the same energy
         as the libxc library for a range of electron densities.
+
+        References
+        ----------
+        [libxc] S. Lehtola et al. (2018), Software X 7, 1-5,
+            "Recent developments in libxc —
+            A comprehensive library of functionals for density functional theory"
+            https://doi.org/10.1016/j.softx.2017.11.002
         """
         for name, mol in tqdm({
                 # combine all test molecules into a single dictionary
@@ -632,6 +639,7 @@ class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase
                 #   exc[ρᵅ,ρᵝ] = 1/ρ * (ρᵅ exc[ρᵅ] + ρᵝ exc[ρᵝ]),
                 # so that the total exchange energy is calculated as
                 #   Ex[ρ] = ∫ ρ exc[ρᵅ,ρᵝ] dr.
+                # (see Eqn. (4) in [libxc])
                 rho = rho_ud[0,0,:] + rho_ud[1,0,:]
                 exchange_matrix_single = numpy.array([[
                         numpy.sum(grids.weights * (rho * exc))
