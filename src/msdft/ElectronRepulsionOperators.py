@@ -27,6 +27,7 @@ import numpy
 import numpy.linalg as la
 import pyscf.dft
 
+from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
 
@@ -401,6 +402,7 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
         return XED
 
+
 class LDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
     # The prefactor Cₓ for the exchange energy.
     Cx = Cx_Dirac
@@ -653,3 +655,185 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
             CED[0,:,:,r] = numpy.einsum('ia,a,ja->ij', U, ced_eigenvalues, U)
 
         return CED
+
+
+class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
+    # The prefactor Cₓ for the LDA part of exchange energy.
+    # The variable called "Cx" in [Becke88] corresponds to 2¹ᐟ³ * Cx_Dirac.
+    Cx = Cx_Dirac
+    # The empirical value of β (see table II in [Becke88]) was determined from a least square fit.
+    beta = 0.0042
+    # gamma should be 6 to get the right asymptotics of Ex.
+    gamma = 6.0
+
+    def __init__(self, mol, level=8):
+        """
+        Multi-state exchange energy that generalizes Becke's GGA functional
+
+          K[Dᵅ(r), Dᵝ(r)] = K[Dᵅ(r)] + K[Dᵝ(r)]
+
+        with
+
+          K[Dᵅ(r)] = 2¹ᐟ³ Cₓ ∫ Dᵅ(r)⁴ᐟ³ F(X²(r)ᵅ) dr   (similarly for K[Dᵝ(r)])
+
+        and the enhancement factor over the LDA exchange,
+
+          F(X²(r)) = 1 + β/(2¹ᐟ³ Cₓ) X²(r) / (1 + γ β X(r) sinh⁻¹(X(r))).
+
+        - D(r)⁴ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
+        - F(X²(r)) is the enhancement factor over LDA. It is a matrix function of
+          X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r), which depends on the gradient of the Wigner-Seitz radius
+          R(r) = (4π/3 D(r))⁻¹ᐟ³. X(r) is the matrix square root of X²(r).
+          X²(r) and R(r) are position-dependent matrices with the same dimensions
+          as the matrix density D(r). F(X²) is calculated by diagonalizing X² and applying
+          the scalar function F(·) to its eigenvalues.
+
+        References
+        ----------
+        [Becke88] Becke (1989), Phys. Rev. A 38.6, 3098
+          "Density-functional exchange-energy approximation with correct asymptotic behaviour".
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def enhancement_factor(self, x2):
+        """ The scalar function f(x²) for the enhancement factor """
+        x = numpy.sqrt(x2)
+        f = 1.0 + self.beta / (pow(2.0, 1.0/3.0) * self.Cx) * (
+            x2 / (1 + self.gamma*self.beta * x * numpy.arcsinh(x))
+        )
+        return f
+
+    def energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray,
+            epsilon = 1.0e-12):
+        """
+        compute the energy density for the exchange-like part of the electron-electron
+        repulsion operator in the subspace of electronic states,
+
+          XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ ( D(r)⁴ᐟ³ F(X²(r)) )ᵢⱼ
+
+        NOTE: At odds with the usual definition of the exchange energy density,
+        (εₓ,ᵢⱼ(r) ∝ ρ(r)¹ᐟ³), XED contains an additional factor of D(r)
+        (XED(r) ∝ D(r)⁴ᐟ³), since the exchange energy is calculated
+        as K[D] = ∫ XED(r) dr rather than K[ρ] = ∫ ρ(r) εₓ(r) dr.
+
+        :param msmd: The multistate matrix density in the electronic subspace
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the exchange energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param epsilon: Threshold for neglecting singular eigenvalues.
+           Eigenvalues |λₐ| <= epsilon are treated as zero.
+        :type epsilon: float
+
+        :return: XEDᵢⱼ(r), exchange energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           XED[s,i,j,r] is the exchange energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # Diagonalize D(r) at each grid point to find its eigenvalues Λ(r)
+        # and eigenvectors U(r) as well as their gradients, ∇Λ(r) and ∇U(r).
+        L, U, grad_L, grad_U = EigendecompositionKineticFunctional.eigen_decomposition(msmd, coords, epsilon=epsilon)
+
+        # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+        assert numpy.all(L > -1.0e-12), "Eigenvalues of matrix density D are expected to be positive."
+
+        # The fractional matrix power is obtained from the eigenvalue decomposition.
+        # as D⁴ᐟ³(r) = U(r) Λ⁴ᐟ³(r) Uᵀ(r)
+        D_matrix_power = numpy.einsum('siar,sar,sjar->sijr', U, pow(abs(L), 4.0/3.0), U)
+
+        # The matrix version of the Wigner-Seitz radius is also calculated from the eigenvalue
+        # decomposition as R(r) = U(r) (4π/3 Λ(r))⁻¹ᐟ³ Uᵀ(r).
+
+        # Avoid dividing by zero for λ=0.
+        # Non-zero eigenvalues, for which division is not problematic.
+        good = abs(L) > epsilon
+        # Wigner-Seitz radius of eigenvalues, rₐ(r) = (4π/3 λₐ(r))⁻¹ᐟ³
+        r_eigenvalues = numpy.zeros_like(L)
+        r_eigenvalues[good] = pow(4.0*numpy.pi/3.0 * abs(L[good]), -1.0/3.0)
+        # gradient of Wigner-Seitz radius of eigenvalues,
+        #   ∇rₐ(r) = (-1/3) (4π/3)⁻¹ᐟ³  (λₐ(r))⁻⁴ᐟ³ ∇λₐ(r)
+        #          = (-1/3) (4π/3) rₐ⁴ ∇λₐ(r)
+        grad_r_eigenvalues = (
+            -(1.0/3.0) * (4.0*numpy.pi/3.0) *
+            # insert axis for components of gradient, so that
+            # rₐ⁴ and ∇λₐ(r) have compatible dimensions for multiplication, i.e.
+            # (nspin,nstate,1,ncoord) and (nspin,nstate,3,ncoord), respectively.
+            # rₐ⁴
+            numpy.expand_dims(pow(r_eigenvalues, 4.0), 2) *
+            # ∇λₐ(r)
+            grad_L
+        )
+        # Wigner-Seitz radius matrix, Rᵢⱼ = ∑ₐ Uᵢₐ rₐ Uⱼₐ
+        # Its gradients is
+        #   ∇Rᵢⱼ = ∑ₐ ∇Uᵢₐ rₐ Uⱼₐ + Uᵢₐ ∇rₐ Uⱼₐ + Uᵢₐ rₐ ∇Uⱼₐ
+        grad_R = (
+            # ∑ₐ ∇Uᵢₐ rₐ Uⱼₐ
+            numpy.einsum('siadr,sar,sjar->sijdr', grad_U, r_eigenvalues, U) +
+            # ∑ₐ Uᵢₐ ∇rₐ Uⱼₐ
+            numpy.einsum('siar,sadr,sjar->sijdr', U, grad_r_eigenvalues, U) +
+            # ∑ₐ Uᵢₐ rₐ ∇Uⱼₐ
+            numpy.einsum('siar,sar,sjadr->sijdr', U, r_eigenvalues, grad_U))
+
+        # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
+        #   X²ᵢⱼ = ∑ₐ ∇Rᵢₐ·∇Rₐⱼ
+        X2 = pow(36.0 * numpy.pi, 2.0/3.0) * numpy.einsum(
+            'siadr,sajdr->sijr', grad_R, grad_R)
+
+        # The enhancement factor F(X²) is a matrix function. It is calculated
+        # via the eigendecomposition of the matrix X² = V x² Vᵀ, where x² and V
+        # are the eigenvalues and eigenvectors of X², respectively. Then the
+        # enhancement factor over LDA is calculated as
+        #   F(X²) = V f(x²) Vᵀ
+
+        # numpy.linalg.eigh(...) can operate on multiple matrices in parallel,
+        # Since the calculation is parallelized over the first axis, we have to
+        # move the coordinate axis to the first position. For each grid point r
+        # and spin orientation s, the (N x N)-matrix  X²(r) is diagonalized.
+        # (nspin,nstate,nstate,ncoord) -> (ncoord,nspin,nstate,nstate)
+        X2 = numpy.moveaxis(X2, 3, 0)
+        x2_eigenvalues, V = numpy.linalg.eigh(X2)
+        # Numerical rounding errors might produce tiny, negative eigenvalues instead of 0.
+        assert numpy.all(x2_eigenvalues > -1.0e-12 * x2_eigenvalues.max()), (
+            "Eigenvalues of matrix X² are expected to be positive.")
+
+        # Restore original order of axes
+        #   (ncoord,nspin,nstate) -> (npin, nstate, ncoord)
+        x2_eigenvalues = numpy.moveaxis(x2_eigenvalues, 0, 2)
+        #   (ncoord,nspin,nstate,nstate) -> (npin,nstate,nstate,ncoord)
+        V = numpy.moveaxis(V, 0, 3)
+        # f(x²)
+        f_eigenvalues = self.enhancement_factor(abs(x2_eigenvalues))
+        # F(X²) = V f(x²) Vᵀ
+        F_enhancement_factor = numpy.einsum('siar,sar,sjar->sijr', V, f_eigenvalues, V)
+
+        # GGA exchange-energy density,
+        #   XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ ( D(r)⁴ᐟ³ F(X²(r)) )ᵢⱼ
+        XED = pow(2.0, 1.0/3.0) * self.Cx * numpy.einsum(
+            'siar,sajr->sijr',
+            D_matrix_power, F_enhancement_factor)
+        # Check that the exchange energy density is real.
+        assert numpy.max(abs(XED).imag) < 1.0e-10
+
+        return XED
