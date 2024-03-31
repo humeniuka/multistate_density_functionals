@@ -15,7 +15,9 @@ import pyscf.scf
 from tqdm import tqdm
 import unittest
 
+from msdft.BasisTransformation import BasisTransformation
 from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
+from msdft.ElectronRepulsionOperators import GGABecke88ExchangeLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctionalPoisson
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
@@ -335,6 +337,67 @@ class ExchangeCorrelationFunctionalTestCase(ABC, unittest.TestCase):
             numpy.testing.assert_almost_equal(
                 xc_matrix, xc_matrix_ref)
 
+    def check_transformation(self, mol, nstate=1):
+        """
+        As an analytical matrix density functional, XC[D(r)] should transform under
+        a basis transformation L as
+
+          XC[L D(r) Lᵗ] = L XC[D(r)] Lᵗ
+        """
+        assert nstate > 0
+        # First the electronic eigenstates are determined using
+        # full configuration interaction.
+        rhf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        rhf.verbose = 0
+        # compute self-consistent field
+        rhf.kernel()
+
+        fci = pyscf.fci.FCI(mol, rhf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
+        # Remove the additional state again.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+        # For small basis sets, there can be fewer states than requested.
+        nstate = len(fcivecs)
+
+        # Check that the derived unit test is implemented correctly.
+        assert issubclass(self.xc_functional_class, ExchangeCorrelationLikeFunctional)
+        # functional for exchange/correlation part of electron-repulsion operator, XC[D(r)]
+        exchange_correlation_functional = self.xc_functional_class(mol, level=1)
+
+        # random transformation L
+        basis_transformation = BasisTransformation.random(nstate)
+
+        # The multistate density matrix D(r)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs)
+        # Evaluate XC[D(r)] by integration on the grid.
+        xc_matrix = exchange_correlation_functional(msmd)
+        # Transform the operator, L XC[D(r)] Lᵗ
+        xc_matrix_transformed = basis_transformation.transform_operator(xc_matrix)
+
+        # To compute L D(r) Lᵗ we apply the basis transformation to the CI vectors.
+        fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
+        # The multistate density matrix L D(r) Lᵗ in the transformed basis
+        msmd_transformed = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs_transformed)
+        # Evaluate V[L D(r) Lᵗ] by integration on the grid.
+        xc_matrix_from_transformed_D = exchange_correlation_functional(msmd_transformed)
+
+        numpy.testing.assert_almost_equal(xc_matrix_from_transformed_D, xc_matrix_transformed)
+
+    def test_transformation(self):
+        """
+        Verify that the exchange-correlation matrix transforms correctly under basis changes.
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules_1electron().items()):
+            for nstate in tqdm([2,3]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_transformation(mol, nstate=nstate)
+
 
 class LDAExchangeFunctionalSingleState(object):
     """
@@ -511,6 +574,74 @@ class TestLDACorrelationLikeFunctional(ExchangeCorrelationFunctionalTestCase):
                 # Compare the multistate and the single-state (libxc) correlation functionals.
                 numpy.testing.assert_almost_equal(
                     correlation_matrix_single, correlation_matrix_multi, decimal=5)
+
+
+class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+    @property
+    def xc_functional_class(self):
+        """ The functional to be tested. """
+        return GGABecke88ExchangeLikeFunctional
+
+    def test_chunk_size(self):
+        """
+        Check that the exchange energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
+
+    def test_becke88_exchange_functional_implementation(self):
+        """
+        Check that the implementation of Becke's 1988 GGA exchange functional gives the same energy
+        as the libxc library for a range of electron densities.
+        """
+        for name, mol in tqdm({
+                # combine all test molecules into a single dictionary
+                **self.create_test_molecules_1electron(),
+                **self.create_closed_shell_test_molecules()}.items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # Evaluate the exchange energy, -K[D(r)], using the multi-state functional.
+                exchange_functional_multi = self.xc_functional_class(mol)
+                exchange_matrix_multi = exchange_functional_multi(msmd)
+
+                # Evaluate the GGA exchange energy of a single state using the
+                # implementation of libxc.
+                grids = pyscf.dft.gen_grid.Grids(mol)
+                grids.level = 8
+                grids.build()
+                # number of grid points
+                ncoord = grids.coords.shape[0]
+
+                D, grad_D, _ = msmd.evaluate(grids.coords)
+                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+                # For a spin-polarized GGA functional we have to provide
+                # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu,0,0)
+                #           (den_d,grad_xd,grad_yd,grad_zd,0,0))
+                rho_ud = numpy.zeros((2, 6, ncoord))
+                rho_ud[:,0,:] = D[:,0,0,:]
+                rho_ud[:,1:4,:] = grad_D[:,0,0,:,:]
+
+                # Becke's 88 functional is spin-polarized
+                exc, _, _, _ = pyscf.dft.libxc.eval_xc('GGA_X_B88,', rho_ud, spin=1)
+                # Integrate over space.
+                # libxc divides the exchange energy per particle by the total spin-summed density,
+                #   exc[ρᵅ,ρᵝ] = 1/ρ * (ρᵅ exc[ρᵅ] + ρᵝ exc[ρᵝ]),
+                # so that the total exchange energy is calculated as
+                #   Ex[ρ] = ∫ ρ exc[ρᵅ,ρᵝ] dr.
+                rho = rho_ud[0,0,:] + rho_ud[1,0,:]
+                exchange_matrix_single = numpy.array([[
+                        numpy.sum(grids.weights * (rho * exc))
+                    ]])
+
+                # Compare the multistate and the single-state (libxc) exchange functionals.
+                numpy.testing.assert_almost_equal(
+                    # pyscf computes Ex[ρ] = -K[ρ], so we have to include a minus sign
+                    # when comparing K[ρ] with Ex[ρ].
+                    exchange_matrix_single, -exchange_matrix_multi, decimal=6)
 
 
 if __name__ == "__main__":
