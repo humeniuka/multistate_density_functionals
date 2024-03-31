@@ -164,13 +164,13 @@ class TestNuclearPotentialOperator(unittest.TestCase):
             fcivecs = fcivecs[:-1]
         # For small basis sets, there can be fewer states than requested.
         nstate = len(fcivecs)
-            
+
         # functional for nuclear potential, V[D(r)]
         nuclear_potential = NuclearPotentialOperator(mol)
 
         # random transformation L
         basis_transformation = BasisTransformation.random(nstate)
-        
+
         # The multistate density matrix D(r)
         msmd = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs)
         # Evaluate V[D(r)] by integration on the grid.
@@ -187,7 +187,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
 
         numpy.testing.assert_almost_equal(V_from_transformed_D, V_transformed)
 
-    def test_nuclear_potential_matrix(self):
+    def test_transformation(self):
         """
         Verify the nuclear potential transforms correctly under basis changes.
         """
