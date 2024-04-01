@@ -227,7 +227,7 @@ class TestHartreeLikeFunctionalPoisson(unittest.TestCase):
                     self.check_exact_hartree_energy(mol, nstate=nstate)
 
 
-class ExchangeCorrelationFunctionalTestCase(ABC, unittest.TestCase):
+class ExchangeCorrelationFunctionalTests(ABC):
     """
     Abstract base class for all exchange/correlation energy functional tests.
     It contains functions needed by all tests.
@@ -336,6 +336,15 @@ class ExchangeCorrelationFunctionalTestCase(ABC, unittest.TestCase):
 
             numpy.testing.assert_almost_equal(
                 xc_matrix, xc_matrix_ref)
+
+    def test_chunk_size(self):
+        """
+        Check that the exchange energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
 
     def check_transformation(self, mol, nstate=1):
         """
@@ -447,20 +456,11 @@ class LDAExchangeFunctionalSingleState(object):
         return exchange_matrix
 
 
-class TestLSDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+class TestLSDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTests, unittest.TestCase):
     @property
     def xc_functional_class(self):
         """ The functional to be tested. """
         return LSDAExchangeLikeFunctional
-
-    def test_chunk_size(self):
-        """
-        Check that the exchange energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
 
     def test_local_density_exchange_functional(self):
         """
@@ -484,20 +484,11 @@ class TestLSDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
                     exchange_matrix_single, exchange_matrix_multi)
 
 
-class TestLDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+class TestLDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTests, unittest.TestCase):
     @property
     def xc_functional_class(self):
         """ The functional to be tested. """
         return LDAExchangeLikeFunctional
-
-    def test_chunk_size(self):
-        """
-        Check that the exchange energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
 
     def test_local_density_exchange_functional(self):
         """
@@ -521,20 +512,11 @@ class TestLDAExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
                     exchange_matrix_single, exchange_matrix_multi)
 
 
-class TestLDACorrelationLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+class TestLDACorrelationLikeFunctional(ExchangeCorrelationFunctionalTests, unittest.TestCase):
     @property
     def xc_functional_class(self):
         """ The functional to be tested. """
         return LDACorrelationLikeFunctional
-
-    def test_chunk_size(self):
-        """
-        Check that the correlation energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        for name, mol in tqdm(self.create_closed_shell_test_molecules().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
 
     def test_chachiyo_functional_implementation(self):
         """
@@ -576,7 +558,7 @@ class TestLDACorrelationLikeFunctional(ExchangeCorrelationFunctionalTestCase):
                     correlation_matrix_single, correlation_matrix_multi, decimal=5)
 
 
-class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTestCase):
+class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTests, unittest.TestCase):
     @property
     def xc_functional_class(self):
         """ The functional to be tested. """

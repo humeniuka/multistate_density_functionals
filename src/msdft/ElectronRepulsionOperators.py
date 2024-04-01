@@ -681,9 +681,10 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
           F(X²(r)) = 1 + β/(2¹ᐟ³ Cₓ) X²(r) / (1 + γ β X(r) sinh⁻¹(X(r))).
 
         - D(r)⁴ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
-        - F(X²(r)) is the enhancement factor over LDA. It is a matrix function of
-          X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r), which depends on the gradient of the Wigner-Seitz radius
-          R(r) = (4π/3 D(r))⁻¹ᐟ³. X(r) is the matrix square root of X²(r).
+        - F(X²(r)) is the enhancement factor over LDA. It is a matrix function of the square of
+          the dimensionless (reduced) gradient, X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r), which depends on
+          the gradient of the Wigner-Seitz radius R(r) = (4π/3 D(r))⁻¹ᐟ³.
+          X(r) is the matrix square root of X²(r).
           X²(r) and R(r) are position-dependent matrices with the same dimensions
           as the matrix density D(r). F(X²) is calculated by diagonalizing X² and applying
           the scalar function F(·) to its eigenvalues.
