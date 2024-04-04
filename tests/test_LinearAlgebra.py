@@ -7,6 +7,7 @@ import numpy.testing
 import scipy.linalg
 
 from msdft.LinearAlgebra import eigensystem_derivatives
+from msdft.LinearAlgebra import matrix_function_derivatives
 from msdft.LinearAlgebra import LinearAlgebraException
 
 
@@ -68,16 +69,22 @@ def kinetic_energy_density(L, U, grad_L, grad_U):
 
 
 class TestLinearAlgebra(unittest.TestCase):
-    def check_eigensystem_derivatives(
+    def _random_continuous_eigensystem(
             self,
             dim=3,
             repeated_eigenvalues=False,
             repeated_eigenvalue_derivatives=False,
             t0=0.234):
         """
-        For a one-parameter famility of matrix M(t), the analytical derivatives of
-        the eigenvectors and eigenvalues are compared with the numerical ones.
-        Complications due to repeated eigenvalues are also checked.
+        This fixture creates functions needed by multiple tests.
+
+        In order to verify the code for derivatives of eigenvectors, we have to
+        construct a one-parameter family of symmetric, differentiable matrices S(t),
+        for which the eigenvalue derivatives and eigenvector derivatives are known.
+        We start with differentiable functions for the orthogonal transformation
+        U(t) = exp(f(t) X) and eigenvalues λ1(t), λ2(t), ..., and build the symmetric
+        matrix as
+          S(t) = U(t).diag(λ1(t), λ2(t), ...).Uᵀ(t)
 
         :param dim: dimension of test matrix
         :type dim: int
@@ -94,27 +101,20 @@ class TestLinearAlgebra(unittest.TestCase):
             False: The derivatives of repeated eigenvalues are dsitinct.
         :type repeated_eigenvalue_derivatives: bool
 
-        :param t0: The parameter at which the derivative M(t)|_{t=t0}
+        :param t0: The parameter at which the derivative S(t)|_{t=t0}
             is taken.
         :type t0: float
-        """
-        if repeated_eigenvalue_derivatives:
-            assert repeated_eigenvalues, (
-                "Repeated eigenvalue derivatives are only problematic "
-                "if they belong to repeated eigenvalues.")
 
+        :return:
+            symmetric_matrix(t,deriv=0) computes S(t), S'(t) and S''(t) for deriv=0,1,2
+            eigenvectors(t,deriv=0) computes the eigenvalues of S, λ(t), λ'(t) and λ''(t)
+            eigenvalues(t,deriv=0) computes the eigenvectors of S, U(t), U'(t) and U''(t)
+        :rtype: tuple of callable
+        """
         # The hardcoded seed ensures that the same random numbers are used
         # every time the test is run. Otherwise the test fails occasionally
         # when the threshold is is too tight.
         random_number_generator = numpy.random.default_rng(seed=6789)
-
-        # In order to verify the code for derivatives of eigenvectors, we have to
-        # construct a one-parameter family of symmetric, differentiable matrices S(t),
-        # for which the eigenvalue derivatives and eigenvector derivatives are known.
-        # We start with differentiable functions for the orthogonal transformation
-        # U(t) = exp(f(t) X) and eigenvalues λ1(t), λ2(t), ..., and build the symmetric
-        # matrix as
-        #   S(t) = U(t).diag(λ1(t), λ2(t), ...).Uᵀ(t)
 
         # Create a random antisymmetric matrix Xᵀ = -X
         X = random_number_generator.random((dim, dim))
@@ -236,7 +236,53 @@ class TestLinearAlgebra(unittest.TestCase):
             else:
                 raise NotImplementedError("Higher derivatives are not implemented.")
 
+        return symmetric_matrix, eigenvectors, eigenvalues
+
+    def check_eigensystem_derivatives(
+            self,
+            dim=3,
+            repeated_eigenvalues=False,
+            repeated_eigenvalue_derivatives=False,
+            t0=0.234):
+        """
+        For a one-parameter famility of matrix D(t), the analytical derivatives of
+        the eigenvectors and eigenvalues are compared with the numerical ones.
+        Complications due to repeated eigenvalues are also checked.
+
+        :param dim: dimension of test matrix
+        :type dim: int
+
+        :param repeated_eigenvalues:
+            True: The matrix has repeated eigenvalues, but the
+            eigenvalue derivatives of the repeated eigenvalues are distinct.
+            False: All eigenvalues are distinct.
+        :type repeated_eigenvalues: bool
+
+        :param repeated_eigenvalue_derivatives:
+            True: The matrix has repeated eigenvalues with repeated eigenvalue
+            derivatives.
+            False: The derivatives of repeated eigenvalues are dsitinct.
+        :type repeated_eigenvalue_derivatives: bool
+
+        :param t0: The parameter at which the derivative D(t)|_{t=t0}
+            is taken.
+        :type t0: float
+        """
+        if repeated_eigenvalue_derivatives:
+            assert repeated_eigenvalues, (
+                "Repeated eigenvalue derivatives are only problematic "
+                "if they belong to repeated eigenvalues.")
+
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run. Otherwise the test fails occasionally
+        # when the threshold is is too tight.
+        random_number_generator = numpy.random.default_rng(seed=6789)
+
         t = t0
+        # One-parameter family of symmetric matrices D(t), their eigenvalues
+        # and eigenvectors as well as their 1st and 2nd derivatives.
+        symmetric_matrix, eigenvectors, eigenvalues = self._random_continuous_eigensystem(
+            dim, repeated_eigenvalues, repeated_eigenvalue_derivatives, t)
 
         # matrix function D(t) and derivatives D'(t), D''(t).
         D = symmetric_matrix(t, deriv=0)
@@ -254,7 +300,7 @@ class TestLinearAlgebra(unittest.TestCase):
         D_deriv2_fd = (D_deriv1_plus - D_deriv1_minus)/(2*dt)
 
         # Check that D'(t) and D''(t) are implemented correctly
-        # by comparing with the finite difference quotiones.
+        # by comparing with the finite difference quotients.
         numpy.testing.assert_almost_equal(D_deriv1_fd, D_deriv1)
         numpy.testing.assert_almost_equal(D_deriv2_fd, D_deriv2)
 
@@ -328,6 +374,141 @@ class TestLinearAlgebra(unittest.TestCase):
                 repeated_eigenvalues=True,
                 repeated_eigenvalue_derivatives=True,
                 t0=0.0001)
+
+    def check_matrix_function_derivatives(
+            self,
+            dim=3,
+            repeated_eigenvalues=False,
+            repeated_eigenvalue_derivatives=False,
+            t0=0.234):
+        """
+        For a one-parameter famility of matrix X(t) and an analytical matrix function
+        F(X), the analytical derivatives dF/dt = d/dt F(X(t)) are compared with the
+        numerically exact ones.
+        Complications due to repeated eigenvalues are also checked.
+
+        :param dim: dimension of test matrix
+        :type dim: int
+
+        :param repeated_eigenvalues:
+            True: The matrix has repeated eigenvalues, but the
+            eigenvalue derivatives of the repeated eigenvalues are distinct.
+            False: All eigenvalues are distinct.
+        :type repeated_eigenvalues: bool
+
+        :param repeated_eigenvalue_derivatives:
+            True: The matrix has repeated eigenvalues with repeated eigenvalue
+            derivatives.
+            False: The derivatives of repeated eigenvalues are dsitinct.
+        :type repeated_eigenvalue_derivatives: bool
+
+        :param t0: The parameter at which the derivative X(t)|_{t=t0}
+            is taken.
+        :type t0: float
+        """
+        if repeated_eigenvalue_derivatives:
+            assert repeated_eigenvalues, (
+                "Repeated eigenvalue derivatives are only problematic "
+                "if they belong to repeated eigenvalues.")
+
+        t = t0
+        # One-parameter family of symmetric matrices X(t), their eigenvalues
+        # and eigenvectors as well as their 1st and 2nd derivatives.
+        symmetric_matrix, eigenvectors, eigenvalues = self._random_continuous_eigensystem(
+            dim, repeated_eigenvalues, repeated_eigenvalue_derivatives, t)
+
+        # The matrix function F(X) is defined by a scalar function f(x)
+        def func(x):
+            return numpy.cos(x) + 0.1 * pow(x,3)
+        # The derivative f'(x)
+        def func_deriv1(x):
+            return -numpy.sin(x) + 0.3 * pow(x,2)
+
+        def matrix_function(t):
+            # one-parameter family of matrices F(t) = F(X(t))
+            L = eigenvalues(t, deriv=0)
+            U = eigenvectors(t, deriv=0)
+            # F(X(t)) = U(t).f(Λ(t)).U(t)ᵀ
+            F = numpy.einsum('ia,a,ja->ij', U, func(L), U)
+            return F
+
+        # matrix function X(t) and derivative X'(t).
+        X = symmetric_matrix(t, deriv=0)
+        X_deriv1 = symmetric_matrix(t, deriv=1)
+
+        # Compare analytical derivatives with finite differences.
+        dt = 0.0001
+        X_plus = symmetric_matrix(t+dt, deriv=0)
+        X_minus = symmetric_matrix(t-dt, deriv=0)
+        # finite-difference quotients
+        X_deriv1_fd = (X_plus - X_minus)/(2*dt)
+
+        # Check that X'(t) is implemented correctly
+        # by comparing with the finite difference quotient.
+        numpy.testing.assert_almost_equal(X_deriv1_fd, X_deriv1)
+
+        # Compare analytical derivatives with finite differences.
+        # analytical derivative (to be tested)
+        F, F_deriv1 = matrix_function_derivatives(func, func_deriv1, X, numpy.expand_dims(X_deriv1,2))
+        # Check that matrix function is calculated properly.
+        numpy.testing.assert_almost_equal(matrix_function(t), F)
+        # finite-difference quotients
+        F_plus = matrix_function(t+dt)
+        F_minus = matrix_function(t-dt)
+        F_deriv1_fd = (F_plus - F_minus)/(2*dt)
+
+        # Compare F'(t) with the finite difference quotiones.
+        numpy.testing.assert_almost_equal(F_deriv1_fd, F_deriv1[:,:,0])
+
+    def test_matrix_function_derivatives_distinct_eigenvalues(self):
+        """
+        Test derivatives of matrix function for symmetric matrices
+        with distinct eigenvalues.
+        """
+        # Loop over points t=t0, at which the derivatives of
+        # the matrix function F(X(t)) are taken.
+        for t0 in [0.01, 0.2345]:
+            # matrix size
+            for dimension in [2,3,4,5,6,7]:
+                with self.subTest(t0=t0, dimension=dimension):
+                    self.check_matrix_function_derivatives(
+                        dimension,
+                        repeated_eigenvalues=False,
+                        t0=t0)
+
+    def test_matrix_function_derivatives_repeated_eigenvalues(self):
+        """
+        Test derivatives of matrix function for symmetric matrices with
+        repeated eigenvalues but distinct eigenvalue derivatives.
+        """
+        # Loop over points t=t0, at which the derivatives of
+        # the matrix function F(X(t)) are taken.
+        for t0 in [0.01, 0.2345]:
+            # Loop over sizes of matrix
+            for dimension in [2,3,4,5,6,7]:
+                with self.subTest(t0=t0, dimension=dimension):
+                    self.check_matrix_function_derivatives(
+                        dimension,
+                        repeated_eigenvalues=True,
+                        t0=t0)
+
+    def test_matrix_function_derivatives_repeated_eigenvalue_derivatives(self):
+        """
+        Test derivatives of matrix function for symmetric matrices when the
+        repeated eigenvalues also have repeated eigenvalue derivatives.
+        """
+        # Loop over points t=t0, at which the derivatives of
+        # the matrix function F(X(t)) are taken.
+        for t0 in [0.01, 0.2345]:
+            # Loop over sizes of matrix
+            for dimension in [2,3,4,5,6,7]:
+                with self.subTest(t0=t0, dimension=dimension):
+                    self.check_matrix_function_derivatives(
+                        dimension,
+                        repeated_eigenvalues=True,
+                        repeated_eigenvalue_derivatives=True,
+                        t0=t0)
+
 
 if __name__ == "__main__":
     unittest.main()
