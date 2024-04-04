@@ -22,11 +22,11 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
     :param D: symmetric matrix
     :type D: numpy.ndarray of shape (n,n)
 
-    :param D_deriv1: D[:,:,p]=dD(t)/dt[p], first derivative of D w/r/t
+    :param D_deriv1: D_deriv1[:,:,p]=dD(t)/dt[p], first derivative of D w/r/t
         the p-th external parameter.
     :type D_deriv1: numpy.ndarray of shape (n,n,p)
 
-    :param D_deriv2: D[:,:,p]=d²D(t)/dt[p]², second derivative of D w/r/t
+    :param D_deriv2: D_deriv2[:,:,p]=d²D(t)/dt[p]², second derivative of D w/r/t
         the p-th external parameter. When D has repeated eigenvalues,
         D'' is needed to determine the derivatives of the eigenvectors.
         If there are repeated eigenvalues and `D_deriv2` is None, a
@@ -43,9 +43,9 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
         `L` has shape (n), L[j] is the j-th eigenvalue of D.
         `U` has shape (n,n), U[i,j] is the i-th component of the j-th
             eigenvector of D.
-        `L_deriv1` has shape (n,p), L_deriv[j,p] is the 1st derivative of the
+        `L_deriv1` has shape (n,p), L_deriv1[j,p] is the 1st derivative of the
             j-th eigenvalue of D with respect to the p-th external parameter.
-        `U_deriv1` has shape (n,n,p), U_deriv[i,j,p] is the 1st derivative
+        `U_deriv1` has shape (n,n,p), U_deriv1[i,j,p] is the 1st derivative
             of the i-th component of the j-th eigenvector of D
             with respect to the p-th external parameter.
 
@@ -198,3 +198,113 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
     U_deriv1 = numpy.einsum('ik,kjp->ijp', U, C)
 
     return L, U, L_deriv1, U_deriv1
+
+
+def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
+    """
+    Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
+    some external parameters given the derivatives of the argument, dX/dt,
+    and the derivative f'(x) of the function f.
+
+    For matrix functions the chain rule is not valid, since the matrix X and its
+    derivatives dX/dt do not commute. Instead dF/dt is calculated by decomposing
+    X(t) into its eigenvalues Λ(t) and eigenvectors U(t),
+
+        X(t) = U(t).Λ(t).U(t)ᵀ
+
+    The analytic matrix function F(X) is defined by the scalar function f(x), which
+    operates on the eigenvalues of X,
+
+        F(t) = F(X(t)) = U.f(Λ).U(t)ᵀ
+
+    The derivative of the matrix function w/r/t the parameters t becomes
+
+                                    f'(λₐ)               if λₐ=λᵦ
+        dF/dt = ∑ₐ ∑ᵦ Pₐ.dX/dt.Pᵦ  x {
+                                    [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)  if λₐ≠λᵦ
+
+    where the sums are over the eigenvalues λₐ and the projectors onto the corresponding
+    eigenvectors (Pₐ)ᵢⱼ = Uᵢₐ Uⱼₐ. In terms of the eigenvectors the derivative of the
+    matrix function becomes
+
+        [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((∑ₖ∑ₗ Uₖₐ [dX/dt]ₖₗ Uₗᵦ) Dₐᵦ) Uⱼᵦ
+
+    where
+
+                f'(λₐ)                if λₐ=λᵦ
+        Dₐᵦ = {
+                [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)  if λₐ≠λᵦ
+
+
+    :param func: scalar function f(x)
+    :type func: callable
+
+    :param func_deriv1: first derivative f'(x)
+        The caller has to ensure that `func_deriv1` and `func` are
+        related by differentiation.
+    :type func_deriv1: callable
+
+    :param X: symmetric matrix
+    :type X: numpy.ndarray of shape (n,n)
+
+    :param X_deriv1: X_deriv1[:,:,p]=dX(t)/dt[p], first derivative of X w/r/t
+        the p-th external parameter.
+    :type X_deriv1: numpy.ndarray of shape (n,n,p)
+
+    :param epsilon: Eigenvalues are considered the same,
+        if they differ by less than `epsilon`.
+    :type epsilon: float
+
+    :return:
+        F, F_deriv1
+    :rtype: tuple of numpy.ndarray
+        `F` has shape (n,n), F=f(X) is the value of the matrix function f at the argument X.
+        `F_deriv1` has shape (n,n,p), F_deriv1[i,j,p] is the 1st derivative
+            of the matrix function F_deriv1[:,:,p]=d(f(X(t)))/dt[p]
+            with respect to the p-th external parameter.
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Matrix_calculus
+    """
+    # Check dimensions of inputs.
+    dimension, _, parameters = X_deriv1.shape
+    assert X.shape == (dimension, dimension), "Matrix X has to be square."
+    assert X_deriv1.shape == (dimension, dimension, parameters)
+    # Check input types.
+    assert callable(func), "Argument `func` has to be a function."
+    assert callable(func_deriv1), "Argument `func_deriv1` has to be a function."
+
+    # Compute eigenvalues Λ and eigenvectors U of the symmetric
+    # matrix X.
+    L, U = numpy.linalg.eigh(X)
+    # Apply the scalar function to the eigenvalues, f(λₐ)
+    fL = func(L)
+    # Compute the matrix function F(X)ᵢⱼ = ∑ₐ Uᵢₐ f(λₐ) Uⱼₐ
+    F = numpy.einsum('ia,a,ja->ij', U, fL, U)
+
+    # Compute the matrix Dₐᵦ.
+    D = numpy.zeros_like(X)
+    # Loop over eigenvalue pairs.
+    for a in range(0, dimension):
+        for b in range(0, dimension):
+            if abs(L[a] - L[b]) < epsilon:
+                # Eigenvalues λₐ=λᵦ to within numerical precision.
+                # To ensure that D is symmetric, we compute
+                # Dₐᵦ = f'(1/2(λₐ+λᵦ))
+                # for the average of the two eigenvalues.
+                D[a,b] = func_deriv1(0.5 * (L[a] + L[b]))
+            else:
+                # Eigenvalues are different, λₐ≠λᵦ,
+                # Dₐᵦ = [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)
+                D[a,b] = (fL[a]-fL[b])/(L[a]-L[b])
+
+    # Transform dX/dt into ∑ₖ∑ₗ Uₖₐ [dX/dt]ₖₗ Uₗᵦ
+    UtdXU = numpy.einsum('ka,klp,lb->abp', U, X_deriv1, U)
+
+    # Derivative of F(X)
+    # [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((Uᵀ.[dX/dt].U)ₐᵦ Dₐᵦ) Uⱼᵦ
+    F_deriv1 = numpy.einsum('ia,abp,jb->ijp',
+        U, UtdXU * numpy.expand_dims(D, 2), U)
+
+    return F, F_deriv1
