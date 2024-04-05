@@ -200,6 +200,42 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
     return L, U, L_deriv1, U_deriv1
 
 
+def matrix_function(func, X):
+    """
+    Evaluate the analytic matrix function F(X).
+
+    The analytic matrix function F(X) is defined by the scalar function f(x), which
+    operates on the eigenvalues of X,
+
+        F(t) = F(X(t)) = U.f(Λ).U(t)ᵀ
+
+    :param func: scalar function f(x)
+    :type func: callable
+
+    :param X: symmetric matrix
+    :type X: numpy.ndarray of shape (n,n)
+
+    :return: F
+        F=f(X) is the value of the matrix function f at the argument X.
+    :rtype: numpy.ndarray of shape (n,n)
+    """
+    # Check dimensions of inputs.
+    dimension, _ = X.shape
+    assert X.shape == (dimension, dimension), "Matrix X has to be square."
+    # Check input types.
+    assert callable(func), "Argument `func` has to be a function."
+
+    # Compute eigenvalues Λ and eigenvectors U of the symmetric
+    # matrix X.
+    L, U = numpy.linalg.eigh(X)
+    # Apply the scalar function to the eigenvalues, f(λₐ)
+    fL = func(L)
+    # Compute the matrix function F(X)ᵢⱼ = ∑ₐ Uᵢₐ f(λₐ) Uⱼₐ
+    F = numpy.einsum('ia,a,ja->ij', U, fL, U)
+
+    return F
+
+
 def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
     """
     Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to

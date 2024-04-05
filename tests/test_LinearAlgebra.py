@@ -7,6 +7,7 @@ import numpy.testing
 import scipy.linalg
 
 from msdft.LinearAlgebra import eigensystem_derivatives
+from msdft.LinearAlgebra import matrix_function
 from msdft.LinearAlgebra import matrix_function_derivatives
 from msdft.LinearAlgebra import LinearAlgebraException
 
@@ -374,6 +375,27 @@ class TestLinearAlgebra(unittest.TestCase):
                 repeated_eigenvalues=True,
                 repeated_eigenvalue_derivatives=True,
                 t0=0.0001)
+
+    def test_matrix_function(self):
+        """
+        Check that the matrix function exp(X) is evaluated correctly for a random,
+        symmetric matrix X.
+        """
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run.
+        random_number_generator = numpy.random.default_rng(seed=3453)
+
+        # Create a random symmetric matrix Xᵀ = X
+        dim = 4
+        X = random_number_generator.random((dim, dim))
+        X = 0.5 * (X + X.T)
+
+        # Compute exp(X) using scipy.
+        F_ref = scipy.linalg.expm(X)
+        # Test implementation.
+        F = matrix_function(numpy.exp, X)
+
+        numpy.testing.assert_almost_equal(F_ref, F)
 
     def check_matrix_function_derivatives(
             self,
