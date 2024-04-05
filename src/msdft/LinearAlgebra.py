@@ -236,6 +236,33 @@ def matrix_function(func, X):
     return F
 
 
+def matrix_function_batch(func, X):
+    """
+    Evaluate the analytic matrix function F(X) on a batch of matrices.
+    See doc-string of :func:`~matrix_function` for details.
+
+    :param func: scalar function f(x)
+    :type func: callable
+
+    :param X: batch of symmetric (n x n) matrices
+    :type X: numpy.ndarray of shape (:,n,n,:)
+
+    :return: batch of F
+        F=f(X) is the value of the (n x n) matrix function f at the argument X.
+    :rtype: numpy.ndarray of shape (:,n,n,:)
+    """
+    nspin,nstate,nstate,ncoord = X.shape
+    # output F(X)
+    F = numpy.zeros_like(X)
+    # Loop over matrices in batch. There is a matrix density for each spin and position.
+    for s in range(0, nspin):
+        for r in range(0, ncoord):
+            # Apply matrix function to each matrix in the batch.
+            F[s,:,:,r] = matrix_function(func, X[s,:,:,r])
+
+    return F
+
+
 def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
     """
     Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
@@ -342,5 +369,55 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
     # [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((Uᵀ.[dX/dt].U)ₐᵦ Dₐᵦ) Uⱼᵦ
     F_deriv1 = numpy.einsum('ia,abp,jb->ijp',
         U, UtdXU * numpy.expand_dims(D, 2), U)
+
+    return F, F_deriv1
+
+
+def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
+    """
+    Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
+    some external parameters given the derivatives of the argument, dX/dt,
+    and the derivative f'(x) of the function f.
+
+    The :func:`~matrix_function_derivatives` is applied to a batch of matrices.
+
+    :param func: scalar function f(x)
+    :type func: callable
+
+    :param func_deriv1: first derivative f'(x)
+        The caller has to ensure that `func_deriv1` and `func` are
+        related by differentiation.
+    :type func_deriv1: callable
+
+    :param X: batch of symmetric matrices
+    :type X: numpy.ndarray of shape (:,n,n,:)
+
+    :param X_deriv1: batch of derivatives of X, each matrix in the batch
+        has the form X_deriv1[:,:,p]=dX(t)/dt[p], first derivative of X w/r/t
+        the p-th external parameter.
+    :type X_deriv1: numpy.ndarray of shape (:,n,n,p,:)
+
+    :param epsilon: Eigenvalues are considered the same,
+        if they differ by less than `epsilon`.
+    :type epsilon: float
+
+    :return: batch of matrices with values and derivatives
+        F, F_deriv1
+    :rtype: tuple of numpy.ndarray
+        `F` has shape (:,n,n,:), F=f(X) is the value of the matrix function f at the argument X.
+        `F_deriv1` has shape (:,n,n,p,:), F_deriv1[i,j,p] is the 1st derivative
+            of the matrix function F_deriv1[:,:,p]=d(f(X(t)))/dt[p]
+            with respect to the p-th external parameter.
+    """
+    nspin,nstate,nstate,ncoord = X.shape
+    # Allocated arrays for output values
+    F = numpy.zeros_like(X)
+    F_deriv1 = numpy.zeros_like(X_deriv1)
+    # Loop over matrices in batch. There is a matrix density for each spin and position.
+    for s in range(0, nspin):
+        for r in range(0, ncoord):
+            # Apply matrix function to each matrix in the batch.
+            F[s,:,:,r], F_deriv1[s,:,:,:,r] = matrix_function_derivatives(
+                func, func_deriv1, X[s,:,:,r], X_deriv1[s,:,:,:,r], epsilon=epsilon)
 
     return F, F_deriv1

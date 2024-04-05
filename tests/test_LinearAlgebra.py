@@ -8,7 +8,9 @@ import scipy.linalg
 
 from msdft.LinearAlgebra import eigensystem_derivatives
 from msdft.LinearAlgebra import matrix_function
+from msdft.LinearAlgebra import matrix_function_batch
 from msdft.LinearAlgebra import matrix_function_derivatives
+from msdft.LinearAlgebra import matrix_function_derivatives_batch
 from msdft.LinearAlgebra import LinearAlgebraException
 
 
@@ -397,6 +399,36 @@ class TestLinearAlgebra(unittest.TestCase):
 
         numpy.testing.assert_almost_equal(F_ref, F)
 
+    def test_matrix_function_batch(self):
+        """
+        Check that the matrix function exp(X) is evaluated correctly for a batch
+        of random, symmetric matrices.
+        """
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run.
+        random_number_generator = numpy.random.default_rng(seed=3453)
+
+        # Create a batch of random symmetric matrices Xᵀ = X
+        # The batch contains a matrix for each spin and coordinate.
+        nspin = 2
+        ncoord = 10
+        # matrix dimension
+        dim = 4
+        X = random_number_generator.random((nspin, dim, dim, ncoord))
+        # Symmetrize matrices in the batch. Axes 1 and 2 are exchanged to compute the transpose.
+        X = 0.5 * (X + numpy.transpose(X, (0,2,1,3)) )
+
+        # Compute exp(X) using scipy for each matrix in the batch.
+        F_ref = numpy.zeros_like(X)
+        # Loop over matrices in the batch.
+        for s in range(0, nspin):
+            for r in range(0, ncoord):
+                F_ref[s,:,:,r] = scipy.linalg.expm(X[s,:,:,r])
+        # Test implementation.
+        F = matrix_function_batch(numpy.exp, X)
+
+        numpy.testing.assert_almost_equal(F_ref, F)
+
     def check_matrix_function_derivatives(
             self,
             dim=3,
@@ -530,6 +562,55 @@ class TestLinearAlgebra(unittest.TestCase):
                         repeated_eigenvalues=True,
                         repeated_eigenvalue_derivatives=True,
                         t0=t0)
+
+    def test_matrix_function_derivatives_batch(self):
+        """
+        Test the derivative of a matrix functional for the analytic matrix function
+
+            F(X(t)) = X(t)²
+
+        The chain rule is not valid for matrix functions, because X and dX/dt do not
+        necessarily commute, so the correct derivative is
+
+            dF/dt = dX/dt.X + X.dX/dt.
+
+        """
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run.
+        random_number_generator = numpy.random.default_rng(seed=3453)
+
+        # Create a batch of random symmetric matrices Xᵀ = X
+        # The batch contains a matrix for each spin and coordinate.
+        nspin = 2
+        ncoord = 10
+        # matrix dimension
+        dim = 4
+        # number of external parameters t
+        nparam = 3
+        X = random_number_generator.random((nspin, dim, dim, ncoord))
+        # Symmetrize matrices in the batch. Axes 1 and 2 are exchanged to compute the transpose.
+        X = 0.5 * (X + numpy.transpose(X, (0,2,1,3)) )
+        # random, symmetric dX/dt
+        X_deriv1 = random_number_generator.random((nspin, dim, dim, nparam, ncoord))
+        X_deriv1 = 0.5 * (X_deriv1 + numpy.transpose(X_deriv1, (0,2,1,3,4)))
+
+        # Compute F(X) = X²
+        F_ref = numpy.einsum('sikr,skjr->sijr', X, X)
+        # and its derivative, dF/dt = dX.X + X.dX
+        F_deriv1_ref = (
+            numpy.einsum('sikdr,skjr->sijdr', X_deriv1, X) +
+            numpy.einsum('sikr,skjdr->sijdr', X, X_deriv1))
+        # Evaluate F and F' via eigen-decomposition of X.
+        F, F_deriv1 = matrix_function_derivatives_batch(
+            # f(x)
+            lambda x: x**2,
+            # f'(x)
+            lambda x: 2*x,
+            X, X_deriv1)
+
+        # Compare F(t) and F'(t) with the exact references.
+        numpy.testing.assert_almost_equal(F_ref, F)
+        numpy.testing.assert_almost_equal(F_deriv1_ref, F_deriv1)
 
 
 if __name__ == "__main__":
