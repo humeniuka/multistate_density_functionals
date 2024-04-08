@@ -397,6 +397,9 @@ class ExchangeCorrelationFunctionalTests(ABC):
 
         numpy.testing.assert_almost_equal(xc_matrix_from_transformed_D, xc_matrix_transformed)
 
+        # Finally, check that XC[D(r)] is a symmetric matrix.
+        numpy.testing.assert_almost_equal(xc_matrix, xc_matrix.T)
+
     def test_transformation(self):
         """
         Verify that the exchange-correlation matrix transforms correctly under basis changes.
@@ -563,15 +566,6 @@ class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTests, u
     def xc_functional_class(self):
         """ The functional to be tested. """
         return GGABecke88ExchangeLikeFunctional
-
-    def test_chunk_size(self):
-        """
-        Check that the exchange energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
 
     def test_becke88_exchange_functional_implementation(self):
         """
