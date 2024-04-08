@@ -251,14 +251,28 @@ def matrix_function_batch(func, X):
         F=f(X) is the value of the (n x n) matrix function f at the argument X.
     :rtype: numpy.ndarray of shape (:,n,n,:)
     """
-    nspin,nstate,nstate,ncoord = X.shape
-    # output F(X)
-    F = numpy.zeros_like(X)
-    # Loop over matrices in batch. There is a matrix density for each spin and position.
-    for s in range(0, nspin):
-        for r in range(0, ncoord):
-            # Apply matrix function to each matrix in the batch.
-            F[s,:,:,r] = matrix_function(func, X[s,:,:,r])
+    # The matrix function F(X) is calculated via the eigendecomposition of the
+    # matrix X = U x Uᵀ, where x and U are the eigenvalues and eigenvectors of X, respectively.
+    # Then
+    #   F(X) = U f(x) Uᵀ
+
+    # numpy.linalg.eigh(...) can operate on multiple matrices in parallel,
+    # Since the calculation is parallelized over the first axis, we have to
+    # move the coordinate axis to the first position. For each grid point r
+    # and spin orientation s, the (N x N)-matrix  X(r) is diagonalized.
+    # (nspin,nstate,nstate,ncoord) -> (ncoord,nspin,nstate,nstate)
+    X = numpy.moveaxis(X, 3, 0)
+    x_eigenvalues, U = numpy.linalg.eigh(X)
+
+    # Restore original order of axes
+    #   (ncoord,nspin,nstate) -> (npin, nstate, ncoord)
+    x_eigenvalues = numpy.moveaxis(x_eigenvalues, 0, 2)
+    #   (ncoord,nspin,nstate,nstate) -> (npin,nstate,nstate,ncoord)
+    U = numpy.moveaxis(U, 0, 3)
+    # f(x)
+    f_eigenvalues = func(x_eigenvalues)
+    # F(X) = U f(x) Uᵀ
+    F = numpy.einsum('siar,sar,sjar->sijr', U, f_eigenvalues, U)
 
     return F
 

@@ -429,6 +429,42 @@ class TestLinearAlgebra(unittest.TestCase):
 
         numpy.testing.assert_almost_equal(F_ref, F)
 
+    def test_matrix_function_batch_2(self):
+        """
+        Check that the batch implementation of a matrix function gives the same result
+        as applying the function to each matrix in the batch separately.
+        """
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run.
+        random_number_generator = numpy.random.default_rng(seed=3453)
+
+        # Create a batch of random symmetric matrices Xᵀ = X
+        # The batch contains a matrix for each spin and coordinate.
+        nspin = 2
+        ncoord = 11
+        # matrix dimension
+        dim = 5
+        X = random_number_generator.random((nspin, dim, dim, ncoord))
+        # Symmetrize matrices in the batch. Axes 1 and 2 are exchanged to compute the transpose.
+        X = 0.5 * (X + numpy.transpose(X, (0,2,1,3)) )
+
+        # Scalar function f(x) defining the action on the eigenvalues.
+        def func(x):
+            return pow(x,2) + numpy.sin(x)
+
+        # Compute F(X) for each matrix in the batch separately.
+        F_ref = numpy.zeros_like(X)
+        # Loop over matrices in batch. There is a matrix density for each spin and position.
+        for s in range(0, nspin):
+            for r in range(0, ncoord):
+                # Apply matrix function to each matrix in the batch.
+                F_ref[s,:,:,r] = matrix_function(func, X[s,:,:,r])
+
+        # Test batch implementation.
+        F = matrix_function_batch(func, X)
+
+        numpy.testing.assert_almost_equal(F_ref, F)
+
     def check_matrix_function_derivatives(
             self,
             dim=3,
