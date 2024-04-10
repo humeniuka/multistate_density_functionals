@@ -68,10 +68,10 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
         `CoreSelfInteractionCorrection.self_interaction_energy_of_core`
         """
         molecules = self.create_test_molecules()
-        SIE_oxygen_atom = CoreSelfInteractionCorrection(
-            molecules['oxygen atom']).total_self_interaction_error()
+        self_interaction_correction = CoreSelfInteractionCorrection(molecules['oxygen atom'])
+        SIE_oxygen_atom = self_interaction_correction.total_self_interaction_error()
 
-        SIEs_core_orbitals = CoreSelfInteractionCorrection.self_interaction_energy_of_core(
+        SIEs_core_orbitals = self_interaction_correction.self_interaction_energy_of_core(
             'O', 'sto-3g')
         # Oxygen has one 1s core orbital
         self.assertEqual(1, len(SIEs_core_orbitals))
@@ -79,9 +79,12 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
 
         # Check heavy atoms with multipl core orbitals.
         # In Silicon the 1s,2s,2px,2py,2pz orbitals are part of the core
-        SIEs_core_orbitals = CoreSelfInteractionCorrection.self_interaction_energy_of_core(
+        SIEs_core_orbitals = self_interaction_correction.self_interaction_energy_of_core(
             'Si', 'sto-3g')
         self.assertEqual(5, len(SIEs_core_orbitals))
+
+    def test_raises_exception(self):
+        pass
 
 
 if __name__ == "__main__":
