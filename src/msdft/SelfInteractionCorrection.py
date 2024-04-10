@@ -37,6 +37,7 @@ from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
+from msdft.ElectronRepulsionOperators import POLARIZED, UNPOLARIZED
 from msdft.MultistateMatrixDensity import CoreOrbitalDensities
 
 
@@ -123,7 +124,16 @@ class CoreSelfInteractionCorrection(object):
 
         # Exchange-part of self-interaction, -K[ρᵅ]
         exchange_functional = self.exchange_functional_class(core_densities.mol)
-        self_interaction_energy_X = -exchange_functional(core_densities)
+        # The density of a singly occupied core orbital is fully spin-polarized.
+        # If an unpolarized functional is used (e.g. LDA instead of LSDA) a factor
+        # of 2¹ᐟ³ needs to be inserted, since
+        #   K^{LDA}[ρᵅ]  = Cₓ ∫ ρᵅ(r)⁴ᐟ³
+        #   K^{LSDA}[ρᵅ] = 2¹ᐟ³ Cₓ ∫ ρᵅ(r)⁴ᐟ³.
+        if exchange_functional.spin_type == UNPOLARIZED:
+            spin_factor = pow(2.0, 1.0/3.0)
+        else:
+            spin_factor = 1.0
+        self_interaction_energy_X = -spin_factor * exchange_functional(core_densities)
 
         # Correlation-part of self-interaction, C[ρᵅ].
         correlation_functional = self.correlation_functional_class(core_densities.mol)

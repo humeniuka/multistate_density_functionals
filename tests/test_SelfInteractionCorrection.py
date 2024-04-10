@@ -7,6 +7,9 @@ import pyscf.gto
 
 import unittest
 
+from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
+from msdft.ElectronRepulsionOperators import LDAExchangeLikeFunctional
+from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.SelfInteractionCorrection import CoreSelfInteractionCorrection
 
 
@@ -76,6 +79,28 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
 
         # Check the actual value (in Hartree)
         self.assertAlmostEqual(0.5766, SIE_lithium_fluoride, places=3)
+
+    def test_total_self_interaction_error_lda_vs_lsda(self):
+        """
+        Check that the same self-interaction error is obtained for
+        LDA and LSDA.
+        """
+        mol = pyscf.gto.M(
+            atom = 'Li 0.0 0.0 0.0; F 0.0 0.0 1.564',
+            basis = 'aug-cc-pvqz')
+
+        SIE_lsda = CoreSelfInteractionCorrection(
+            mol,
+            exchange_functional_class = LSDAExchangeLikeFunctional,
+            correlation_functional_class = LDACorrelationLikeFunctional
+        ).total_self_interaction_error()
+        SIE_lda = CoreSelfInteractionCorrection(
+            mol,
+            exchange_functional_class = LDAExchangeLikeFunctional,
+            correlation_functional_class = LDACorrelationLikeFunctional
+        ).total_self_interaction_error()
+
+        self.assertAlmostEqual(SIE_lsda, SIE_lda, places=3)
 
     def test_self_interaction_energy_of_core(self):
         """

@@ -209,6 +209,24 @@ class HartreeLikeFunctionalPoisson(object):
         return hartree_like_matrix
 
 
+class SpinType(ABC):
+    pass
+
+class POLARIZED(SpinType):
+    """
+    The exchange-correlation functional depends separately
+    on the spin-up and spin-down matrix densities, i.e. XC[Dᵅ,Dᵝ].
+    """
+    pass
+
+class UNPOLARIZED(SpinType):
+    """
+    The exchange-correlation functional depends only on the total
+    density, i.e. XC[D] where D = Dᵅ+Dᵝ.
+    """
+    pass
+
+
 class ExchangeCorrelationLikeFunctional(ABC):
     def __init__(self, mol, level=8):
         """
@@ -231,6 +249,15 @@ class ExchangeCorrelationLikeFunctional(ABC):
             self,
             msmd : MultistateMatrixDensity,
             coords : numpy.ndarray):
+        pass
+
+    @property
+    @abstractmethod
+    def spin_type(self) -> SpinType:
+        """
+        Whether the functional depends only on the total spin (UNPOLARIZED)
+        or both on spin-up and spin-down (POLARIZED).
+        """
         pass
 
     def __call__(
@@ -332,6 +359,10 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         self.grids = pyscf.dft.gen_grid.Grids(mol)
         self.grids.level = level
         self.grids.build()
+
+    @property
+    def spin_type(self):
+        return POLARIZED
 
     def energy_density(
             self,
@@ -435,6 +466,10 @@ class LDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         self.grids = pyscf.dft.gen_grid.Grids(mol)
         self.grids.level = level
         self.grids.build()
+
+    @property
+    def spin_type(self):
+        return UNPOLARIZED
 
     def energy_density(
             self,
@@ -549,6 +584,10 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
         self.grids = pyscf.dft.gen_grid.Grids(mol)
         self.grids.level = level
         self.grids.build()
+
+    @property
+    def spin_type(self):
+        return UNPOLARIZED
 
     def correlation_energy_density(
             self,
@@ -729,6 +768,10 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
             x2 / (1 + self.gamma*self.beta * x * numpy.arcsinh(x))
         )
         return f
+
+    @property
+    def spin_type(self):
+        return UNPOLARIZED
 
     def energy_density(
             self,
