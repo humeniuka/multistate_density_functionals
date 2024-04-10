@@ -569,7 +569,7 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
         
         :param spin: The spin parameter determines whether the paramagnetic (spin=0)
           or ferromagnetic (spin=1) correlation energy is calculated.
-        :type spin: int 
+        :type spin: int
 
         :return: Electron correlation energy CED
         :rtype: numpy.ndarray of same shape as `density`.
@@ -577,15 +577,15 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
         assert spin in [0,1]
         # The parameter b is different from paramagnetic or ferromagnetic densities.
         if spin == 1:
-            b = cls.b_ferromagnetic
+            b = self.b_ferromagnetic
         else:
-            b = cls.b_paramagnetic
+            b = self.b_paramagnetic
 
         b1 = pow(4.0/3.0*numpy.pi, 1.0/3.0) * b
         b2 = pow(4.0/3.0*numpy.pi, 2.0/3.0) * b
         # In terms of the density the correlation energy becomes
         #  εᶜ(ρ) = a log( 1 + b1 ρ¹ᐟ³ + b2 ρ²ᐟ³ )
-        epsilon_c = cls.a * numpy.log(1.0 + b1 * pow(density, 1.0/3.0) + b2 * pow(density, 2.0/3.0))
+        epsilon_c = self.a * numpy.log(1.0 + b1 * pow(density, 1.0/3.0) + b2 * pow(density, 2.0/3.0))
         # Multiply the correlation energy per particle by the particel density
         # to get the correlation energy density (CED(r))
         ced = epsilon_c * density
