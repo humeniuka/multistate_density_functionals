@@ -787,14 +787,14 @@ class TestCoreOrbitalDensities(BaseTestMultistateMatrixDensity, unittest.TestCas
         # call the statis method
         return CoreOrbitalDensities.create_matrix_density(atom)
 
-    def test_raises_exception(self):
+    def test_raises_warning(self):
         """
-        Check that an exception is raised if attempting to compute the core orbital
+        Check that a warning is raised if attempting to compute the core orbital
         density for an atom that does not have any core orbitals.
         """
         # hydrogen has no core electrons
         hydrogen_atom = pyscf.gto.M(atom = 'H', basis = '6-31g', spin=1)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Warning):
             self.create_matrix_density(hydrogen_atom)
 
 

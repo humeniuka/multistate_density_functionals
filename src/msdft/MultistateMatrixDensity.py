@@ -1438,7 +1438,7 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
 
 
 class CoreOrbitalDensities(MultistateMatrixDensity):
-    def __init__(self, element : str, basis: str):
+    def __init__(self, element : str, basis: str, raise_warning=False):
         """
         This class holds the density of one or more singly occupied core orbitals.
 
@@ -1459,6 +1459,9 @@ class CoreOrbitalDensities(MultistateMatrixDensity):
 
         :param basis: The basis set (e.g. 'sto-3g')
         :type basis: str
+
+        :param raise_warning: Raise a warning if the element does not have any core orbitals.
+        :type raise_warning: bool
         """
         # Build an isolated atom.
         atom = pyscf.gto.M(
@@ -1471,8 +1474,8 @@ class CoreOrbitalDensities(MultistateMatrixDensity):
 
         # number of core orbitals
         ncore = pyscf.data.elements.chemcore(atom)
-        if ncore == 0:
-            raise ValueError(f"Atom {element} does not have any core electrons.")
+        if ncore == 0 and raise_warning:
+            raise Warning(f"Atom {element} does not have any core electrons.")
 
         # The core orbitals should look very similar to the atomic orbitals.
         # However, it is not guaranteed that the 1s orbital is the first atomic orbital
@@ -1523,5 +1526,5 @@ class CoreOrbitalDensities(MultistateMatrixDensity):
     def create_matrix_density(atom):
         if (atom.natm != 1):
             raise ValueError("CoreOrbitalDensities should be calculated for each atom separately.")
-        msmd = CoreOrbitalDensities(atom.atom_symbol(0), basis=atom.basis)
+        msmd = CoreOrbitalDensities(atom.atom_symbol(0), basis=atom.basis, raise_warning=True)
         return msmd
