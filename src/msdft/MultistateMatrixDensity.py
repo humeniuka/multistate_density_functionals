@@ -1435,3 +1435,93 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
         msmd = MultistateMatrixDensityTDDFT(mol, rks, tddft)
 
         return msmd
+
+
+class CoreOrbitalDensities(MultistateMatrixDensity):
+    def __init__(self, element : str, basis: str):
+        """
+        This class holds the density of one or more singly occupied core orbitals.
+
+        The dimension of the multistate matrix D is equal to the number of spatial
+        core orbitals. The diagonal elements Dᵢᵢ(r) contain the probability amplitudes
+        of a spin-up core orbital |ϕᵢ(r)|². The off-diagonal elements Dᵢⱼ(r) are always zero.
+
+        Although the different core orbital densities do not represent different electronic states,
+        this abuse of notation simplifies the self-interaction correction for core orbitals.
+        Since :class:`~.CoreOrbitalDensities` has the same interface as
+        :class:`~.MultistateMatrixDensity`, it can be passed to the electron repulsion functionals
+        J[ρ₁ₛᵅ], -K[ρ₁ₛᵅ] and C[ρ₁ₛᵅ] as if it were a multistate matrix density.
+
+        :param element: The name of the element (e.g. 'C' or 'N')
+            for which the self-interaction of the core electrons
+            should be calculated.
+        :type element: str
+
+        :param basis: The basis set (e.g. 'sto-3g')
+        :type basis: str
+        """
+        # Build an isolated atom.
+        atom = pyscf.gto.M(
+            atom = f'{element}  0 0 0',
+            basis = basis,
+            charge = 0,
+            # Singlet for even, doublet for odd number of electrons.
+            spin = pyscf.data.elements.charge(element)%2
+        )
+
+        # number of core orbitals
+        ncore = pyscf.data.elements.chemcore(atom)
+        if ncore == 0:
+            raise ValueError(f"Atom {element} does not have any core electrons.")
+
+        # The core orbitals should look very similar to the atomic orbitals.
+        # However, it is not guaranteed that the 1s orbital is the first atomic orbital
+        # in the basis set. Therefore we run an SCF calculation, but we are only interested
+        # in the lowest (or lowest few for heavier atoms) "molecular" orbitals,
+        # which are equal to the core orbitals.
+        rhf = pyscf.scf.RHF(atom)
+        # Supress printing of SCF energy
+        rhf.verbose = 0
+        # compute self-consistent field
+        rhf.kernel()
+
+        # Fill in the density matrices for the singly occupied core orbitals
+        # in the AO basis.
+        nspin = 2
+        nao, nmo = rhf.mo_coeff.shape
+        density_matrices = numpy.zeros((nspin,ncore,ncore,nao,nao))
+        # Loop over core orbitals.
+        for c in range(0, ncore):
+            # A core orbital should be dominated by a single atomic orbital
+            assert abs(rhf.mo_coeff[:,c]).max() > 0.9, (
+                "Check the core orbitals. A core orbital should be dominated by a single AO.")
+            # 1-particle density matrix for core orbital c is just
+            #   P_{a,b} = C_{a,c} C_{b,c}.
+            # Spin part of core orbital is assumed to be spin-up.
+            density_matrices[0,c,c,:,:] = numpy.einsum(
+                'a,b->ab', rhf.mo_coeff[:,c], rhf.mo_coeff[:,c])
+
+        # The energies of the core orbitals are stored instead of
+        # the eigenenergies. These energies are not actually needed.
+        core_orbital_energies = rhf.mo_energy[:ncore]
+
+        # The diagonal elements of a matrix density should integrate
+        # to the number of electrons. Since the matrix density represents
+        # at most a single core electron, we have to change the number of
+        # electrons in the gto.Mole object. This is just needed to avoid
+        # breaking some unittests.
+        if ncore > 0:
+            atom.nelec = (1,0)
+        else:
+            # Some light elements have no core orbitals.
+            atom.nelec = (0,0)
+
+        # Initialize base class.
+        super().__init__(atom, core_orbital_energies, density_matrices)
+
+    @staticmethod
+    def create_matrix_density(atom):
+        if (atom.natm != 1):
+            raise ValueError("CoreOrbitalDensities should be calculated for each atom separately.")
+        msmd = CoreOrbitalDensities(atom.atom_symbol(0), basis=atom.basis)
+        return msmd

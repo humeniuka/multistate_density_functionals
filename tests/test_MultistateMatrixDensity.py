@@ -15,6 +15,7 @@ import pyscf.tddft
 from tqdm import tqdm
 import unittest
 
+from msdft.MultistateMatrixDensity import CoreOrbitalDensities
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityCASCI
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityCASSCF
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityCISD
@@ -764,6 +765,37 @@ class TestMultistateMatrixDensityTDDFT(BaseTestMultistateMatrixDensity, unittest
         for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
                 self.check_transition_dipoles(mol)
+
+
+class TestCoreOrbitalDensities(BaseTestMultistateMatrixDensity, unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with different atoms to run the tests on """
+        atoms = {
+            # carbon has 1 core orbitals (1s)
+            'carbon atom': pyscf.gto.M(atom = 'C', basis = '6-31g'),
+            # silicon has 5 core orbitals (1s, 2s, 2px, 2py, 2pz)
+            'silicon atom': pyscf.gto.M(atom = 'C', basis = '6-31g'),
+            # effective core potential which removes the 1s orbital of carbon
+            'carbon atom (ECP)': pyscf.gto.M(
+                atom = 'C',
+                basis = {'C': 'crenbl'},
+                ecp = {'C': 'crenbl'}),
+        }
+        return atoms
+
+    def create_matrix_density(self, atom):
+        # call the statis method
+        return CoreOrbitalDensities.create_matrix_density(atom)
+
+    def test_raises_exception(self):
+        """
+        Check that an exception is raised if attempting to compute the core orbital
+        density for an atom that does not have any core orbitals.
+        """
+        # hydrogen has no core electrons
+        hydrogen_atom = pyscf.gto.M(atom = 'H', basis = '6-31g', spin=1)
+        with self.assertRaises(ValueError):
+            self.create_matrix_density(hydrogen_atom)
 
 
 if __name__ == "__main__":
