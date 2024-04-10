@@ -392,7 +392,7 @@ class ExchangeCorrelationFunctionalTests(ABC):
         fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
         # The multistate density matrix L D(r) Lᵗ in the transformed basis
         msmd_transformed = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs_transformed)
-        # Evaluate V[L D(r) Lᵗ] by integration on the grid.
+        # Evaluate XC[L D(r) Lᵗ] by integration on the grid.
         xc_matrix_from_transformed_D = exchange_correlation_functional(msmd_transformed)
 
         numpy.testing.assert_almost_equal(xc_matrix_from_transformed_D, xc_matrix_transformed)

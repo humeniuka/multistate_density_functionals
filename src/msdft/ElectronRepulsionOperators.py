@@ -550,9 +550,8 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
         self.grids.level = level
         self.grids.build()
 
-    @classmethod
     def correlation_energy_density(
-            cls,
+            self,
             density : numpy.ndarray,
             spin=0) ->  numpy.ndarray:
         """
@@ -652,7 +651,7 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
 
             # The paramagnetic (spin=0) correlation energy function is applied to the eigenvalues
             #   CED[D](r) = U(r) εᶜ(Λ(r)) Uᵀ(r)
-            ced_eigenvalues = LDACorrelationLikeFunctional.correlation_energy_density(abs(L), spin=0)
+            ced_eigenvalues = self.correlation_energy_density(abs(L), spin=0)
             CED[0,:,:,r] = numpy.einsum('ia,a,ja->ij', U, ced_eigenvalues, U)
 
         return CED
