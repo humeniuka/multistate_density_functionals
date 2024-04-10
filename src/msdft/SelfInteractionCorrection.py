@@ -78,18 +78,12 @@ class CoreSelfInteractionCorrection(object):
             raise ValueError(
                 "Argument `exchange_functional_class` has to be a subclass "
                 "of `ExchangeCorrelationLikeFunctional`.")
-        self.exchange_functional = exchange_functional_class(mol)
+        self.exchange_functional_class = exchange_functional_class
         if not issubclass(correlation_functional_class, ExchangeCorrelationLikeFunctional):
             raise ValueError(
                 "Argument `correlation_functional_class` has to be a subclass "
                 "of `ExchangeCorrelationLikeFunctional`.")
-        self.correlation_functional = correlation_functional_class(mol)
-        # Hartree-functional J[]
-        self.hartree_functional = HartreeLikeFunctional(mol)
-        # generate a multicenter integration grid
-        self.grids = pyscf.dft.gen_grid.Grids(mol)
-        self.grids.level = level
-        self.grids.build()
+        self.correlation_functional_class = correlation_functional_class
 
     def self_interaction_energy_of_core(self, element : str, basis: str):
         """
@@ -124,13 +118,16 @@ class CoreSelfInteractionCorrection(object):
         # J[ρᵅ] = 1/2 (1sᵅ1sᵅ|1sᵅ1sᵅ)
         #       = 1/2 ∫∫' ρᵅ(r) ρᵅ(r') / |r-r'|
         #       = 1/2 ∫ ρᵅ(r) Vᵅ(r)
-        self_interaction_energy_J = self.hartree_functional(core_densities)
+        hartree_functional = HartreeLikeFunctional(core_densities.mol)
+        self_interaction_energy_J = hartree_functional(core_densities)
 
         # Exchange-part of self-interaction, -K[ρᵅ]
-        self_interaction_energy_X = -self.exchange_functional(core_densities)
+        exchange_functional = self.exchange_functional_class(core_densities.mol)
+        self_interaction_energy_X = -exchange_functional(core_densities)
 
         # Correlation-part of self-interaction, C[ρᵅ].
-        self_interaction_energy_C = self.correlation_functional(core_densities)
+        correlation_functional = self.correlation_functional_class(core_densities.mol)
+        self_interaction_energy_C = correlation_functional(core_densities)
 
         # Combine contributions from direct and indirect part of Coulomb energy.
         # The factor 2 comes from the fact that the core electron is doubly occupied.
