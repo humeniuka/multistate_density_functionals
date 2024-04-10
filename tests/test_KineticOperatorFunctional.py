@@ -14,6 +14,7 @@ import pyscf.scf
 from tqdm import tqdm
 import unittest
 
+from msdft.BasisTransformation import BasisTransformation
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctionalII
 from msdft.KineticOperatorFunctional import KineticOperatorFunctional
@@ -161,7 +162,7 @@ class LDAVonWeizsaeckerFunctionalSingleState(object):
         return kinetic_matrix
 
 
-class KineticFunctionalTestCase(ABC, unittest.TestCase):
+class KineticFunctionalTests(ABC):
     """
     Abstract base class for all kinetic energy functional tests.
     It contains functions needed by all tests.
@@ -195,6 +196,48 @@ class KineticFunctionalTestCase(ABC, unittest.TestCase):
                 charge = 1,
                 # doublet
                 spin = 1),
+        }
+        return molecules
+
+    def create_test_molecules(self):
+        """ dictionary with molecules to run the tests on """
+        molecules = {
+            # H2
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 -0.375; H 0 0 0.375',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+        }
+        return molecules
+
+    def create_test_molecules_closed_shell(self):
+        """ dictionary with molecules to run the tests on """
+        molecules = {
+            # H2
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 -0.375; H 0 0 0.375',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
         }
         return molecules
 
@@ -269,8 +312,81 @@ class KineticFunctionalTestCase(ABC, unittest.TestCase):
             numpy.testing.assert_almost_equal(
                 kinetic_matrix, kinetic_matrix_ref)
 
+    def test_chunk_size(self):
+        """
+        Check that the kinetic energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
 
-class TestLSDAVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
+    def check_transformation(self, mol, nstate=1):
+        """
+        As an analytical matrix density functional, the kinetic energy T[D(r)]
+        should transform under a basis transformation L as
+
+          T[L D(r) Lᵗ] = L T[D(r)] Lᵗ
+        """
+        assert nstate > 0
+        # First the electronic eigenstates are determined using
+        # full configuration interaction.
+        rhf = pyscf.scf.RHF(mol)
+        # supress printing of SCF energy
+        rhf.verbose = 0
+        # compute self-consistent field
+        rhf.kernel()
+
+        fci = pyscf.fci.FCI(mol, rhf.mo_coeff)
+        # Solve for one state more than requested to avoid
+        # problems when nstate == 1.
+        fci.nroots = nstate+1
+        fci_energies, fcivecs = fci.kernel()
+        # Remove the additional state again.
+        if len(fcivecs) == nstate+1:
+            fcivecs = fcivecs[:-1]
+        # For small basis sets, there can be fewer states than requested.
+        nstate = len(fcivecs)
+
+        # Check that the derived unit test is implemented correctly.
+        assert issubclass(self.kinetic_functional_class, KineticOperatorFunctional)
+        # functional for the kinetic energy matrix, T[D(r)]
+        kinetic_functional = self.kinetic_functional_class(mol, level=1)
+
+        # random transformation L
+        basis_transformation = BasisTransformation.random(nstate)
+
+        # The multistate density matrix D(r)
+        msmd = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs)
+        # Evaluate T[D(r)] by integration on the grid.
+        kinetic_matrix = kinetic_functional(msmd)
+        # Transform the operator, L XC[D(r)] Lᵗ
+        kinetic_matrix_transformed = basis_transformation.transform_operator(kinetic_matrix)
+
+        # To compute L D(r) Lᵗ we apply the basis transformation to the CI vectors.
+        fcivecs_transformed = basis_transformation.transform_vector(fcivecs)
+        # The multistate density matrix L D(r) Lᵗ in the transformed basis
+        msmd_transformed = MultistateMatrixDensityFCI(mol, rhf, fci, fcivecs_transformed)
+        # Evaluate T[L D(r) Lᵗ] by integration on the grid.
+        kinetic_matrix_from_transformed_D = kinetic_functional(msmd_transformed)
+
+        numpy.testing.assert_almost_equal(kinetic_matrix_from_transformed_D, kinetic_matrix_transformed)
+
+        # Finally, check that T[D(r)] is a symmetric matrix.
+        numpy.testing.assert_almost_equal(kinetic_matrix, kinetic_matrix.T)
+
+    def test_transformation(self):
+        """
+        Verify that the kinetic energy matrix transforms correctly under basis changes.
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules_1electron().items()):
+            for nstate in tqdm([2,3]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_transformation(mol, nstate=nstate)
+
+
+class TestLSDAVonWeizsaecker1eFunctional(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
@@ -306,7 +422,7 @@ class TestLSDAVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class TestLDAVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
+class TestLDAVonWeizsaecker1eFunctional(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
@@ -342,7 +458,7 @@ class TestLDAVonWeizsaecker1eFunctional(KineticFunctionalTestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class TestLSDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
+class TestLSDAVonWeizsaeckerFunctional(KineticFunctionalTests, unittest.TestCase):
     """
     NOTE: This von-Weizsaecker-like kinetic energy function is NOT exact
           for 1-electron systems but it performs better for many electron systems.
@@ -351,24 +467,6 @@ class TestLSDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
     def kinetic_functional_class(self):
         """ The functional to be tested. """
         return LSDAVonWeizsaeckerFunctional
-
-    def create_test_molecules(self):
-        """ dictionary with molecules to run the tests on """
-        molecules = {
-            # H2
-            'hydrogen molecule': pyscf.gto.M(
-                atom = 'H 0 0 -0.375; H 0 0 0.375',
-                basis = '6-31g',
-                # singlet
-                spin = 0),
-            # 3-electron systems, one unpaired spin
-            'lithium atom': pyscf.gto.M(
-                atom = 'Li 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
-        }
-        return molecules
 
     def test_von_Weizsaecker_functional(self):
         """
@@ -391,17 +489,8 @@ class TestLSDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
-    def test_chunk_size(self):
-        """
-        Check that the kinetic energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        for name, mol in tqdm(self.create_test_molecules().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
 
-
-class TestLDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
+class TestLDAVonWeizsaeckerFunctional(KineticFunctionalTests, unittest.TestCase):
     """
     NOTE: This von-Weizsaecker-like kinetic energy function is NOT exact
           for 1-electron systems.
@@ -410,24 +499,6 @@ class TestLDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
     def kinetic_functional_class(self):
         """ The functional to be tested. """
         return LDAVonWeizsaeckerFunctional
-
-    def create_test_molecules(self):
-        """ dictionary with molecules to run the tests on """
-        molecules = {
-            # H2
-            'hydrogen molecule': pyscf.gto.M(
-                atom = 'H 0 0 -0.375; H 0 0 0.375',
-                basis = '6-31g',
-                # singlet
-                spin = 0),
-            # 3-electron systems, one unpaired spin
-            'lithium atom': pyscf.gto.M(
-                atom = 'Li 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
-        }
-        return molecules
 
     def test_von_Weizsaecker_functional(self):
         """
@@ -450,17 +521,8 @@ class TestLDAVonWeizsaeckerFunctional(KineticFunctionalTestCase):
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
-    def test_chunk_size(self):
-        """
-        Check that the kinetic energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        for name, mol in tqdm(self.create_test_molecules().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
 
-
-class TestLSDAVonWeizsaecker1eFunctionalII(KineticFunctionalTestCase):
+class TestLSDAVonWeizsaecker1eFunctionalII(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
@@ -543,36 +605,18 @@ class LDAThomasFermiFunctionalSingleState(object):
         return kinetic_matrix
 
 
-class TestLSDAThomasFermiFunctional(KineticFunctionalTestCase):
+class TestLSDAThomasFermiFunctional(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
         return LSDAThomasFermiFunctional
-
-    def create_test_molecules(self):
-        """ dictionary with closed-shell molecules to run the tests on """
-        molecules = {
-            # 2-electron systems, paired spins
-            'hydrogen molecule': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 0,
-                spin = 0),
-            # 4-electron system, closed shell
-            'lithium hydride': pyscf.gto.M(
-                atom = 'Li 0 0 0; H 0 0 1.60',
-                basis = '6-31g',
-                # singlet
-                spin = 0),
-        }
-        return molecules
 
     def test_Thomas_Fermi_functional(self):
         """
         Check that for a single electronic state the multistate kinetic energy functional
         reduces to the Thomas-Fermi functional for a closed shell molecule.
         """
-        for name, mol in tqdm(self.create_test_molecules().items()):
+        for name, mol in tqdm(self.create_test_molecules_closed_shell().items()):
             # scalar D(r) from single electronic state
             msmd = self.create_matrix_density(mol, nstate=1)
 
@@ -589,29 +633,11 @@ class TestLSDAThomasFermiFunctional(KineticFunctionalTestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class TestLDAThomasFermiFunctional(KineticFunctionalTestCase):
+class TestLDAThomasFermiFunctional(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
         return LDAThomasFermiFunctional
-
-    def create_test_molecules(self):
-        """ dictionary with closed-shell molecules to run the tests on """
-        molecules = {
-            # 2-electron systems, paired spins
-            'hydrogen molecule': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 0,
-                spin = 0),
-            # 4-electron system, closed shell
-            'lithium hydride': pyscf.gto.M(
-                atom = 'Li 0 0 0; H 0 0 1.60',
-                basis = '6-31g',
-                # singlet
-                spin = 0),
-        }
-        return molecules
 
     def test_Thomas_Fermi_functional(self):
         """
@@ -635,7 +661,7 @@ class TestLDAThomasFermiFunctional(KineticFunctionalTestCase):
                     kinetic_matrix_multi, kinetic_matrix_single)
 
 
-class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
+class TestEigendecompositionKineticFunctional(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
@@ -670,8 +696,19 @@ class TestEigendecompositionKineticFunctional(KineticFunctionalTestCase):
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
+    def test_chunk_size(self):
+        """
+        Check that the kinetic energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        # This functional only works if there are no repeated eigenvalues with
+        # repeated eigenvalue derivatives.
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
 
-class TestEigendecompositionKineticFunctionalII(KineticFunctionalTestCase):
+
+class TestEigendecompositionKineticFunctionalII(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
@@ -706,8 +743,19 @@ class TestEigendecompositionKineticFunctionalII(KineticFunctionalTestCase):
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
+    def test_chunk_size(self):
+        """
+        Check that the kinetic energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        # This functional only works if there are no repeated eigenvalues with
+        # repeated eigenvalue derivatives.
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
 
-class TestMatrixSquareRootKineticFunctional(KineticFunctionalTestCase):
+
+class TestMatrixSquareRootKineticFunctional(KineticFunctionalTests, unittest.TestCase):
     @property
     def kinetic_functional_class(self):
         """ The functional to be tested. """
@@ -733,6 +781,17 @@ class TestMatrixSquareRootKineticFunctional(KineticFunctionalTestCase):
 
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
+
+    def test_chunk_size(self):
+        """
+        Check that the kinetic energy matrix does not depend on how many chunks
+        the coordinate grid is split into.
+        """
+        # This functional currently only works if there are no repeated eigenvalues with
+        # repeated eigenvalue derivatives.
+        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
+            with self.subTest(molecule=name):
+                self.check_chunk_size(mol)
 
 
 if __name__ == "__main__":
