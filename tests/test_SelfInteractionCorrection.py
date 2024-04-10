@@ -62,6 +62,21 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
         # Check the actual value (in Hartree)
         self.assertAlmostEqual(0.5013, SIE_oxygen_atom, places=3)
 
+    def test_total_self_interaction_error_LiF(self):
+        """
+        Check that the self-interaction error of the core orbitals for LiF
+        with the default LDA exchange-correlation functional
+        (Dirac exchange and Chachyo correlation) is as expected.
+        """
+        mol = pyscf.gto.M(
+            atom = 'Li 0.0 0.0 0.0; F 0.0 0.0 1.564',
+            basis = 'aug-cc-pvqz')
+
+        SIE_lithium_fluoride = CoreSelfInteractionCorrection(mol).total_self_interaction_error()
+
+        # Check the actual value (in Hartree)
+        self.assertAlmostEqual(0.5766, SIE_lithium_fluoride, places=3)
+
     def test_self_interaction_energy_of_core(self):
         """
         Test the static function
@@ -77,14 +92,23 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
         self.assertEqual(1, len(SIEs_core_orbitals))
         self.assertAlmostEqual(SIE_oxygen_atom, numpy.sum(SIEs_core_orbitals))
 
-        # Check heavy atoms with multipl core orbitals.
+        # Check heavy atoms with multiple core orbitals.
         # In Silicon the 1s,2s,2px,2py,2pz orbitals are part of the core
         SIEs_core_orbitals = self_interaction_correction.self_interaction_energy_of_core(
             'Si', 'sto-3g')
         self.assertEqual(5, len(SIEs_core_orbitals))
 
     def test_raises_exception(self):
-        pass
+        """ Check that an exception is raise if the functional arguments have the wrong type. """
+        mol = self.create_test_molecules()['oxygen atom']
+        # correlation functional has to be a subclass of ExchangeCorrelationLikeFunctional,
+        # not a string.
+        with self.assertRaises(ValueError):
+            CoreSelfInteractionCorrection(mol, correlation_functional_class=str)
+        # exchange functional has to be a subclass of ExchangeCorrelationLikeFunctional,
+        # not a string.
+        with self.assertRaises(ValueError):
+            CoreSelfInteractionCorrection(mol, exchange_functional_class=str)
 
 
 if __name__ == "__main__":
