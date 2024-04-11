@@ -782,17 +782,6 @@ class TestMatrixSquareRootKineticFunctional(KineticFunctionalTests, unittest.Tes
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
 
-    def test_chunk_size(self):
-        """
-        Check that the kinetic energy matrix does not depend on how many chunks
-        the coordinate grid is split into.
-        """
-        # This functional currently only works if there are no repeated eigenvalues with
-        # repeated eigenvalue derivatives.
-        for name, mol in tqdm(self.create_test_molecules_1electron().items()):
-            with self.subTest(molecule=name):
-                self.check_chunk_size(mol)
-
 
 if __name__ == "__main__":
     unittest.main(failfast=True)
