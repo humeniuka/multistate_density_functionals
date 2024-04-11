@@ -1495,7 +1495,7 @@ class CoreOrbitalDensities(MultistateMatrixDensity):
         density_matrices = numpy.zeros((nspin,ncore,ncore,nao,nao))
         # Loop over core orbitals.
         for c in range(0, ncore):
-            # A core orbital should be dominated by a single atomic orbital
+            # A core orbital should be dominated by a single atomic orbital.
             assert abs(rhf.mo_coeff[:,c]).max() > 0.9, (
                 "Check the core orbitals. A core orbital should be dominated by a single AO.")
             # 1-particle density matrix for core orbital c is just

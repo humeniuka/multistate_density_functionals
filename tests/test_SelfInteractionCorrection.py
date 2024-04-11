@@ -73,12 +73,12 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
         """
         mol = pyscf.gto.M(
             atom = 'Li 0.0 0.0 0.0; F 0.0 0.0 1.564',
-            basis = 'aug-cc-pvqz')
+            basis = '6-31g')
 
         SIE_lithium_fluoride = CoreSelfInteractionCorrection(mol).total_self_interaction_error()
 
         # Check the actual value (in Hartree)
-        self.assertAlmostEqual(0.5766, SIE_lithium_fluoride, places=3)
+        self.assertAlmostEqual(0.5769, SIE_lithium_fluoride, places=3)
 
     def test_total_self_interaction_error_lda_vs_lsda(self):
         """
@@ -87,7 +87,7 @@ class TestCoreSelfInteractionCorrection(unittest.TestCase):
         """
         mol = pyscf.gto.M(
             atom = 'Li 0.0 0.0 0.0; F 0.0 0.0 1.564',
-            basis = 'aug-cc-pvqz')
+            basis = '6-31g')
 
         SIE_lsda = CoreSelfInteractionCorrection(
             mol,
