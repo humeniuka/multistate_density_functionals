@@ -852,7 +852,9 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
             # matrix density Dᵢⱼ
             D,
             # derivatives of matrix density ∇Dᵢⱼ
-            grad_D
+            grad_D,
+            # threshold for neglecting singular eigenvalues
+            epsilon=epsilon
         )
 
         # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
