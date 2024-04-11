@@ -771,7 +771,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
     @property
     def spin_type(self):
-        return UNPOLARIZED
+        return POLARIZED
 
     def energy_density(
             self,
