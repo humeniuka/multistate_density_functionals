@@ -7,6 +7,7 @@ import numpy.linalg as la
 import numpy.testing
 
 import pyscf.dft
+import pyscf.dft.libxc
 import pyscf.fci
 import pyscf.gto
 import pyscf.scf
@@ -17,6 +18,7 @@ import unittest
 from msdft.BasisTransformation import BasisTransformation
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctional
 from msdft.KineticOperatorFunctional import EigendecompositionKineticFunctionalII
+from msdft.KineticOperatorFunctional import GGALeeLeeParr91KineticFunctional
 from msdft.KineticOperatorFunctional import KineticOperatorFunctional
 from msdft.KineticOperatorFunctional import LDAThomasFermiFunctional
 from msdft.KineticOperatorFunctional import LSDAThomasFermiFunctional
@@ -781,6 +783,71 @@ class TestMatrixSquareRootKineticFunctional(KineticFunctionalTests, unittest.Tes
 
                 numpy.testing.assert_almost_equal(
                     kinetic_matrix_multi, kinetic_matrix_single)
+
+
+class TestGGALeeLeeParr91KineticFunctional(KineticFunctionalTests, unittest.TestCase):
+    @property
+    def kinetic_functional_class(self):
+        """ The functional to be tested. """
+        return GGALeeLeeParr91KineticFunctional
+
+    def test_leeleeparr91_kinetic_functional_implementation(self):
+        """
+        Check that the implementation of Lee, Lee & Parr's 1991 GGA kinetic functional
+        gives the same energy as the libxc library (GGA_K_LLP) for a range of electron densities.
+
+        References
+        ----------
+        [libxc] S. Lehtola et al. (2018), Software X 7, 1-5,
+            "Recent developments in libxc —
+            A comprehensive library of functionals for density functional theory"
+            https://doi.org/10.1016/j.softx.2017.11.002
+        """
+        for name, mol in tqdm({
+                # combine all test molecules into a single dictionary
+                **self.create_test_molecules_1electron(),
+                **self.create_test_molecules()}.items()):
+            with self.subTest(molecule=name):
+                # scalar D(r) from single electronic state
+                msmd = self.create_matrix_density(mol, nstate=1)
+
+                # Evaluate the kinetic energy, T[D(r)], using the multi-state functional.
+                kinetic_functional_multi = self.kinetic_functional_class(mol)
+                kinetic_matrix_multi = kinetic_functional_multi(msmd)
+
+                # Evaluate the GGA kinetic energy of a single state using the
+                # implementation of libxc.
+                grids = pyscf.dft.gen_grid.Grids(mol)
+                grids.level = 8
+                grids.build()
+                # number of grid points
+                ncoord = grids.coords.shape[0]
+
+                D, grad_D, _ = msmd.evaluate(grids.coords)
+                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+                # For a spin-polarized GGA functional we have to provide
+                # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu,0,0)
+                #           (den_d,grad_xd,grad_yd,grad_zd,0,0))
+                rho_ud = numpy.zeros((2, 6, ncoord))
+                rho_ud[:,0,:] = D[:,0,0,:]
+                rho_ud[:,1:4,:] = grad_D[:,0,0,:,:]
+
+                # The LLP functional is spin-polarized
+                t, _, _, _ = pyscf.dft.libxc.eval_xc('GGA_K_LLP,', rho_ud, spin=1)
+                # Integrate over space.
+                # libxc divides the kinetic energy per particle by the total spin-summed density,
+                #   t[ρᵅ,ρᵝ] = 1/ρ * (ρᵅ t[ρᵅ] + ρᵝ t[ρᵝ]),
+                # so that the total exchange energy is calculated as
+                #   T[ρ] = ∫ ρ t[ρᵅ,ρᵝ] dr.
+                # (see Eqn. (4) in [libxc])
+                rho = rho_ud[0,0,:] + rho_ud[1,0,:]
+                kinetic_matrix_single = numpy.array([[
+                        numpy.sum(grids.weights * (rho * t))
+                    ]])
+
+                # Compare the multistate and the single-state (libxc) kinetic functionals.
+                numpy.testing.assert_almost_equal(
+                    kinetic_matrix_single, kinetic_matrix_multi, decimal=6)
 
 
 if __name__ == "__main__":
