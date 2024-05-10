@@ -6,6 +6,7 @@ import pyscf.dft
 import scipy.linalg
 
 from msdft.LinearAlgebra import eigensystem_derivatives
+from msdft.LinearAlgebra import matrix_function_batch
 from msdft.LinearAlgebra import matrix_function_derivatives_batch
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 
@@ -1212,5 +1213,200 @@ class MatrixSquareRootKineticFunctional(KineticOperatorFunctional):
         # kinetic energy density
         # KEDᵢⱼ(r) = 1/2 ∑ₖ ∇(D¹ᐟ²)ᵢₖ ∇(D¹ᐟ²)ₖⱼ
         KED = 0.5 * numpy.einsum('sikdr,skjdr->sijr', grad_D_square_root, grad_D_square_root)
+
+        return KED
+
+
+class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
+    # The Thomas-Fermi coefficient.
+    C_F = 3.0/10.0 * pow(3.0*numpy.pi**2, 2.0/3.0)
+    # The empirical value of α (taken from caption of table I in [LLP91])
+    # apparently was determined from a least square fit to the kinetic
+    # energies of rare gas atoms.
+    alpha = 0.0044188
+    # gamma for Eqn.(6) of [LLP91]. Note that there is a typo in the paper. There should be
+    # a factor of x in front of gamma.
+    gamma = 0.0253
+
+    def __init__(self, mol, level=8):
+        """
+        Multi-state kinetic energy of of Lee, Lee and Parr [LLP91], which is based on the assumption
+        that the same functional form can be used for the kinetic energy as for the exchange energy.
+        This conjoint hypothesis is not true but gives reasonable kinetic energies (see Table I in
+        [Thakkar1992])
+
+        The LLP functional is given by
+
+            T[Dᵅ(r), Dᵝ(r)] = T[Dᵅ(r)] + T[Dᵝ(r)]
+
+        with
+
+            T[Dᵅ(r)] = 2²ᐟ³ C_F ∫ ½ [ Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³] dr
+
+            (similarly for T[Dᵝ(r)])
+
+        and the enhancement factor over the LDA kinetic energy,
+
+            G(X²(r)) = 1 + α X²(r) / (1 + γ X(r) sinh⁻¹(X(r))).
+
+        - D(r)⁵ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
+        - G(X²(r)) is the enhancement factor over LDA. It is a matrix function of the square of
+          the dimensionless (reduced) gradient, X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r), which depends on
+          the gradient of the Wigner-Seitz radius R(r) = (4π/3 D(r))⁻¹ᐟ³.
+          X(r) is the matrix square root of X²(r).
+          X²(r) and R(r) are position-dependent matrices with the same dimensions
+          as the matrix density D(r). G(X²) is calculated by diagonalizing X² and applying
+          the scalar function G(·) to its eigenvalues.
+
+        The kinetic-energy matrix has to be symmetric/hermitian. Since the product of two
+        matrices is not symmetric (unless the two matrices commute), the product of two matrix
+        functions A and B that depend on D and ∇D, A[D].B[∇D], will not be symmetric,
+        because [D,∇D]≠0. The simplest way to symmetrize the expression is to replace
+        A.B with 1/2 (A.B+B.A). Therefore the GGA kinetic-energy density
+
+            ρᵅ(r)⁵ᐟ³ G(x²(r)ᵅ)
+
+        is replaced by
+
+            ½ [ Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]
+
+        in the matrix functional.
+
+        References
+        ----------
+        [LLP91] Lee, Lee, Parr (1991), Phys. Rev. A 44, 768
+            "Conjoint gradient correction to the Hartree-Fock
+            kinetic- and exchange-energy density functionals".
+        [Thakkar1992] A. Thakkar, Phys. Rev. A 46, 6920
+            "Comparison of kinetic-energy density functionals"
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+        """
+        # generate a multicenter integration grid
+        self.grids = pyscf.dft.gen_grid.Grids(mol)
+        self.grids.level = level
+        self.grids.build()
+
+    def enhancement_factor(self, x2):
+        """ The scalar function g(x²) for the enhancement factor """
+        x = numpy.sqrt(x2)
+        f = 1.0 + self.alpha * (
+            x2 / (1 + self.gamma * x * numpy.arcsinh(x))
+        )
+        return f
+
+    def kinetic_energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray,
+            epsilon = 1.0e-12):
+        """
+        compute the kinetic energy density
+
+           KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
+
+                    ≈ 2²ᐟ³ C_F ½ [Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]ᵢⱼ
+
+        :param msmd: The multistate matrix density in the electronic subspace
+           for which the kinetic energy density should be evaluated.
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the kinetic energy
+           density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :param epsilon: Threshold for neglecting singular eigenvalues.
+           Eigenvalues |λₐ| <= epsilon are treated as zero.
+        :type epsilon: float
+
+        :return: KEDᵢⱼ(r), kinetic energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+           KED[s,i,j,r] is the kinetic energy density with spin s,
+           between the electronic states i and j at position coords[r,:].
+        """
+        # number of grid points
+        ncoord = coords.shape[0]
+        # number of electronic states in the subspace
+        nstate = msmd.number_of_states
+        # up or down spin
+        nspin = 2
+
+        # Evaluate D(r) and ∇D(r) on the integration grid.
+        D, grad_D, _ = msmd.evaluate(coords)
+
+        # The fractional matrix power is obtained from the eigenvalue decomposition.
+        # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
+        D_matrix_power = matrix_function_batch(lambda L: pow(abs(L), 5.0/3.0), D)
+
+        # The matrix version of the Wigner-Seitz radius is also calculated from the eigenvalue
+        # decomposition as R(r) = U(r) (4π/3 Λ(r))⁻¹ᐟ³ Uᵀ(r).
+        def wigner_seitz_radius(density):
+            # Avoid dividing by zero for ρ=0.
+            # Non-zero eigenvalues, for which division is not problematic.
+            good = abs(density) > epsilon
+            # When ρ=0, the electron radius should be r=inf. However, since the
+            # kinetic-energy is 0 if there are no electrons, any value can be chosen
+            # for r(ρ=0). Here we set r(ρ=0) to 0.
+            radius = numpy.zeros_like(density)
+            # Compute Wigner-Seitz radius for grid point where ρ > 0.
+            radius[good] = pow((4.0*numpy.pi/3.0) * abs(density[good]), -1.0/3.0)
+            return radius
+
+        def wigner_seitz_radius_deriv1(density):
+            # Derivative of the Wigner-Seitz radius w/r/t the density
+            #   ∇rₐ(r) = (-1/3) (4π/3)⁻¹ᐟ³  (ρ(r))⁻⁴ᐟ³ ∇ρ(r)
+            #          = (-1/3) (4π/3) rₐ⁴ ∇ρ(r)
+            #          = rₐ'(ρ) ∇ρ(r)
+            radius = wigner_seitz_radius(density)
+            # rₐ'(ρ) = (-1/3) (4π/3) rₐ⁴
+            radius_deriv1 = (-1.0/3.0) * (4.0*numpy.pi/3.0) * pow(radius, 4.0)
+            return radius_deriv1
+
+        # Wigner-Seitz radius matrix, Rᵢⱼ, and its gradient, ∇Rᵢⱼ.
+        R, grad_R = matrix_function_derivatives_batch(
+            # f(ρ)
+            wigner_seitz_radius,
+            # f'(ρ)
+            wigner_seitz_radius_deriv1,
+            # matrix density Dᵢⱼ
+            D,
+            # derivatives of matrix density ∇Dᵢⱼ
+            grad_D,
+            # threshold for neglecting singular eigenvalues
+            epsilon=epsilon
+        )
+
+        # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
+        #   X²ᵢⱼ = ∑ₐ ∇Rᵢₐ·∇Rₐⱼ
+        X2 = pow(36.0 * numpy.pi, 2.0/3.0) * numpy.einsum(
+            'siadr,sajdr->sijr', grad_R, grad_R)
+
+        # The enhancement factor G(X²) is a matrix function. It is calculated
+        # via the eigendecomposition of the matrix X² = V x² Vᵀ, where x² and V
+        # are the eigenvalues and eigenvectors of X², respectively. Then the
+        # enhancement factor over LDA is calculated as
+        #   G(X²) = V g(x²) Vᵀ
+        G_enhancement_factor = matrix_function_batch(
+          lambda x2: self.enhancement_factor(abs(x2)), X2)
+
+        # Symmetrized GGA kinetic-energy density,
+        #   KED[D]ᵢⱼ(r) = 2²ᐟ³ C_F ½ [Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]ᵢⱼ
+        KED = pow(2.0, 2.0/3.0) * self.C_F * 0.5 * (
+            # D(r)⁵ᐟ³ G(X²(r))
+            numpy.einsum(
+                'siar,sajr->sijr',
+                D_matrix_power, G_enhancement_factor) +
+            # G(X²(r)) D(r)⁵ᐟ³
+            numpy.einsum(
+                'siar,sajr->sijr',
+                G_enhancement_factor, D_matrix_power)
+        )
+        # Check that the kinetic energy density is real.
+        assert numpy.max(abs(KED).imag) < 1.0e-10
 
         return KED
