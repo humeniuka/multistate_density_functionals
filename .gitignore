@@ -18,8 +18,11 @@ tmp*
 # From latex
 notes/*.aux
 notes/*.bbl
+notes/*.bcf
+notes/*.run.xml
 notes/*.blg
 notes/*.log
+notes/*.out
 notes/*.pdf
 notes/acs-*.bib
 

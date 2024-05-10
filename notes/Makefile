@@ -36,3 +36,5 @@ clean:
 
 	rm -f  acs-supporting_information_short_version.bib supporting_information_short_version.aux
 	rm -f  supporting_information_short_version.bbl supporting_information_long_version.blg supporting_information_long_version.log supporting_information_long_version.pdf
+
+	rm -f  research_plan.aux research_plan.bbl research_plan.bcf research_plan.blg research_plan.log research_plan.run.xml research_plan.pdf

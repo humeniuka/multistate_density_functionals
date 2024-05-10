@@ -1,0 +1,124 @@
+\PassOptionsToPackage{margin=1in}{geometry}
+\documentclass[12pt]{article}
+\usepackage{wordlike}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{marginnote}
+\usepackage{placeins}
+\usepackage{marginnote}
+
+\newcommand*\mycommand[1]{\texttt{\emph{#1}}}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Span}{span}
+\DeclareMathOperator{\Div}{div}
+\DeclareMathOperator{\Diag}{diag}
+\DeclareMathOperator{\Id}{\mathbf{1}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\renewcommand{\thesubsection}{\thesection.\Alph{subsection}}
+
+% bold matrix
+\newcommand\m[1]{\mathbf{#1}}
+% bold vector
+\renewcommand\vec[1]{\mathbf{#1}}
+
+
+\title{\centering A New, Variational, Multistate \\ Density Functional Theory}
+\date{\vspace{-3ex}}
+
+\begin{document}
+\maketitle
+
+% Summary
+%The goal is to develop a new, variational, density functional theory for ground and excited states.
+%The fundamental object of this theory is a matrix of state and transition densities.
+%The Hamiltonian matrix is a universal functional of this matrix density.
+%I strive to find approximations to the universal functional guided by exact conditions and turn the basic theory into a practical computational %method for studying photochemistry in complex systems.
+
+
+\section{Research Objectives}
+
+\noindent\textbf{Significance of research:} Semiconductor, chemical and pharmaceutical companies are adopting atomistic simulations in their research and development activities, because computational resources are relatively cheap and provide insight that is complementary to experimental techniques. Huge time and cost saving can be realized when properties of materials and molecules can be predicted reliably through computation before they are synthesized in the laboratory. Almost all electronic structure calculations done in industry rely in some way on density functional theory  (DFT) thanks to its robustness and computational efficiency. For instance DFT often provides the reference data for training machine learning models or is used for parameterizing macroscopic models of photovoltaic devices. Therefore the impact of improvements in density functional theory can hardly be overstated.
+
+\noindent\textbf{Academic background:} DFT describes the state of a material in terms of its electron density rather than the many-electron wavefunction that contains the information about every single electron. This enormous reduction in complexity has a price: The energy of the ground state contains, in addition to the classical electrostatic energy of the charge densities, unknown functionals of the density that capture all quantum mechanical effects.
+Over the last century a wealth of knowledge about the properties of the kinetic and exchange-correlation functionals has accumulated leading to sophisticated density functional approximations for Kohn-Sham DFT. However, progress on fundamental developments of DFT has stalled over the last 20 years.
+
+\noindent\textbf{Knowledge gap:} Strictly speaking, most existing density functional approximations are only valid for the electronic ground state and cannot deal with strong electronic correlations. When bonds are broken or when matter interacts with light, excited states start to play a role. The aim of this research project is to develop a new, variational density functional theory that treats ground and excited states on the same footing. The basis for this investigation form the recently published theorems by Lu and Gao \cite{Lu2022JPCL} which define a rigorous multistate density functional theory (MSDFT). The theorems state that the energies of the lowest few electronic states can be obtained from a matrix $\m{D}(\vec{r})$ of their state densities and transition densities (see Fig.\ref{fig:basic_ideas_of_msdft}). In their multistate DFT the role of the scalar electron density is taken by a matrix of (transition) densities of several electronic states. However, the basic theorems do not tell us how to find the unknown functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$ that maps the matrix density to the Hamiltonian matrix. In a preliminary study \cite{Humeniuk2024_preprint} (which is not yet published but has received favourable peer-reviews) I showed that the universal matrix functional of the multistate theory is an analytic functional and furthermore has no explicit dependence on the number of states. These two properties open a way to guess approximations for matrix functionals from existing density functional approximations for the ground state. I plan to build on my preliminary work \cite{Humeniuk2024_preprint} and
+
+\begin{enumerate}[label=(\Alph*)]
+\item answer fundamental open questions concerning the properties of the universal functional,
+\item design approximate multistate density functionals
+\item and turn the basic theory into a computational method capable of solving real-world, photochemical problems.
+\end{enumerate}
+
+The ideas of multistate DFT are reviewed in the introduction of Ref.~\cite{Humeniuk2024_preprint} and are illustrated in Fig.~\ref{fig:basic_ideas_of_msdft}.
+
+\begin{figure}[h!]
+    \includegraphics[width=1.0\linewidth]{figures/basic_ideas_of_msdft.png}
+    \caption{\label{fig:basic_ideas_of_msdft} Basic ideas of multistate DFT.}
+\end{figure}
+
+\section{Research Plan and Methods}
+
+\subsection{Fundamental open questions \label{sec:fundamentals}}
+\begin{enumerate}
+\item The whole theory rests on the assumption that the universal matrix functional does not explicitly depend on the number of electronic states in the subspace. A plausible argument for this was given in Ref.~\cite{Humeniuk2024_preprint}, however a more rigorous proof is desirable.
+\item Which conditions does a matrix function have to fulfill to ensure that it is the matrix density of a systems of Fermions? 
+This is the multistate version of the N-representability problem. 
+Is it possible to perform a minimization over all matrix densities without parameterizing the matrix density in terms of (non-orthogonal) Slater determinants of single particle orbitals?
+\item What exact constraints on kinetic, exchange and correlation functionals can be leveraged to limit the ambiguity due to non-commuting matrices?
+\item What is the relationship between multistate DFT and other excited state theories such as ensemble DFT and time-dependent DFT?
+\end{enumerate}
+
+\subsection{Approximate multistate density functionals \label{sec:approximation}}
+For practical MSDFT calculations one has to approximate the universal matrix functional $\m{\mathcal{F}}[\m{D}(\vec{r})]$.
+Since a multistate functional reduces to the ground state functional in the limit of a single state,
+many techniques for designing ground state functional approximations carry over to the multistate case.
+Even with a simple local density approximation (LDA) both diagonal and off-diagonal elements of the electron-repulsion part of the Hamiltonian
+can be predicted with surprising accuracy \cite{Humeniuk2024_preprint}. 
+In analogy with ground state DFT one can climb the rungs of Jacob's ladder (employing local, semilocal and generalized gradient approximations (GGA))
+to come closer to the true functional. However, there is a fundamental difference that complicates things when the functional depends on lets say the density and its gradient or the total density and the spin polarization: Since $\m{D}(\vec{r})$ is
+a matrix and matrix-multiplication is not commutative the order of factors matter. For instance, since $\m{D}(\vec{r})$ and its
+gradient $\nabla \m{D}(\vec{r})$ do not commute, there is an infinite number of different GGA-like functionals, which all reduce to
+the corresponding ground state functional for a one-dimensional $\m{D}(\vec{r}) = \rho(\vec{r})$ and differ only by the order of the factors in the multivariate Taylor series. Exact conditions have to be found
+in order to constrain this ambiguity. An obvious condition is that the resulting Hamiltonian matrix should be Hermitian, but more elaborate conditions can be found: In Ref. \cite{Humeniuk2024_preprint} a von-Weizs\"{a}cker-like kinetic energy functional constrained by the requirement that it should give the exact kinetic energy matrix for a single electron. However, these conditions are not sufficient to determine
+the functional uniquely and more fundamental work is needed to go beyond the LDA. In particular it is important which exact conditions
+of ground state DFT remain valid in MSDFT.
+
+While exact conditions will be an essential guide in the design of multistate functionals,
+some free parameters (such as the precise functional form of the enhancement factor in a GGA functional)
+could be chosen in an optimal fashion by machine learning.
+Since the multistate functional is analytical and independent of the number of electronic states,
+training data from calculations of ground and excited state calculations can be combined to fit a single functional.
+Especially the kinetic functional, for which there is no good (semilocal) approximations, could benefit from machine learning.
+
+\subsection{Implementation of efficient computational method \label{sec:implementation}}
+The proposed theory potentially lends itself to a very efficient linear-scaling implementation that allows to describe
+electronic excitations in complex systems. The subspace of the lowest few states can be found by direct minimization of the subspace energy as a function of the matrix density (see Fig.~\ref{fig:basic_ideas_of_msdft}). If the matrix density is
+updated using gradient descent, $\m{D}(\vec{r})_{n+1} = \m{D}(\vec{r})_{n} - \gamma \frac{d E_{\text{MS}}[\m{D}(\vec{r}')]}{d \m{D}(\vec{r})}$,
+the time per optimization step scales linearly in the number of parameters.
+The number of parameters for describing the matrix density is determined by the number of spatial grid points
+and not the number of electrons, and relatively coarse grids could be employed in combination with pseudo potentials.
+In particular no large scale eigenvalue problem has to be solved.
+With semilocal exchange-correlation and kinetic energy functionals the bottleneck would be the solution of
+the Poisson equation.
+
+However, before this best-case scenario can be realized, two fundamental obstacles have to be overcome: (1) One has to ensure that the $\m{D}_n(\vec{r})$'s visited during the optimization all correspond to matrices of state and transition densities of a Fermionic system. 
+%This is the multistate version of the N-representability problem.
+This issue can be avoided by parameterizing the matrix density in terms of
+a minimal number of orthogonal or non-orthogonal Slater determinants as suggested in \cite{Lu2022fundamental}. However, with this parameterization the scaling would be similar to CASSCF with a small active space, linear scaling cannot be achieved. (2) For a linear-scaling, orbital-free implementation a (semilocal) kinetic energy functional of comparable accuracy as the exchange-correlation functional is required, which so far has been elusive.
+
+While these fundamental questions are very hard nuts to crack, multistate DFT also opens a simple way to treat large systems at least approximately. Since it is a variational theory, a large system can be described by a trial matrix density, which depends only on a few parameters that are optimized. For instance, the matrix density of a large molecular aggregate could be built up from the monomer (transition) densities with some undetermined weights.
+The concrete architecture of the computer code for MSDFT calculations will hopefully crystallize during the course of the investigation.
+
+\section{Research Environment}
+This work requires a quiet environment, time to think, access to scientific literature, pen and paper and a computer.
+At a later stage access to a high-performance computer cluster (ideally with some GPU nodes) and licenses for common quantum-chemistry software packages would be advantageous.
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}
