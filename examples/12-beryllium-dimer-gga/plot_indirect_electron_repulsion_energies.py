@@ -9,7 +9,7 @@ i.e.
 
   Wᵢⱼ - Jᵢⱼ[D]
 
-and compare it with the multistate Thomas-Fermi-Dirac approximation for
+and compare it with the multistate density functional approximation for
 exchange (X=-K) and correlation (C),
 
   -Kᵢⱼ[D] + Cᵢⱼ[D] + SIC δᵢⱼ,
@@ -26,7 +26,7 @@ import numpy
 if __name__ == "__main__":
     plt.style.use('./latex.mplstyle')
     # Load scan data
-    with open('electron_repulsion_energies_lithium-fluoride.json', 'r') as filehandle:
+    with open('electron_repulsion_energies.json', 'r') as filehandle:
         scan_data = json.load(filehandle)
 
     # Bond lengths are in Angstrom.
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     W_exact = numpy.array(scan_data['W_exact'])
     W_approximate = numpy.array(scan_data['W_approximate'])
     J_Hartree = numpy.array(scan_data['J_Hartree'])
-    K_LDA = numpy.array(scan_data['K_LDA'])
+    K_GGA = numpy.array(scan_data['K_GGA'])
     C_LDA = numpy.array(scan_data['C_LDA'])
     SIC = numpy.array(scan_data['self_interaction_correction'])
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             lw=2, alpha=0.5,
             label=rf"XC$_{{{i},{i}}}$")
         axes[0].plot(
-            bond_length, -K_LDA[:,i,i] + C_LDA[:,i,i] + SIC,
+            bond_length, -K_GGA[:,i,i] + C_LDA[:,i,i] + SIC,
             ls="--", color=line.get_color())
 
     axes[0].legend(title="$\mathbf{(c)}$ diagonal")
@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 lw=2, alpha=0.5,
                 label=rf"XC$_{{{i},{j}}}$")
             axes[1].plot(
-                bond_length, -K_LDA[:,i,j] + C_LDA[:,i,j],
+                bond_length, -K_GGA[:,i,j] + C_LDA[:,i,j],
                 ls="--", color=line.get_color())
 
     axes[1].yaxis.set_label_position("right")
@@ -83,11 +83,18 @@ if __name__ == "__main__":
     # black lines that are shown in the figure legend.
     solid_line = matplotlib.lines.Line2D([], [], ls="-", color="black")
     dashed_line = matplotlib.lines.Line2D([], [], ls="--", color="black")
+
+    # Add SIC in formula only if it is non-zero.
+    if abs(SIC).max() > 0.0:
+        SIC_string = r"+ \text{SIC}~\delta_{IJ}"
+    else:
+        SIC_string = r""
+
     fig.legend(
         [solid_line, dashed_line],
         [
             r"$\text{XC}_{IJ} = \langle \Psi_I \vert \sum_{a < b} 1/r_{ab} \vert \Psi_J \rangle - \text{J}[\mathbf{D}]_{IJ}$ (exact)",
-            r"$-\text{K}^{LDA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
+            r"$-\text{K}^{GGA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ} %s$" % SIC_string
         ],
         fontsize='large',
         frameon=False,
@@ -99,7 +106,6 @@ if __name__ == "__main__":
     # Otherwise the x-labels are partly cut off.
     plt.subplots_adjust(bottom=0.15, wspace=0.05, left=0.1, right=0.86)
 
-    #plt.savefig("indirect_electron_repulsion_energies_lithium-fluoride.svg")
-    #plt.savefig("indirect_electron_repulsion_energies_lithium-fluoride.png", dpi=300)
+    #plt.savefig("indirect_electron_repulsion_energies.svg")
 
     plt.show()

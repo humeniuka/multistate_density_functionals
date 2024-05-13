@@ -5,13 +5,12 @@ plot the exact matrix elements of the kinetic energy operator
 
   Tᵢⱼ = <Ψᵢ|-1/2 ∑ₙ∇ₙ²|Ψⱼ>
 
-and the multi-state local density approximation, which is a
-combination of the Thomas-Fermi (TF) with the von-Weizsäcker (vW)
-kinetic functionals,
+and the multi-state GGA approximation by Lee,Lee and Parr (1991),
+which has a similar functional form as Becke's 88 exchange functional,
 
-  T[D(r)]ᵢⱼ ≈ T_TF[D]ᵢⱼ + 1/9 T_vW[D]ᵢⱼ
+  T[D(r)]ᵢⱼ ≈ 2²ᐟ³ C_F ∫ ½ [ Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]ᵢⱼ
 
-            = 3/10 (3π²)²ᐟ³ ∫ [(D(r)⁵ᐟ³)ᵢⱼ] dr + 1/9 ∫ 1/8 ∑ₖ∑ₗ ∇Dᵢₖ D⁻¹ₖₗ ∇Dₗⱼ
+where G is an enhancement factor over the Thomas-Fermi kinetic energy.
 
 The  the diagonal (i=j) and off-diagonal (i≠j) elements for all
 scan geometries are plotted separately.
@@ -25,7 +24,7 @@ import numpy
 if __name__ == "__main__":
     plt.style.use('./latex.mplstyle')
     # Load scan data
-    with open('electron_repulsion_energies_lithium-fluoride.json', 'r') as filehandle:
+    with open('electron_repulsion_energies.json', 'r') as filehandle:
         scan_data = json.load(filehandle)
 
     # Bond lengths are in Angstrom.
@@ -82,7 +81,7 @@ if __name__ == "__main__":
         [solid_line, dashed_line],
         [
             r"$T_{IJ} = \langle \Psi_I \vert -\frac{1}{2} \sum_a \nabla_a^2 \vert \Psi_J \rangle$ (exact)",
-            r"$T_{IJ} = T_{TF}[\mathbf{D}]_{IJ} + \frac{1}{9} T_{vW}[\mathbf{D}]_{IJ}$"
+            r"$T_{IJ} = T_{LLP91}[\mathbf{D}]_{IJ}$"
         ],
         fontsize='large',
         frameon=False,
@@ -93,7 +92,7 @@ if __name__ == "__main__":
     # Otherwise the x-labels are partly cut off.
     plt.subplots_adjust(bottom=0.15, wspace=0.05, left=0.1, right=0.86)
 
-    #plt.savefig("kinetic_energies_lithium-fluoride.svg")
-    #plt.savefig("kinetic_energies_lithium-fluoride.png", dpi=300)
+    plt.savefig("kinetic_energies.svg")
+    plt.savefig("kinetic_energies.png", dpi=300)
 
     plt.show()

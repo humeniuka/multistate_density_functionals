@@ -9,7 +9,7 @@ i.e.
 
   Wᵢⱼ - Jᵢⱼ[D]
 
-and compare it with the multistate Thomas-Fermi-Dirac approximation for
+and compare it with the multistate density functional approximation for
 exchange (X=-K) and correlation (C),
 
   -Kᵢⱼ[D] + Cᵢⱼ[D] + SIC δᵢⱼ,
@@ -26,7 +26,7 @@ import numpy
 if __name__ == "__main__":
     plt.style.use('./latex.mplstyle')
     # Load scan data
-    with open('electron_repulsion_energies_lithium-fluoride.json', 'r') as filehandle:
+    with open('electron_repulsion_energies.json', 'r') as filehandle:
         scan_data = json.load(filehandle)
 
     # Bond lengths are in Angstrom.
@@ -83,11 +83,18 @@ if __name__ == "__main__":
     # black lines that are shown in the figure legend.
     solid_line = matplotlib.lines.Line2D([], [], ls="-", color="black")
     dashed_line = matplotlib.lines.Line2D([], [], ls="--", color="black")
+
+    # Add SIC in formula only if it is non-zero.
+    if abs(SIC).max() > 0.0:
+        SIC_string = r"+ \text{SIC}~\delta_{IJ}"
+    else:
+        SIC_string = r""
+
     fig.legend(
         [solid_line, dashed_line],
         [
             r"$\text{XC}_{IJ} = \langle \Psi_I \vert \sum_{a < b} 1/r_{ab} \vert \Psi_J \rangle - \text{J}[\mathbf{D}]_{IJ}$ (exact)",
-            r"$-\text{K}^{LDA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ} + \text{SIC}~\delta_{IJ}$"
+            r"$-\text{K}^{LDA}[\mathbf{D}]_{IJ} + \text{C}^{LDA}[\mathbf{D}]_{IJ} %s$" % SIC_string
         ],
         fontsize='large',
         frameon=False,
@@ -99,7 +106,6 @@ if __name__ == "__main__":
     # Otherwise the x-labels are partly cut off.
     plt.subplots_adjust(bottom=0.15, wspace=0.05, left=0.1, right=0.86)
 
-    #plt.savefig("indirect_electron_repulsion_energies_lithium-fluoride.svg")
-    #plt.savefig("indirect_electron_repulsion_energies_lithium-fluoride.png", dpi=300)
+    #plt.savefig("indirect_electron_repulsion_energies.svg")
 
     plt.show()
