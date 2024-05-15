@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Otherwise the x-labels are partly cut off.
     plt.subplots_adjust(bottom=0.15, wspace=0.05, left=0.1, right=0.86)
 
-    plt.savefig("electron_repulsion_energies.svg")
-    plt.savefig("electron_repulsion_energies.png", dpi=300)
+    #plt.savefig("electron_repulsion_energies.svg")
+    #plt.savefig("electron_repulsion_energies.png", dpi=300)
 
     plt.show()

@@ -56,9 +56,7 @@ if __name__ == "__main__":
             lw=2, alpha=0.5,
             label=rf"XC$_{{{i},{i}}}$")
         axes[0].plot(
-            ### DEBUG
-            #bond_length, -K_GGA[:,i,i] + C_LDA[:,i,i] + SIC,
-            bond_length, -K_GGA[:,i,i] + C_LDA[:,i,i],
+            bond_length, -K_GGA[:,i,i] + C_LDA[:,i,i] + SIC,
             ls="--", color=line.get_color())
 
     axes[0].legend(title="$\mathbf{(c)}$ diagonal")
@@ -101,7 +99,7 @@ if __name__ == "__main__":
     # Otherwise the x-labels are partly cut off.
     plt.subplots_adjust(bottom=0.15, wspace=0.05, left=0.1, right=0.86)
 
-    plt.savefig("indirect_electron_repulsion_energies.svg")
-    plt.savefig("indirect_electron_repulsion_energies.png", dpi=300)
+    #plt.savefig("indirect_electron_repulsion_energies.svg")
+    #plt.savefig("indirect_electron_repulsion_energies.png", dpi=300)
 
     plt.show()
