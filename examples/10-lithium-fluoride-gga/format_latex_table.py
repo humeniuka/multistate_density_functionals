@@ -16,7 +16,7 @@ def matrix_to_latex(matrix, title=""):
 
 if __name__ == "__main__":
     # Load scan data
-    with open('electron_repulsion_energies_lithium-fluoride.json', 'r') as filehandle:
+    with open('electron_repulsion_energies.json', 'r') as filehandle:
         scan_data = json.load(filehandle)
 
     bond_length = numpy.array(scan_data['bond_length'])
@@ -31,8 +31,6 @@ if __name__ == "__main__":
     # kinetic energies
     T_exact = numpy.array(scan_data['T_exact'])
     T_approximate = numpy.array(scan_data['T_approximate'])
-    T_ThomasFermi = numpy.array(scan_data['T_ThomasFermi'])
-    T_vonWeizsaecker = numpy.array(scan_data['T_vonWeizsaecker'])
 
     # The avoided crossing at 6.8 Ang corresponds to the 14th scan geometry
     index = 14-1
@@ -58,11 +56,8 @@ $1^1\Sigma^+$ (I=0) and $2^1\Sigma^+$ (I=1) of LiF at the avoided crossing ($6.8
 {$W[\m{D}]_{IJ} = J[\m{D}]_{IJ} -K^{GGA}[\m{D}]_{IJ} + C^{LDA}[\m{D}]_{IJ} + \text{SIC} \delta_{IJ}$},
 Hartree ($J[\m{D}]_{IJ}$), exchange ($-K^{GGA}[\m{D}]_{IJ}$) and correlation ($C^{LDA}[\m{D}]_{IJ}$) matrices
 and self-interaction correction for core electrons ($\text{SIC} \delta_{IJ}$).
-(b) Exact kinetic energy matrix $T_{IJ}^{\text{exact}}$ and multistate DFT approximation
-{$T[\m{D}]_{IJ} = T_{\text{TF}}[\m{D}]_{IJ} + \frac{1}{9} T_{\text{vW}}[\m{D}]_{IJ}$},
-Thomas-Fermi ($T_{\text{TF}}[\m{D}]_{IJ}$) and von-Weizs\"{a}cker ($T_{\text{vW}}[\m{D}]_{IJ}$)
-kinetic energy matrices.
-All energies are in Hartree.}
+(b) Exact kinetic energy matrix $T_{IJ}^{\text{exact}}$ and multistate DFT approximation based on
+the Lee-Lee-Parr 1991 GGA kinetic energy functional.}
 \label{tbl:lithium_fluoride_electron_repulsion_and_kinetic}
 """
     # Tables for electron-repulsion
@@ -99,12 +94,7 @@ All energies are in Hartree.}
     \midrule
 """
     tex += matrix_to_latex(T_exact[index], "$T_{IJ}^{\\text{exact}}$")
-    tex += matrix_to_latex(T_approximate[index], "$T[\m{D}]_{IJ}$")
-    tex += """
-    \midrule
-"""
-    tex += matrix_to_latex(T_ThomasFermi[index], "$T_{\\text{TF}}[\m{D}]_{IJ}$")
-    tex += matrix_to_latex(T_vonWeizsaecker[index], "$T_{\\text{vW}}[\m{D}]_{IJ}$")
+    tex += matrix_to_latex(T_approximate[index], "$T_{LLP91}[\m{D}]_{IJ}$")
     # Footer
     tex += """
     \\bottomrule
