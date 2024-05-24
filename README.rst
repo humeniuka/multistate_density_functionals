@@ -5,9 +5,8 @@ This python package implements approximate multistate matrix functionals for
 the electron-electron repulsion and the kinetic energy to be used in multistate
 density functional theory (MSDFT) [1]_.
 
-The code can be used to reproduce the calculations and figures from the preprint
-`Approximate Functionals for Multistate Density Functional Theory <https://doi.org/10.26434/chemrxiv-2024-xb9jr>`_
-on chemrxiv [2]_.
+The code can be used to reproduce the calculations and figures from the preprint [2]_
+`Approximate Functionals for Multistate Density Functional Theory <https://doi.org/10.26434/chemrxiv-2024-xb9jr>`_.
 
 Requirements
 ------------
