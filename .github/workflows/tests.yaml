@@ -68,3 +68,7 @@ jobs:
         working-directory: tests
         run: |
           python test_SchroedingerEquation1D.py
+      - name: Test NoninteractingElectronGas1D module
+        working-directory: tests
+        run: |
+          python test_NoninteractingElectronGas1D.py
