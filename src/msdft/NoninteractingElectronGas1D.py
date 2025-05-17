@@ -4,6 +4,11 @@ import numpy
 
 from msdft.SchroedingerEquation1D import SchroedingerEquation1D
 
+#
+# TODO:
+#   - Fermions with spin, each level can be doubly occupied
+#   - use positive definite kinetic energy density sum_i 1/2 |grad psi_i|^2
+#
 
 class NoninteractingElectronGas1D:
     def __init__(self, se : SchroedingerEquation1D, nelec : int):
@@ -39,7 +44,7 @@ class NoninteractingElectronGas1D:
         for i in range(0, self.nelec):
             density += abs(self.se.wavefunctions[:,i])**2
 
-        return density
+        return density.real
 
     def kinetic_energy_density(self):
         """
@@ -58,4 +63,4 @@ class NoninteractingElectronGas1D:
             # ψᵢ*(x) T ψᵢ(x)
             ked += wfn.conjugate() * self.se.T(wfn)
 
-        return ked
+        return ked.real
