@@ -317,7 +317,8 @@ class BaseTestMultistateMatrixDensity(ABC):
         Check that an error is raised if one attempts to calculate the exchange-correlation
         energy density on a MultistateMatrixDensity object that does not have a pair-density matrix.
         """
-        mol = self.create_test_molecules()["hydrogen molecule"]
+        # get first test molecule
+        mol = list(self.create_test_molecules().values())[0]
         msmd = self.create_matrix_density(mol, nstate=2
             # By default the pair density matrix is not computed.
             #compute_pair_density=False
