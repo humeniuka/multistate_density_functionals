@@ -328,144 +328,10 @@ class BaseTestMultistateMatrixDensity(ABC):
         with self.assertRaises(msmd.MissingPairDensityMatrix):
             msmd.exchange_correlation_energy_density(coords)
 
-
-class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
-    def create_test_molecules(self):
-        """ dictionary with different molecules to run the tests on """
-        molecules = {
-            # 1-electron systems
-            'hydrogen atom': pyscf.gto.M(
-                atom = 'H 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
-            'hydrogen atom (large basis set)': pyscf.gto.M(
-                atom = 'H 0 0 0',
-                basis = 'aug-cc-pvtz',
-                # doublet
-                spin = 1),
-            'hydrogen molecular ion': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 1,
-                spin = 1),
-            # 2-electron systems, paired spins
-            'hydrogen molecule': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 0,
-                spin = 0),
-            # 2-electron systems, parallel spins
-            'hydrogen molecule (triplet)': pyscf.gto.M(
-                atom = 'H 0 0 0; H 0 0 0.74',
-                basis = '6-31g',
-                charge = 0,
-                spin = 2),
-            # 3-electron systems, one unpaired spin
-            'lithium atom': pyscf.gto.M(
-                atom = 'Li 0 0 0',
-                basis = '6-31g',
-                # doublet
-                spin = 1),
-            # 4-electron system, closed shell
-            'lithium hydride': pyscf.gto.M(
-                atom = 'Li 0 0 0; H 0 0 1.60',
-                basis = '6-31g',
-                # singlet
-                spin = 0),
-            # many electrons
-            'water': pyscf.gto.M(
-                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
-                basis = 'sto-3g',
-                # singlet
-                spin = 0),
-            # effective core potential which removes the 1s orbital of oxygen
-            'oxygen (ECP)': pyscf.gto.M(
-                atom = 'O  0 0 0',
-                basis = {'O': 'crenbl'},
-                ecp = {'O': 'crenbl'},
-                # triplet
-                spin = 2),
-        }
-        ### DEBUG
-        molecules = {'lithium hydride': molecules['lithium hydride']}
-        ###
-        return molecules
-
-    def create_matrix_density(self, mol, nstate=4, compute_pair_density=False):
-        # call the static method
-        return MultistateMatrixDensityFCI.create_matrix_density(
-            mol,
-            nstate=nstate, spin_symmetry=False, raise_error=False,
-            compute_pair_density=compute_pair_density
-        )
-
-    def check_hartree_matrix_product(self, mol, nstate=1):
-        """
-        The Hartree-like energy is calculated in two different ways:
-         1) Using get_jk(...) to first compute the electrostatic potential of D(r)
-            and then contracting with D(r). This does not require keeping all
-            electron integrals in memory.
-         2) By contracting the electron repulsion integrals (ab|cd) in the
-            AO basis with the AO (transition) density matrices (exact).
-
-        :param mol: A test molecule
-        :type mol: gto.Mole
-
-        :param nstate: Number of electronic states in the subspace.
-           The full CI problem is solved for the lowest nstate states.
-        :type nstate: int > 0
-        """
-        # compute D(r) from full CI
-        msmd = self.create_matrix_density(mol, nstate=nstate)
-
-        # Evaluate J[D(r)] using J-build.
-        J_msdft = msmd.hartree_matrix_product()
-
-        # The exact potential energy matrix is calculated by contracting the
-        # (transition) density matrices in the AO basis with the electron
-        # repulsion integrals.
-
-        # Electron repulsion integrals (ab|cd)
-        coulomb_integrals = msmd.exact_coulomb_energy()
-        J_exact = 0.5 * numpy.einsum('ikkj->ij', coulomb_integrals)
-
-        numpy.testing.assert_almost_equal(J_msdft, J_exact)
-
-    def test_hartree_matrix_product(self):
-        """
-        Compare Hartree matrix product J[D(r)] from J-build with exact matrix elements
-        """
-        for name, mol in tqdm(
-                self.create_test_molecules().items()):
-            for nstate in tqdm([1,2]):
-                with self.subTest(molecule=name, nstate=nstate):
-                    self.check_hartree_matrix_product(mol, nstate=nstate)
-
-    def test_exact_electron_repulsion(self):
-        """
-        If there is only a single electron, the matrix elements for the
-        electron-electron repulsion operator should be zero.
-        """
-        # Hydrogen molecular ion.
-        mol = pyscf.gto.M(
-            atom = 'H 0 0 0; H 0 0 0.74',
-            basis = '6-31g',
-            charge = 1,
-            spin = 1)
-        msmd = self.create_matrix_density(mol)
-        # electron-electron repulsion
-        repulsion_matrix = msmd.exact_electron_repulsion()
-        # No electron-electron repulsion.
-        numpy.testing.assert_almost_equal(numpy.zeros_like(repulsion_matrix), repulsion_matrix)
-
-    def test_create_matrix_density(self):
-        """ check that matrix densities can be created for 1 or more states """
-        for name, mol in tqdm(self.create_test_molecules().items()):
-            for nstate in [1,2]:
-                with self.subTest(molecule=name, nstate=nstate):
-                    self.create_matrix_density(mol, nstate=nstate)
-
+class PairDensityMatrixFCIMixinTests:
+    """
+    Tests for MatrixDensity classes for which the pair-density is implemented.
+    """
     def check_exchange_correlation_energy_density(self, mol, nstate=2):
         """
         1)  Check that the 1-particle matrix density can be obtained from the 2-particle
@@ -593,7 +459,6 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
         # Compare
         numpy.testing.assert_almost_equal(xced_ref, xced_aligned)
 
-    # @unittest.skip("Test is broken for 'lithium hydride' and 'oxygen (ECP)'")
     def test_align_phases_pair_density(self):
         """ Check that global phases can be found and removed. """
         for name, mol in tqdm(self.create_test_molecules().items()):
@@ -601,7 +466,146 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
                 self.check_align_phases(mol)
 
 
-class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI):
+class BaseTestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
+    def create_test_molecules(self):
+        """ dictionary with different molecules to run the tests on """
+        molecules = {
+            # 1-electron systems
+            'hydrogen atom': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            'hydrogen atom (large basis set)': pyscf.gto.M(
+                atom = 'H 0 0 0',
+                basis = 'aug-cc-pvtz',
+                # doublet
+                spin = 1),
+            'hydrogen molecular ion': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 1,
+                spin = 1),
+            # 2-electron systems, paired spins
+            'hydrogen molecule': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 0),
+            # 2-electron systems, parallel spins
+            'hydrogen molecule (triplet)': pyscf.gto.M(
+                atom = 'H 0 0 0; H 0 0 0.74',
+                basis = '6-31g',
+                charge = 0,
+                spin = 2),
+            # 3-electron systems, one unpaired spin
+            'lithium atom': pyscf.gto.M(
+                atom = 'Li 0 0 0',
+                basis = '6-31g',
+                # doublet
+                spin = 1),
+            # 4-electron system, closed shell
+            'lithium hydride': pyscf.gto.M(
+                atom = 'Li 0 0 0; H 0 0 1.60',
+                basis = '6-31g',
+                # singlet
+                spin = 0),
+            # many electrons
+            'water': pyscf.gto.M(
+                atom = 'O  0 0 0; H 0.75 0.00 0.50; H 0.75 0.00 -0.50',
+                basis = 'sto-3g',
+                # singlet
+                spin = 0),
+            # effective core potential which removes the 1s orbital of oxygen
+            'oxygen (ECP)': pyscf.gto.M(
+                atom = 'O  0 0 0',
+                basis = {'O': 'crenbl'},
+                ecp = {'O': 'crenbl'},
+                # triplet
+                spin = 2),
+        }
+        return molecules
+
+    def create_matrix_density(self, mol, nstate=4, compute_pair_density=False):
+        # call the static method
+        return MultistateMatrixDensityFCI.create_matrix_density(
+            mol,
+            nstate=nstate, spin_symmetry=False, raise_error=False,
+            compute_pair_density=compute_pair_density
+        )
+
+    def check_hartree_matrix_product(self, mol, nstate=1):
+        """
+        The Hartree-like energy is calculated in two different ways:
+         1) Using get_jk(...) to first compute the electrostatic potential of D(r)
+            and then contracting with D(r). This does not require keeping all
+            electron integrals in memory.
+         2) By contracting the electron repulsion integrals (ab|cd) in the
+            AO basis with the AO (transition) density matrices (exact).
+
+        :param mol: A test molecule
+        :type mol: gto.Mole
+
+        :param nstate: Number of electronic states in the subspace.
+           The full CI problem is solved for the lowest nstate states.
+        :type nstate: int > 0
+        """
+        # compute D(r) from full CI
+        msmd = self.create_matrix_density(mol, nstate=nstate)
+
+        # Evaluate J[D(r)] using J-build.
+        J_msdft = msmd.hartree_matrix_product()
+
+        # The exact potential energy matrix is calculated by contracting the
+        # (transition) density matrices in the AO basis with the electron
+        # repulsion integrals.
+
+        # Electron repulsion integrals (ab|cd)
+        coulomb_integrals = msmd.exact_coulomb_energy()
+        J_exact = 0.5 * numpy.einsum('ikkj->ij', coulomb_integrals)
+
+        numpy.testing.assert_almost_equal(J_msdft, J_exact)
+
+    def test_hartree_matrix_product(self):
+        """
+        Compare Hartree matrix product J[D(r)] from J-build with exact matrix elements
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules().items()):
+            for nstate in tqdm([1,2]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.check_hartree_matrix_product(mol, nstate=nstate)
+
+    def test_exact_electron_repulsion(self):
+        """
+        If there is only a single electron, the matrix elements for the
+        electron-electron repulsion operator should be zero.
+        """
+        # Hydrogen molecular ion.
+        mol = pyscf.gto.M(
+            atom = 'H 0 0 0; H 0 0 0.74',
+            basis = '6-31g',
+            charge = 1,
+            spin = 1)
+        msmd = self.create_matrix_density(mol)
+        # electron-electron repulsion
+        repulsion_matrix = msmd.exact_electron_repulsion()
+        # No electron-electron repulsion.
+        numpy.testing.assert_almost_equal(numpy.zeros_like(repulsion_matrix), repulsion_matrix)
+
+    def test_create_matrix_density(self):
+        """ check that matrix densities can be created for 1 or more states """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            for nstate in [1,2]:
+                with self.subTest(molecule=name, nstate=nstate):
+                    self.create_matrix_density(mol, nstate=nstate)
+
+
+class TestMultistateMatrixDensityFCI(PairDensityMatrixFCIMixinTests, BaseTestMultistateMatrixDensityFCI):
+    pass
+
+
+class TestMultistateMatrixDensityCISD(BaseTestMultistateMatrixDensityFCI):
     def create_matrix_density(self, mol, nstate=4,):
         # call the static method
         return MultistateMatrixDensityCISD.create_matrix_density(
@@ -657,7 +661,6 @@ class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI):
             for nstate in [1,2]:
                 with self.subTest(molecule=name, nstate=nstate):
                     self.compare_cisd_and_fci(mol, nstate=nstate)
-
 
 class BaseTestMultistateMatrixDensityCAS(ABC):
     """ Common parts for tests of CASSCF and CASCI """
@@ -802,7 +805,7 @@ class BaseTestMultistateMatrixDensityCAS(ABC):
                 mol, nstate=5, ncas=2, nelecas=2, raise_error=True)
 
 
-class TestMultistateMatrixDensityCASSCF(BaseTestMultistateMatrixDensityCAS, TestMultistateMatrixDensityFCI):
+class TestMultistateMatrixDensityCASSCF(BaseTestMultistateMatrixDensityCAS, BaseTestMultistateMatrixDensityFCI):
     def create_matrix_density(
             self,
             mol,
@@ -815,7 +818,7 @@ class TestMultistateMatrixDensityCASSCF(BaseTestMultistateMatrixDensityCAS, Test
             spin_symmetry=spin_symmetry, raise_error=raise_error)
 
 
-class TestMultistateMatrixDensityCASCI(BaseTestMultistateMatrixDensityCAS, TestMultistateMatrixDensityFCI):
+class TestMultistateMatrixDensityCASCI(BaseTestMultistateMatrixDensityCAS, BaseTestMultistateMatrixDensityFCI):
     def create_matrix_density(
             self,
             mol,
