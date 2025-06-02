@@ -940,8 +940,9 @@ class TestCoreOrbitalDensities(BaseTestMultistateMatrixDensity, unittest.TestCas
         }
         return atoms
 
-    def create_matrix_density(self, atom):
-        # call the statis method
+    def create_matrix_density(self, atom, nstate=None):
+        # nstate is just a dummy argument.
+        # call the static method
         return CoreOrbitalDensities.create_matrix_density(atom)
 
     def test_raises_warning(self):
