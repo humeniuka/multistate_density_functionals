@@ -11,6 +11,7 @@ import numpy
 import scipy.linalg
 import scipy.special
 
+import pyscf.ao2mo
 from pyscf.dft import numint
 import pyscf.ci
 import pyscf.fci
@@ -24,7 +25,8 @@ class MultistateMatrixDensity(ABC):
             self,
             mol,
             eigenenergies,
-            density_matrices):
+            density_matrices,
+            density_matrices_2e=None):
         """
         This class holds the multistate matrix density and can evaluate
         D(r), ∇D(r) and ∇²D(r) on a grid.
@@ -32,6 +34,18 @@ class MultistateMatrixDensity(ABC):
         This is the base class, derived classes have to implement their own __init__
         functions to compute the (transition) density matrices and then call
         super().__init__(mol, density_matrices).
+
+        In order to calculate the exchange-correlation energy density xcᵢⱼ(r), the
+        2-particle (transition) matrix densities
+
+            D2ᵢⱼ(r,r') = n*(n-1) ∫ dr_3 ... ∫ dr_n Ψᵢ(r,r',r_3,...,r_n) Ψⱼ(r,r',r_3,...,r_n)
+
+        are required. However, storing these 4-index tensors in the AO basis
+
+            D2ᵢⱼ(r,r') = ∑_{a,b,c,d} D2ᵢⱼ[a,b,c,d] χa(r) χb(r) χc(r') χd(r')
+
+        requires a large amount of memory, so that this is only possible for very small systems.
+        Therefore the argument `density_matrices_2e` is optional.
 
         :param mol: molecule with atomic coordinates, basis set and spin
         :type mol: pyscf.gto.Mole
@@ -48,6 +62,11 @@ class MultistateMatrixDensity(ABC):
         :type density_matrices: numpy.ndarray of shape (2,nstate,nstate,nao,nao)
            nstate - number of electronic states
            nao - number of atomic orbitals
+
+        :param density_matrices_2e: AO matrix elements
+            D2[i,j,a,b,c,d] = D2ᵢⱼ[a,b,c,d], where i,j are electronic states
+            and a,b,c,d are atomic orbitals
+        :type density_matrices_2e: None or numpy.ndarray of shape (nstate,nstate,nao,nao,nao,nao)
         """
         # Save molecule with AO basis.
         self.mol = mol
@@ -63,8 +82,56 @@ class MultistateMatrixDensity(ABC):
         # Save total energy, which includes nuclei-nuclei repulsion, kinetic energy,
         # nuclei-electrons attraction and electrons-electrons repulsion.
         self.eigenenergies = eigenenergies
-        # Save (transition) density matrices.
+        # Save (transition) 1-particle density matrices.
         self.density_matrices = density_matrices
+        # Save (transition) 2-particle density matrices, None if not provided
+        self._density_matrices_2e = density_matrices_2e
+        # Check the dimensions of the (transition) 2-electron density matrix.
+        if density_matrices_2e is not None:
+            nstate1, nstate2, nao1, nao2, nao3, nao4 = density_matrices_2e.shape
+            assert len(eigenenergies) == nstate1, (
+                "len(eigenenergies) has to equal number of states in 2-particle matrix density")
+            assert nstate1 == nstate2, "2-particle matrix density has to be square"
+            assert nao1 == nao2 == nao3 == nao4, (
+                "AO dimensions of 2-particle density matrix has to be (nao,nao,nao,nao)")
+
+    class MissingPairDensityMatrix(Exception):
+        pass
+
+    @property
+    def density_matrices_2e(self):
+        """
+        Get the 2-particle (transition) matrix densities
+
+            D2ᵢⱼ(r,r') = n*(n-1) ∫ dr_3 ... ∫ dr_n Ψᵢ(r,r',r_3,...,r_n) Ψⱼ(r,r',r_3,...,r_n)
+
+        in the AO basis
+
+            D2ᵢⱼ(r,r') = ∑_{a,b,c,d} D2ᵢⱼ[a,b,c,d] χa(r) χb(r) χc(r') χd(r')
+
+        :return density_matrices_2e: AO matrix elements
+            D2[i,j,a,b,c,d] = D2ᵢⱼ[a,b,c,d], where i,j are electronic states
+            and a,b,c,d are atomic orbitals
+        :rtype density_matrices_2e: numpy.ndarray of shape (nstate,nstate,nao,nao,nao,nao)
+
+        A `MissingPairDensityMatrix` exception is raised if the 2-particle matrix densities
+        have not been calculated.
+        """
+        if self.mol.tot_electrons() == 1:
+            # For 1-electron systems there is no pair-density matrix.
+            # In this case a 0-tensor with the correct dimensions is returned.
+            # Get dimensions
+            nspin, nstate, nstate, nao, nao = self.density_matrices.shape
+            return numpy.zeros((nstate,nstate,nao,nao,nao,nao))
+
+        if self._density_matrices_2e is None:
+            raise self.MissingPairDensityMatrix(
+                "The pair-density matrices are 4-dimensional tensors "
+                "that consume a huge amount of memory. Therefore they are not stored by default. "
+                "Note that the pair-density matrix in the AO basis is only implemented for `MultistateMatrixDensityFCI` "
+                "and can be requested by passing `compute_pair_density=True` to its constructor."
+            )
+        return self._density_matrices_2e
 
     def exact_1e_operator(self, intor='int1e_kin'):
         """
@@ -209,6 +276,8 @@ class MultistateMatrixDensity(ABC):
         kinetic_matrix = self.exact_1e_operator(intor='int1e_kin')
         # V
         nuclear_matrix = self.exact_1e_operator(intor='int1e_nuc')
+        # V(ecp), contribution from effective core potentials to external potential
+        nuclear_matrix += self.exact_1e_operator(intor='ECPscalar')
         # (Eᵢ - N) δᵢⱼ
         electronic_energies = numpy.diag(self.eigenenergies - self.mol.energy_nuc())
         # Cᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ
@@ -452,6 +521,81 @@ class MultistateMatrixDensity(ABC):
 
         return KED_laplacian, KED_gradgrad
 
+    def exchange_correlation_energy_density(
+        self,
+        coords : numpy.ndarray):
+        """
+        Compute the exchange-correlation energy density matrix xcᵢⱼ(r)
+        from the 1-particle matrix density
+
+            Dᵢⱼ(r) = n ∫ dr_2 ... ∫ dr_n Ψᵢ(r,r_2,...,r_n) Ψⱼ(r,r_2,...,r_n)
+
+        and the 2-particle matrix density
+
+            D2ᵢⱼ(r,r') = n*(n-1) ∫ dr_3 ... ∫ dr_n Ψᵢ(r,r',r_3,...,r_n) Ψⱼ(r,r',r_3,...,r_n)
+
+        as
+
+                            D2ᵢⱼ(r,r') - ∑ₖ  Dᵢₖ(r) Dₖⱼ(r')
+            xcᵢⱼ(r) = 1/2 ∫ --------------------------------- dr'
+                                    |r-r'|
+
+        For a 1-electron system, the 2-particle matrix density is set to 0, so that the
+        xc-correlation energy density exactly cancels the Hartree energy density.
+
+        :param coords: The Cartesian positions at which the kinetic energy
+            density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: xcᵢⱼ(r)
+            spin-traced exchange-correlation energy density
+        :rtype: numpy.ndarray of shape (Mstate,Mstate,Ncoord)
+            XCED[i,j,r] is the exchange-correlation energy density between
+            states i and j at the grid point coords[r,:]
+        """
+        # spin-traced 2-electron density matrices in the AO basis
+        density_matrices_2e = self.density_matrices_2e
+        # sum over spin to get spin-traced 1-electron matrix density
+        density_matrices_1e = self.density_matrices[0,...] + self.density_matrices[1,...]
+
+        # Evaluate atomic orbitals 𝛘ₐ(r) on the grid.
+        ao_value = numint.eval_ao(self.mol, coords)
+
+        # Coulomb potential of overlap charge densities
+        # V_pq(r) = ∫ χp(r') χq(r') 1/|r-r'| dr'
+        ao_coulomb_potential = self.mol.intor('int1e_grids', grids=coords)
+
+        # exact electron-electron repulsion matrix computed from the 2-electron matrix density
+        #                  D2ᵢⱼ(r,r')
+        # Vᵢⱼ(r) = 1/2 ∫ ----------- dr'
+        #                    |r-r'|
+        full_electron_repulsion_2e = 0.5 * numpy.einsum('ijabcd,ra,rb,rcd->ijr',
+            # D2ᵢⱼ[a,b,c,d]
+            density_matrices_2e,
+            # χa(r) χb(r)
+            ao_value, ao_value,
+            # V_cd(r)
+            ao_coulomb_potential
+        )
+        # Hartree potential matrix computed from the 1-electron matrix density
+        #                ∑ₖ  Dᵢₖ(r) Dₖⱼ(r')
+        # Jᵢⱼ(r) = 1/2 ∫ ------------------ dr'
+        #                      |r-r'|
+        hartree_1e = 0.5 * numpy.einsum('ikab,kjcd,ra,rb,rcd->ijr',
+            density_matrices_1e,
+            density_matrices_1e,
+            # χa(r) χb(r)
+            ao_value, ao_value,
+            # V_cd(r)
+            ao_coulomb_potential
+        )
+
+        # Exchange-correlation energy density (full - mean field)
+        xced = full_electron_repulsion_2e - hartree_1e
+
+        return xced
+
+
     @staticmethod
     @abstractmethod
     def create_matrix_density(mol, nstate=4):
@@ -514,7 +658,7 @@ class MultistateMatrixDensity(ABC):
         # To extract the vector of phases σᵢ from the product Sᵢⱼ = σᵢσⱼ, an eigenvalue
         # decomposition is performed. If D and D' differ only by the signs, there should
         # be only a single non-zero eigenvalue and the corresponding eigenvector is just σᵢ.
-        eigvals, eigvecs = scipy.linalg.eigh(similarity)
+        _, eigvecs = scipy.linalg.eigh(similarity)
         # The last eigenvector.
         signs = numpy.sign(eigvecs[:,-1]).astype(int)
         # The largest eigenvalue should be close to `number_of_states` and all
@@ -522,6 +666,10 @@ class MultistateMatrixDensity(ABC):
 
         # Apply the sign to the one-particle (transition) density matrices.
         self.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, self.density_matrices)
+
+        # Apply the sign to the two-particle (transition) density matrices.
+        if self._density_matrices_2e is not None:
+            self._density_matrices_2e = numpy.einsum('i,j,sijabcd->sijabcd', signs, signs, self._density_matrices_2e)
 
     def _zero_transition_densities(self):
         """
@@ -538,7 +686,6 @@ class MultistateMatrixDensity(ABC):
                 if i != j:
                     # zero out transition density in AO basis.
                     self.density_matrices[:,i,j,:,:] *= 0.0
-
 
 
 def _density_matrix_mo2ao(dm_mo, mo_coeff):
@@ -573,7 +720,8 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
             mol,
             rhf,
             fci,
-            fcivecs):
+            fcivecs,
+            compute_pair_density=False):
         """
         This class holds the multistate matrix density and can evaluate
         D(r), ∇D(r) and ∇²D(r) on a grid.
@@ -590,8 +738,12 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
         :type fci: pyscf.fci.FCI
 
         :param fcivecs: list of solution vectors of the CI problem for
-          each electronic state in the subspace
+            each electronic state in the subspace
         :type fcivecs: list of numpy.ndarray
+
+        :param compute_pair_density: If True, compute and store the spin-traced
+            2-electron matrix density as well. This is only feasible for very small systems.
+        :type compute_pair_density: bool
         """
         # number of atomic orbitals and molecular orbitals
         nao, nmo = rhf.mo_coeff.shape
@@ -614,24 +766,53 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
                 if i == j:
                     # 1-particle density matrix of state i in MO basis
                     dm1a, dm1b = fci.make_rdm1s(fcivecs[i], nmo, mol.nelec)
-                    # for spin-up
-                    density_matrices[0,i,i,:,:] = _density_matrix_mo2ao(dm1a, rhf.mo_coeff)
-                    # for spin-down
-                    density_matrices[1,i,i,:,:] = _density_matrix_mo2ao(dm1b, rhf.mo_coeff)
                 else:
                     # 1-particle transition density matrix
                     # between electronic states i and j.
-                    tdm1a, tdm1b = fci.trans_rdm1s(fcivecs[i], fcivecs[j], nmo, mol.nelec)
-                    # for spin-up
-                    density_matrices[0,i,j,:,:] = _density_matrix_mo2ao(tdm1a, rhf.mo_coeff)
-                    # for spin-down
-                    density_matrices[1,i,j,:,:] = _density_matrix_mo2ao(tdm1b, rhf.mo_coeff)
+                    dm1a, dm1b = fci.trans_rdm1s(fcivecs[i], fcivecs[j], nmo, mol.nelec)
+
+                # Why do we have to take the transpose of dm1a and dm1b?
+                # see https://pyscf.org/pyscf_api_docs/pyscf.fci.html#pyscf.fci.direct_spin0.FCISolver.make_rdm1
+                # "The convention is based on McWeeney’s book, Eq (5.4.20).
+                # The contraction between 1-particle Hamiltonian and rdm1 is E = einsum(‘pq,qp’, h1, rdm1)"
+                dm1a, dm1b = dm1a.T, dm1b.T
+
+                # for spin-up
+                density_matrices[0,i,j,:,:] = _density_matrix_mo2ao(dm1a, rhf.mo_coeff)
+                # for spin-down
+                density_matrices[1,i,j,:,:] = _density_matrix_mo2ao(dm1b, rhf.mo_coeff)
+
+        if compute_pair_density:
+            # spin-traced pair (or 2-particle) density matrices in the AO basis
+            density_matrices_2e = numpy.zeros((nstate,nstate,nao,nao,nao,nao))
+            for i in range(0, nstate):
+                for j in range(0, nstate):
+                    if i == j:
+                        # spin-traced 2-particle density matrices of state i in MO basis
+                        _, dm2 = fci.make_rdm12(fcivecs[i], nmo, mol.nelec)
+                    else:
+                        # spin-traced 2-particle transition density matrices
+                        # between electronic states i and j.
+                        _, dm2 = fci.trans_rdm12(fcivecs[i], fcivecs[j], nmo, mol.nelec)
+                    # Although the module is called ao2mo, we use it to transform the 2-particle
+                    # density matrix from the MO to the AO basis by transforming with the transpose
+                    # of the orbital coefficients.
+                    # D2aoᵢⱼ[a,b,c,d] = ∑_{k,l,m,n} C[a,k] C[b,l] C[c,m] C[d,n] D2moᵢⱼ[k,l,m,n]
+                    density_matrices_2e[i,j,:,:,:,:] = pyscf.ao2mo.kernel(
+                        dm2,
+                        rhf.mo_coeff.T,
+                        # no symmetry
+                        aosym='s1')
+        else:
+            density_matrices_2e = None
 
         # Initialize base class.
-        super().__init__(mol, eigenenergies, density_matrices)
+        super().__init__(mol, eigenenergies, density_matrices, density_matrices_2e)
 
     @staticmethod
-    def create_matrix_density(mol, nstate=4, spin_symmetry=True, raise_error=True):
+    def create_matrix_density(
+        mol,
+        nstate=4, spin_symmetry=True, raise_error=True, compute_pair_density=False):
         """
         Compute the multistate matrix density for the lowest few excited states
         of a small molecule using full configuration interaction.
@@ -648,6 +829,10 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
         :param raise_error: Raise an error if the CI space is smaller
           than the number of requested states `nstate`.
         :type raise_error: bool
+
+        :param compute_pair_density: If True, compute and store the spin-traced
+            2-electron matrix density as well. This is only feasible for very small systems.
+        :type compute_pair_density: bool
 
         :return: multistate matrix density
         :rtype: :class:`~.MultistateMatrixDensity`
@@ -675,7 +860,9 @@ class MultistateMatrixDensityFCI(MultistateMatrixDensity):
                 f"Size of full CI space ({nstate_available}) is smaller "
                 f"than number of requested states ({nstate})")
 
-        msmd = MultistateMatrixDensityFCI(mol, hf, fci, fcivecs)
+        msmd = MultistateMatrixDensityFCI(
+            mol, hf, fci, fcivecs,
+            compute_pair_density=compute_pair_density)
 
         return msmd
 

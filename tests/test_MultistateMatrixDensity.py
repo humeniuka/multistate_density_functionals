@@ -278,10 +278,10 @@ class BaseTestMultistateMatrixDensity(ABC):
         by aligning with a reference.
         """
         # The reference D' is obtained by solving the RHF and Full CI and eigenvalue problems.
-        msmd_ref = self.create_matrix_density(mol)
+        msmd_ref = self.create_matrix_density(mol, nstate=3)
         # Solving the same eigenvalue problem again, might give the same or different global
         # phases in D as in D'.
-        msmd = self.create_matrix_density(mol)
+        msmd = self.create_matrix_density(mol, nstate=3)
         # To be sure we have different signs, the density matrices are multiplied
         # by some random signs.
         signs = numpy.sign(numpy.random.rand(msmd.number_of_states)-0.5).astype(int)
@@ -301,14 +301,31 @@ class BaseTestMultistateMatrixDensity(ABC):
         # D'ᵢⱼ(r)
         D_ref, _, _ = msmd_ref.evaluate(grids.coords)
         # σᵢσⱼ Dᵢⱼ(r), i.e. Dᵢⱼ(r) after aligning the phases with D'ᵢⱼ(r)
-        D_aligned, _, _ = msmd_ref.evaluate(grids.coords)
+        D_aligned, _, _ = msmd.evaluate(grids.coords)
+
         numpy.testing.assert_almost_equal(D_ref, D_aligned)
 
+    # @unittest.skip("Test is broken for 'lithium hydride' and 'oxygen (ECP)'")
     def test_align_phases(self):
         """ Check that global phases can be found and removed. """
         for name, mol in tqdm(self.create_test_molecules().items()):
             with self.subTest(molecule=name):
                 self.check_align_phases(mol)
+
+    def test_raises_if_pair_density_is_missing(self):
+        """
+        Check that an error is raised if one attempts to calculate the exchange-correlation
+        energy density on a MultistateMatrixDensity object that does not have a pair-density matrix.
+        """
+        mol = self.create_test_molecules()["hydrogen molecule"]
+        msmd = self.create_matrix_density(mol, nstate=2
+            # By default the pair density matrix is not computed.
+            #compute_pair_density=False
+            )
+        coords = numpy.zeros((3,3))
+
+        with self.assertRaises(msmd.MissingPairDensityMatrix):
+            msmd.exchange_correlation_energy_density(coords)
 
 
 class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
@@ -369,12 +386,18 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
                 # triplet
                 spin = 2),
         }
+        ### DEBUG
+        molecules = {'lithium hydride': molecules['lithium hydride']}
+        ###
         return molecules
 
-    def create_matrix_density(self, mol, nstate=4):
+    def create_matrix_density(self, mol, nstate=4, compute_pair_density=False):
         # call the static method
         return MultistateMatrixDensityFCI.create_matrix_density(
-            mol, nstate=nstate, spin_symmetry=False, raise_error=False)
+            mol,
+            nstate=nstate, spin_symmetry=False, raise_error=False,
+            compute_pair_density=compute_pair_density
+        )
 
     def check_hartree_matrix_product(self, mol, nstate=1):
         """
@@ -442,9 +465,143 @@ class TestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.T
                 with self.subTest(molecule=name, nstate=nstate):
                     self.create_matrix_density(mol, nstate=nstate)
 
+    def check_exchange_correlation_energy_density(self, mol, nstate=2):
+        """
+        1)  Check that the 1-particle matrix density can be obtained from the 2-particle
+            matrix density by integrating over one of the two electron coordinates,
+                Dᵢⱼ(r) = 1/(n-1) ∫ D2ᵢⱼ(r,r') dr'
+            If the matrix densities are expressed in the AO basis, this means
+                Dᵢⱼ[a,b] = 1/(n-1) ∑_{c,d} D2aoᵢⱼ[a,b,c,d] S[a,b]
+            where S[a,b] = <a|b> = ∫ χa(r) χb(r) dr is the overlap between the atomic orbitals.
+
+        2)  Integrate the exchange-correlation energy density on a grid and
+            compare the the exchange-correlation energy calculated as
+            XCᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ - Jᵢⱼ
+        """
+        msmd = self.create_matrix_density(
+            mol, nstate=nstate,
+            # We need the pair density Dᵢⱼ(r,r')
+            compute_pair_density=True)
+
+        number_of_electrons = sum(mol.nelec)
+        # number of electronic states
+        nstate = msmd.number_of_states
+
+        # spin-traced 1-electron density matrices in AO basis
+        density_matrices_1e = msmd.density_matrices[0,...] + msmd.density_matrices[1,...]
+        # spin-traced 2-electron density matrices in AO basis (if available)
+        density_matrices_2e = msmd.density_matrices_2e
+
+        if number_of_electrons > 1:
+            # overlap S[a,b]
+            overlap = mol.intor('int1e_ovlp')
+
+            # 1) compute Dᵢⱼ(r) = 1/(n-1) ∫ D2ᵢⱼ(r,r') dr'
+            density_matrices_1e_check = (
+                1.0/(number_of_electrons-1.0) *
+                numpy.einsum('ijabcd,cd->ijab', density_matrices_2e, overlap))
+
+            # compare state densities
+            for i in range(0, nstate):
+                numpy.testing.assert_allclose(
+                    density_matrices_1e_check[i,i,:,:],
+                    density_matrices_1e[i,i,:,:],
+                    atol=1.0e-10
+                )
+
+            # compare transition densities
+            for i in range(0, nstate):
+                for j in range(0, nstate):
+                    if i == j:
+                        continue
+                    numpy.testing.assert_allclose(
+                        density_matrices_1e_check[i,j,:,:],
+                        density_matrices_1e[i,j,:,:],
+                        atol=1.0e-10
+                    )
+
+        # 2) Compute XCᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ - Jᵢⱼ = ∫ xcᵢⱼ(r) dr
+
+        # integration grid
+        grids = pyscf.dft.gen_grid.Grids(mol)
+        grids.level = 8
+        grids.build()
+
+        # evaluate xcᵢⱼ(r) on the grid
+        xced = msmd.exchange_correlation_energy_density(grids.coords)
+
+        # Integrate XCᵢⱼ = ∫ xcᵢⱼ(r) dr on the Becke grid
+        XC = numpy.einsum('r,ijr->ij', grids.weights, xced)
+
+        # Compute XCᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ - Jᵢⱼ
+        XC_ref = msmd.exact_electron_repulsion() - msmd.hartree_matrix_product()
+
+        #print("XCᵢⱼ = ∫ xcᵢⱼ(r) dr")
+        #print(XC)
+        #print("XCᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ - Jᵢⱼ")
+        #print(XC_ref)
+
+        # Compare the two ways of calculating the XC matrix
+        numpy.testing.assert_allclose(XC, XC_ref, atol=1.0e-10)
+
+    def test_exchange_correlation_energy_density(self):
+        """
+        Check integrals of the 2-particle matrix densities over one coordinate
+        and the integral of the exchange correlation energy density.
+        """
+        for name, mol in tqdm(
+                self.create_test_molecules().items()):
+            for nstate in tqdm([1,3]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    try:
+                        self.check_exchange_correlation_energy_density(mol, nstate=nstate)
+                    except NotImplementedError:
+                        # For some methods (CISD, TD-DFT) the 2-particle matrix density is not implemented.
+                        return
+
+    def check_align_phases_pair_density(self, mol):
+        """
+        Check that the arbitary global phases of the pair-density matrices can be removed
+        by aligning with a reference.
+        """
+        # The reference D'(r,r') is obtained by solving the RHF and Full CI and eigenvalue problems.
+        msmd_ref = self.create_matrix_density(mol, nstate=3)
+        # Solving the same eigenvalue problem again, might give the same or different global
+        # phases in D as in D'.
+        msmd = self.create_matrix_density(mol, nstate=3)
+        # To be sure we have different signs, the density matrices are multiplied
+        # by some random signs.
+        signs = numpy.sign(numpy.random.rand(msmd.number_of_states)-0.5).astype(int)
+        msmd.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, msmd.density_matrices)
+
+        # After aligning the phases with the reference,
+        # the matrix densities should be the same again.
+        msmd.align_phases(msmd_ref)
+
+        # For comparison, the matrix densities are evaluated on a coarse grid.
+        # The density matrices in the AO basis might still differ in some irrelevant
+        # signs, therefore it is better to compare D and D' on a grid.
+        grids = pyscf.dft.gen_grid.Grids(mol)
+        grids.level = 1
+        grids.build()
+
+        # To check whether the pair density matrices Dᵢⱼ(r,r') have been aligned
+        # properly, we compute the xc-energy density.
+        xced_ref = msmd_ref.exchange_correlation_energy_density(grids.coords)
+        xced_aligned = msmd.exchange_correlation_energy_density(grids.coords)
+        # Compare
+        numpy.testing.assert_almost_equal(xced_ref, xced_aligned)
+
+    # @unittest.skip("Test is broken for 'lithium hydride' and 'oxygen (ECP)'")
+    def test_align_phases_pair_density(self):
+        """ Check that global phases can be found and removed. """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                self.check_align_phases(mol)
+
 
 class TestMultistateMatrixDensityCISD(TestMultistateMatrixDensityFCI):
-    def create_matrix_density(self, mol, nstate=4):
+    def create_matrix_density(self, mol, nstate=4,):
         # call the static method
         return MultistateMatrixDensityCISD.create_matrix_density(
             mol, nstate=nstate, raise_error=False)

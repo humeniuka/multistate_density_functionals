@@ -27,10 +27,10 @@ import pyscf.fci
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
-# 4-electron system, closed shell
+# hydrogen molecule, closed shell
 mol = pyscf.gto.M(
-    atom = 'H 0 0 0; H 0 0 0.75',
-    basis = '6-31g', #'cc-pvdz',
+    atom = 'H 0 0 -0.35; H 0 0 0.35',
+    basis = '6-31g',
     # singlet
     spin = 0)
 nstate = 3
