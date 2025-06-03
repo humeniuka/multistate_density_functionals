@@ -51,11 +51,11 @@ for i in range(0, nstate):
             linestyle = "-"
         else:
             linestyle = "-."
-        plt.plot(r, xced[i,j,:], ls=linestyle, label=r"$xc_{%d,%d}(r)$" % (i,j))
+        plt.plot(r, xced[i,j,:], ls=linestyle, label=r"XC$_{%d,%d}(r)$" % (i,j))
 
-plt.title("XC-energy density in hydrogen molecule")
-plt.xlabel("r / Bohr")
-plt.ylabel("exchange-correlation energy density")
+#plt.title("XC-energy density in hydrogen molecule")
+plt.xlabel("r ($a_0$)")
+plt.ylabel(r"XC$_{IJ}(r)$ ($E_h a_0^{-3}$)")
 plt.legend()
 
 #plt.savefig("xc_energy_density.svg")
