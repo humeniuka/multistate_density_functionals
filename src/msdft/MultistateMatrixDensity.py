@@ -635,6 +635,8 @@ class MultistateMatrixDensity(ABC):
         with a reference density D'ᵢⱼ of `msdm_ref`.
         The signs are applied in place to the matrix density Dᵢⱼ.
 
+        This only works if there are no degenerate states.
+
         :param msmd_ref: reference matrix density
         :type msmd_ref: :class:`~.MultistateMatrixDensity`
         """
