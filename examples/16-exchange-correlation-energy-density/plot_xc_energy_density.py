@@ -23,7 +23,7 @@ import pyscf.gto
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
-# 2-electron system, closed shell
+# hydrogen molecule, closed shell
 mol = pyscf.gto.M(
     atom = 'H 0 0 -0.35; H 0 0 0.35',
     basis = '6-31g', #'cc-pvdz',
