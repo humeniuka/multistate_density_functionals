@@ -473,6 +473,13 @@ class PairDensityMatrixFCIMixinTests:
     def test_align_phases_pair_density(self):
         """ Check that global phases can be found and removed. """
         for name, mol in tqdm(self.create_test_molecules().items()):
+            if mol.natm == 1:
+                # Isolated atoms have spherical symmetry and many degenerate excited states
+                # that can be mixed arbitrarily. To align two density matrices with degenerate
+                # states one would need to know the unitary transformation in the degenerate
+                # subspace, it is not just a matter of detecting sign flips. Therefore this
+                # unittest will not work for atoms.
+                continue
             with self.subTest(molecule=name):
                 self.check_align_phases(mol)
 
