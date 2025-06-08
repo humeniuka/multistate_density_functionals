@@ -175,6 +175,23 @@ class MultistateMatrixDensity(ABC):
         """
         return self.exact_1e_operator(intor='int1e_kin')
 
+    def nuclear_attraction_energy(self):
+        """
+        compute the matrix elements of the electron-nuclear attraction
+
+          Vᵢⱼ = <Ψᵢ|∑ₙ ∑ₐ (-Zₐ)/|Rₐ - rₙ| |Ψⱼ>
+
+        :return nuclear_matrix: The matrix elements of the molecular potential,
+            v(r) = ∑ₐ (-Zₐ)/|Rₐ - r|,
+            in the basis of the many-electron states in the subspace.
+        :rtype nuclear_matrix: numpy.ndarray of shape (nstate,nstate)
+        """
+        # Vᵢⱼ
+        nuclear_matrix = self.exact_1e_operator(intor='int1e_nuc')
+        # Vᵢⱼ(ecp), contribution from effective core potentials to external potential
+        nuclear_matrix += self.exact_1e_operator(intor='ECPscalar')
+        return nuclear_matrix
+
     def exact_coulomb_energy(self):
         """
         Compute the Coulomb integrals for all possible combinations of
@@ -272,12 +289,10 @@ class MultistateMatrixDensity(ABC):
            in the basis of the many-electron states in the subspace.
         :rtype repulsion_matrix: numpy.ndarray of shape (nstate,nstate)
         """
-        # T
-        kinetic_matrix = self.exact_1e_operator(intor='int1e_kin')
-        # V
-        nuclear_matrix = self.exact_1e_operator(intor='int1e_nuc')
-        # V(ecp), contribution from effective core potentials to external potential
-        nuclear_matrix += self.exact_1e_operator(intor='ECPscalar')
+        # Tᵢⱼ
+        kinetic_matrix = self.exact_kinetic_energy())
+        # Vᵢⱼ
+        nuclear_matrix = self.nuclear_attraction_energy()
         # (Eᵢ - N) δᵢⱼ
         electronic_energies = numpy.diag(self.eigenenergies - self.mol.energy_nuc())
         # Cᵢⱼ = (Eᵢ - N) δᵢⱼ - Tᵢⱼ - Vᵢⱼ
