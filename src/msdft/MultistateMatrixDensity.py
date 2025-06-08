@@ -290,7 +290,7 @@ class MultistateMatrixDensity(ABC):
         :rtype repulsion_matrix: numpy.ndarray of shape (nstate,nstate)
         """
         # Tᵢⱼ
-        kinetic_matrix = self.exact_kinetic_energy())
+        kinetic_matrix = self.exact_kinetic_energy()
         # Vᵢⱼ
         nuclear_matrix = self.nuclear_attraction_energy()
         # (Eᵢ - N) δᵢⱼ
