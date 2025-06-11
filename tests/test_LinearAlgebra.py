@@ -71,6 +71,56 @@ def kinetic_energy_density(L, U, grad_L, grad_U):
     return KED
 
 
+def matrix_function_derivatives_batch_slow(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
+    """
+    Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
+    some external parameters given the derivatives of the argument, dX/dt,
+    and the derivative f'(x) of the function f.
+
+    The :func:`~matrix_function_derivatives` is applied to a batch of matrices.
+
+    :param func: scalar function f(x)
+    :type func: callable
+
+    :param func_deriv1: first derivative f'(x)
+        The caller has to ensure that `func_deriv1` and `func` are
+        related by differentiation.
+    :type func_deriv1: callable
+
+    :param X: batch of symmetric matrices
+    :type X: numpy.ndarray of shape (:,n,n,:)
+
+    :param X_deriv1: batch of derivatives of X, each matrix in the batch
+        has the form X_deriv1[:,:,p]=dX(t)/dt[p], first derivative of X w/r/t
+        the p-th external parameter.
+    :type X_deriv1: numpy.ndarray of shape (:,n,n,p,:)
+
+    :param epsilon: Eigenvalues are considered the same,
+        if they differ by less than `epsilon`.
+    :type epsilon: float
+
+    :return: batch of matrices with values and derivatives
+        F, F_deriv1
+    :rtype: tuple of numpy.ndarray
+        `F` has shape (:,n,n,:), F=f(X) is the value of the matrix function f at the argument X.
+        `F_deriv1` has shape (:,n,n,p,:), F_deriv1[i,j,p] is the 1st derivative
+            of the matrix function F_deriv1[:,:,p]=d(f(X(t)))/dt[p]
+            with respect to the p-th external parameter.
+    """
+    nspin,nstate,nstate,ncoord = X.shape
+    # Allocated arrays for output values
+    F = numpy.zeros_like(X)
+    F_deriv1 = numpy.zeros_like(X_deriv1)
+    # Loop over matrices in batch. There is a matrix density for each spin and position.
+    for s in range(0, nspin):
+        for r in range(0, ncoord):
+            # Apply matrix function to each matrix in the batch.
+            F[s,:,:,r], F_deriv1[s,:,:,:,r] = matrix_function_derivatives(
+                func, func_deriv1, X[s,:,:,r], X_deriv1[s,:,:,:,r], epsilon=epsilon)
+
+    return F, F_deriv1
+
+
 class TestLinearAlgebra(unittest.TestCase):
     def _random_continuous_eigensystem(
             self,
@@ -642,6 +692,57 @@ class TestLinearAlgebra(unittest.TestCase):
             lambda x: x**2,
             # f'(x)
             lambda x: 2*x,
+            X, X_deriv1)
+
+        # Compare F(t) and F'(t) with the exact references.
+        numpy.testing.assert_almost_equal(F_ref, F)
+        numpy.testing.assert_almost_equal(F_deriv1_ref, F_deriv1)
+
+    def test_matrix_function_derivatives_batch_slow_vs_fast(self):
+        """
+        Test the derivative of a matrix functional for the analytic matrix function
+
+            F(X(t)) = sin(X(t))
+
+        The chain rule is not valid for matrix functions, because X and dX/dt do not
+        necessarily commute.
+
+        A slow implementation with explicit for-loops is used to test the faster
+        implementation which makes use of parallelism inside numpy.
+        """
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run.
+        random_number_generator = numpy.random.default_rng(seed=45645)
+
+        # Create a batch of random symmetric matrices Xᵀ = X
+        # The batch contains a matrix for each spin and coordinate.
+        nspin = 2
+        ncoord = 20
+        # matrix dimension
+        dim = 4
+        # number of external parameters t
+        nparam = 3
+        X = random_number_generator.random((nspin, dim, dim, ncoord))
+        # Symmetrize matrices in the batch. Axes 1 and 2 are exchanged to compute the transpose.
+        X = 0.5 * (X + numpy.transpose(X, (0,2,1,3)) )
+        # random, symmetric dX/dt
+        X_deriv1 = random_number_generator.random((nspin, dim, dim, nparam, ncoord))
+        X_deriv1 = 0.5 * (X_deriv1 + numpy.transpose(X_deriv1, (0,2,1,3,4)))
+
+        # Compute F(X) = sin(X) and its derivative, dF/dt
+        # using the slow implementation with explicit for-loops
+        F_ref, F_deriv1_ref = matrix_function_derivatives_batch_slow(
+            # f(x)
+            lambda x: numpy.sin(x),
+            # f'(x)
+            lambda x: numpy.cos(x),
+            X, X_deriv1)
+        # Evaluate F and F' using the fast vectorized implementation.
+        F, F_deriv1 = matrix_function_derivatives_batch(
+            # f(x)
+            lambda x: numpy.sin(x),
+            # f'(x)
+            lambda x: numpy.cos(x),
             X, X_deriv1)
 
         # Compare F(t) and F'(t) with the exact references.

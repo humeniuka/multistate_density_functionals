@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import numpy
-import scipy.linalg
+import numpy.linalg
 
 
 class LinearAlgebraException(Exception):
@@ -117,7 +117,7 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
                 UtD1U_degenerate = numpy.dot(Y2, numpy.dot(D_deriv1[:,:,p], X2))
                 # Solve the eigenvalue problem
                 #   (Uᵀ.D'.U).Γ₂ = Γ₂.Λ'
-                L_deriv1_test, Gamma2 = scipy.linalg.eigh(UtD1U_degenerate)
+                L_deriv1_test, Gamma2 = numpy.linalg.eigh(UtD1U_degenerate)
                 # The degenerate eigenvectors are rotated by the orthogonal transformation Γ₂.
                 U[:,group] = numpy.dot(U[:,group], Gamma2)
 
@@ -393,7 +393,35 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
     some external parameters given the derivatives of the argument, dX/dt,
     and the derivative f'(x) of the function f.
 
-    The :func:`~matrix_function_derivatives` is applied to a batch of matrices.
+    For matrix functions the chain rule is not valid, since the matrix X and its
+    derivatives dX/dt do not commute. Instead dF/dt is calculated by decomposing
+    X(t) into its eigenvalues Λ(t) and eigenvectors U(t),
+
+        X(t) = U(t).Λ(t).U(t)ᵀ
+
+    The analytic matrix function F(X) is defined by the scalar function f(x), which
+    operates on the eigenvalues of X,
+
+        F(t) = F(X(t)) = U.f(Λ).U(t)ᵀ
+
+    The derivative of the matrix function w/r/t the parameters t becomes
+
+                                       f'(λₐ)               if λₐ=λᵦ
+        dF/dt = ∑ₐ ∑ᵦ Pₐ.dX/dt.Pᵦ  x {
+                                      [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)  if λₐ≠λᵦ
+
+    where the sums are over the eigenvalues λₐ and the projectors onto the corresponding
+    eigenvectors (Pₐ)ᵢⱼ = Uᵢₐ Uⱼₐ. In terms of the eigenvectors the derivative of the
+    matrix function becomes
+
+        [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((∑ₖ∑ₗ Uₖₐ [dX/dt]ₖₗ Uₗᵦ) Yₐᵦ) Uⱼᵦ
+
+    where
+
+                f'(λₐ)                if λₐ=λᵦ
+        Yₐᵦ = {
+                [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)  if λₐ≠λᵦ
+
 
     :param func: scalar function f(x)
     :type func: callable
@@ -422,16 +450,82 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
         `F_deriv1` has shape (:,n,n,p,:), F_deriv1[i,j,p] is the 1st derivative
             of the matrix function F_deriv1[:,:,p]=d(f(X(t)))/dt[p]
             with respect to the p-th external parameter.
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Matrix_calculus
     """
-    nspin,nstate,nstate,ncoord = X.shape
-    # Allocated arrays for output values
-    F = numpy.zeros_like(X)
-    F_deriv1 = numpy.zeros_like(X_deriv1)
-    # Loop over matrices in batch. There is a matrix density for each spin and position.
-    for s in range(0, nspin):
-        for r in range(0, ncoord):
-            # Apply matrix function to each matrix in the batch.
-            F[s,:,:,r], F_deriv1[s,:,:,:,r] = matrix_function_derivatives(
-                func, func_deriv1, X[s,:,:,r], X_deriv1[s,:,:,:,r], epsilon=epsilon)
+    # Check dimensions of inputs.
+    nspin, nstate, _, ncoord = X.shape
+    _, _, _, nparam, _ = X_deriv1.shape
+    assert X.shape == (nspin, nstate, nstate, ncoord), "Matrix X has to be square."
+    assert X_deriv1.shape == (nspin, nstate, nstate, nparam, ncoord)
+    # Check input types.
+    assert callable(func), "Argument `func` has to be a function."
+    assert callable(func_deriv1), "Argument `func_deriv1` has to be a function."
+
+    # numpy.linalg.eigh(...) can operate on multiple matrices in parallel,
+    # Since the calculation is parallelized over the first axis, we have to
+    # move the coordinate axis to the first position. For each grid point r
+    # and spin orientation s, the (N x N)-matrix  X(r) is diagonalized.
+    # (nspin, nstate, nstate, ncoord) -> (ncoord, nspin, nstate, nstate)
+    X = numpy.moveaxis(X, 3, 0)
+    # (nspin, nstate, nstate, nparam, ncoord) -> (ncoord, nspin, nstate, nstate, nparam)
+    X_deriv1 = numpy.moveaxis(X_deriv1, 4, 0)
+
+    # The matrix function F(X) is calculated via the eigendecomposition of the
+    # matrix X = U Λ Uᵀ, where Λ and U are the eigenvalues and eigenvectors of X, respectively.
+    # Then
+    #   F(X) = U f(Λ) Uᵀ
+
+    # Compute eigenvalues Λ and eigenvectors U of the symmetric
+    # matrix X.
+    L, U = numpy.linalg.eigh(X)
+    # Apply the scalar function to the eigenvalues, f(λₐ)
+    fL = func(L)
+    # Compute the matrix function F(X)ᵢⱼ = ∑ₐ Uᵢₐ f(λₐ) Uⱼₐ
+    F = numpy.einsum('...ia,...a,...ja->...ij', U, fL, U)
+
+    # Construct matrix Yₐᵦ of eigenvalue derivatives.
+    eigval_derivs = numpy.zeros_like(U)
+    # Eigenvalues are considered the same, if they differ by less than `epsilon`.
+    epsilon = 1.0e-12
+    # Loop over matrix dimensions
+    for a in range(0, nstate):
+        La = L[...,a]
+        fLa = fL[...,a]
+        for b in range(0, nstate):
+            Lb = L[...,b]
+            fLb = fL[...,b]
+            # Which eigenvalue pairs are the same?
+            same = numpy.abs(La - Lb) < epsilon
+
+            # Yₐᵦ has size (...), without the last two dimensions (nstate,nstate).
+            Yab = numpy.zeros(U.shape[:-2])
+            # Eigenvalues λₐ=λᵦ to within numerical precision.
+            # To ensure that Y is symmetric, we compute
+            # Yₐᵦ = f'(1/2(λₐ+λᵦ))
+            # for the average of the two eigenvalues.
+            Yab[same] = func_deriv1(0.5 * (La[same] + Lb[same]))
+
+            # Eigenvalues are different, λₐ≠λᵦ,
+            # Yₐᵦ = [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)
+            Yab[~same] = (fLa[~same]-fLb[~same])/(La[~same]-Lb[~same])
+
+            eigval_derivs[...,a,b] = Yab
+
+    # Transform dX/dt into ∑ₖ∑ₗ Uₖₐ [dX/dt]ₖₗ Uₗᵦ
+    UtdXU = numpy.einsum('...ka,...klp,...lb->...abp', U, X_deriv1, U)
+
+    # Derivative of F(X)
+    # [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((Uᵀ.[dX/dt].U)ₐᵦ Yₐᵦ) Uⱼᵦ
+    F_deriv1 = numpy.einsum('...ia,...abp,...jb->...ijp',
+        U, UtdXU * numpy.expand_dims(eigval_derivs, -1), U)
+
+    # Restore original order of axes
+    #   (ncoord, nspin, nstate, nstate) -> (npin, nstate, nstate, ncoord)
+    F = numpy.moveaxis(F, 0, 3)
+    #   (ncoord, nspin, nstate, nstate, nparam) -> (nspin, nstate, nstate, nparam, ncoord)
+    F_deriv1 = numpy.moveaxis(F_deriv1, 0, 4)
 
     return F, F_deriv1
