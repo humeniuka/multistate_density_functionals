@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
+import functools
 import numpy
 import pyscf.dft
 import scipy.linalg
@@ -9,6 +10,9 @@ from msdft.LinearAlgebra import eigensystem_derivatives
 from msdft.LinearAlgebra import matrix_function_batch
 from msdft.LinearAlgebra import matrix_function_derivatives_batch
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
 
 
 class KineticOperatorFunctional(ABC):
@@ -92,7 +96,7 @@ class KineticOperatorFunctional(ABC):
             #
             #   Tᵢⱼ = ∫ KEDᵢⱼ(r) dr
             #
-            kinetic_matrix += numpy.einsum('r,sijr->ij', weights, KED)
+            kinetic_matrix += einsum('r,sijr->ij', weights, KED)
 
         return kinetic_matrix
 
@@ -142,9 +146,9 @@ class LSDAVonWeizsaecker1eFunctional(KineticOperatorFunctional):
 
         # Trace over electronic states to get tr(D)(r) and ∇tr(D)(r) = tr(∇D(r))
         # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
-        trace_D = numpy.einsum('siir->sr', D)
+        trace_D = einsum('siir->sr', D)
         # `grad_trace_D` has shape (2,3,Ncoord) and is the gradient of `trace_D`.
-        grad_trace_D = numpy.einsum('siiar->sar', grad_D)
+        grad_trace_D = einsum('siiar->sar', grad_D)
 
         # Loop over spins. The kinetic energy is computed separately for each spin
         # projection and added.
@@ -161,7 +165,7 @@ class LSDAVonWeizsaecker1eFunctional(KineticOperatorFunctional):
             # C_{i,j}(r) = 1/2 -------------------
             #                        tr(D)
             #
-            C_numerator = numpy.einsum('ikar,kjar->ijr', grad_D[s,...], grad_D[s,...])
+            C_numerator = einsum('ikar,kjar->ijr', grad_D[s,...], grad_D[s,...])
             C_denominator = numpy.expand_dims(trace_D[s,...], axis=(0,1))
             C = 0.5 * C_numerator / C_denominator
 
@@ -252,8 +256,8 @@ class LDAVonWeizsaecker1eFunctional(KineticOperatorFunctional):
         grad_total_density = grad_D[0,...] + grad_D[1,...]
 
         # Trace over electronic states to get tr(D)(r) and ∇tr(D)(r) = tr(∇D(r))
-        trace_total_density = numpy.einsum('iir->r', total_density)
-        grad_trace_total_density = numpy.einsum('iiar->ar', grad_total_density)
+        trace_total_density = einsum('iir->r', total_density)
+        grad_trace_total_density = einsum('iiar->ar', grad_total_density)
 
         #
         # R_{i,j}(r) = D_{i,j}(r) / tr(D(r))
@@ -263,7 +267,7 @@ class LDAVonWeizsaecker1eFunctional(KineticOperatorFunctional):
         # C_{i,j}(r) = 1/2 -------------------
         #                        tr(D)
         #
-        C_numerator = numpy.einsum('ikar,kjar->ijr', grad_total_density, grad_total_density)
+        C_numerator = einsum('ikar,kjar->ijr', grad_total_density, grad_total_density)
         C_denominator = numpy.expand_dims(trace_total_density, axis=(0,1))
         C = 0.5 * C_numerator / C_denominator
 
@@ -364,7 +368,7 @@ class LSDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
 
         # Trace over electronic states to get tr(D)(r)
         # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
-        trace_D = numpy.einsum('siir->sr', D)
+        trace_D = einsum('siir->sr', D)
 
         # Loop over spins. The kinetic energy is computed separately for each spin
         # projection and added.
@@ -380,7 +384,7 @@ class LSDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
             #
             # KED_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
             #
-            KED[s,...] = 1.0/8.0 * numpy.einsum(
+            KED[s,...] = 1.0/8.0 * einsum(
                 'ikar,klr,ljar->ijr',
                 grad_D[s,...], invD, grad_D[s,...])
 
@@ -455,7 +459,7 @@ class LDAVonWeizsaeckerFunctional(KineticOperatorFunctional):
         #
         # KED_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
         #
-        KED[0,...] = 1.0/8.0 * numpy.einsum(
+        KED[0,...] = 1.0/8.0 * einsum(
             'ikar,klr,ljar->ijr',
             grad_total_density, invD, grad_total_density)
 
@@ -506,7 +510,7 @@ class LSDAVonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
 
         # Trace over electronic states to get tr(D)(r)
         # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
-        trace_D = numpy.einsum('siir->sr', D)
+        trace_D = einsum('siir->sr', D)
 
         # Loop over spins. The kinetic energy is computed separately for each spin
         # projection and added.
@@ -522,18 +526,18 @@ class LSDAVonWeizsaecker1eFunctionalII(KineticOperatorFunctional):
             #
             # KED^{vW}_{i,j}(r) = 1/8 ∑ₖ∑ₗ ∇D_{i,k} D⁻¹_{k,l} ·∇D_{l,j}
             #
-            KED_vW = 1.0/8.0 * numpy.einsum(
+            KED_vW = 1.0/8.0 * einsum(
                 'ikar,klr,ljar->ijr',
                 grad_D[s,...], invD, grad_D[s,...])
 
             # The local identity I(r) = D(r) D⁻¹(r)
             # Since D(r) is not invertible, I is not the identity matrix.
-            I = numpy.einsum('ikr,kjr->ijr', D[s,...], invD)
+            I = einsum('ikr,kjr->ijr', D[s,...], invD)
 
             # The local number of states
             #  N(r) = trace(I(r))
             # can be smaller than the number of electronic states `nstate`.
-            N = numpy.einsum('iir->r', I)
+            N = einsum('iir->r', I)
 
             # The left hand side in the system of linear equations
             #  T⁰ = M.T
@@ -645,7 +649,7 @@ class LSDAThomasFermiFunctional(KineticOperatorFunctional):
 
         # Trace over electronic states to get tr(D)(r).
         # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
-        trace_D = numpy.einsum('siir->sr', D)
+        trace_D = einsum('siir->sr', D)
 
         # Loop over spins. The kinetic energy is computed separately for each spin
         # projection and added.
@@ -673,7 +677,7 @@ class LSDAThomasFermiFunctional(KineticOperatorFunctional):
 
                 # The fractional matrix power is obtained from the eigenvalue decomposition
                 # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
-                D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 5.0/3.0), U)
+                D_matrix_power = einsum('ia,a,ja->ij', U, pow(abs(L), 5.0/3.0), U)
                 # Thomas-Fermi kinetic energy density
                 ked_r = prefactor * D_matrix_power
                 # Check that the kinetic energy density is real.
@@ -742,7 +746,7 @@ class LDAThomasFermiFunctional(KineticOperatorFunctional):
 
             # The fractional matrix power is obtained from the eigenvalue decomposition
             # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
-            D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 5.0/3.0), U)
+            D_matrix_power = einsum('ia,a,ja->ij', U, pow(abs(L), 5.0/3.0), U)
             # Thomas-Fermi kinetic energy density
             ked_r = prefactor * D_matrix_power
             # Check that the kinetic energy density is real.
@@ -897,7 +901,7 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         #                 + 1/4 Uᵢₐ (∇λₐ·∇Uⱼₐ) + 1/4 Uⱼₐ (∇λₐ·∇Uᵢₐ) }
 
         # compute (∇λ·∇λ)
-        grad_L_product = numpy.einsum('sadr,sadr->sar', grad_L, grad_L)
+        grad_L_product = einsum('sadr,sadr->sar', grad_L, grad_L)
         # compute (∇λ¹ᐟ²·∇λ¹ᐟ²) = 1/4 (∇λ·∇λ)/λ
         grad_sqrtL_product = numpy.zeros_like(L)
         # Avoid dividing by zero for λ=0
@@ -906,13 +910,13 @@ class EigendecompositionKineticFunctional(KineticOperatorFunctional):
         grad_sqrtL_product[good] = 1.0/4.0 * grad_L_product[good] / L[good]
 
         # ∑ₐ 1/2 (∇λₐ¹ᐟ²·∇λₐ¹ᐟ²) Uᵢₐ Uⱼₐ
-        KED += 1.0/2.0 * numpy.einsum('sar,siar,sjar->sijr', grad_sqrtL_product, U, U)
+        KED += 1.0/2.0 * einsum('sar,siar,sjar->sijr', grad_sqrtL_product, U, U)
         # ∑ₐ 1/2 λₐ ∇Uᵢₐ·∇Uⱼₐ
-        KED += 1.0/2.0 * numpy.einsum('sar,siadr,sjadr->sijr', L, grad_U, grad_U)
+        KED += 1.0/2.0 * einsum('sar,siadr,sjadr->sijr', L, grad_U, grad_U)
         # ∑ₐ 1/4 Uᵢₐ (∇λₐ·∇Uⱼₐ)
-        KED += 1.0/4.0 * numpy.einsum('siar,sadr,sjadr->sijr', U, grad_L, grad_U)
+        KED += 1.0/4.0 * einsum('siar,sadr,sjadr->sijr', U, grad_L, grad_U)
         # ∑ₐ 1/4 Uⱼₐ (∇λₐ·∇Uᵢₐ)
-        KED += 1.0/4.0 * numpy.einsum('sjar,sadr,siadr->sijr', U, grad_L, grad_U)
+        KED += 1.0/4.0 * einsum('sjar,sadr,siadr->sijr', U, grad_L, grad_U)
 
         return KED
 
@@ -978,13 +982,13 @@ class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
 
         # Eigendecomposition of density matrix
         # Dᵃᵢⱼ = λₐ(r) Uᵢₐ(r) Uⱼₐ(r)
-        D_eigen = numpy.einsum('sar,siar,sjar->asijr', L, U, U)
+        D_eigen = einsum('sar,siar,sjar->asijr', L, U, U)
         # its gradient
         # ∇Dᵃᵢⱼ = ∇λₐ(r) Uᵢₐ(r) Uⱼₐ(r) + λₐ(r) ∇Uᵢₐ(r) Uⱼₐ(r) + λₐ(r) Uᵢₐ(r) ∇Uⱼₐ(r)
         grad_D_eigen = (
-            numpy.einsum('sadr,siar,sjar->asijdr', grad_L, U, U) +
-            numpy.einsum('sar,siadr,sjar->asijdr', L, grad_U, U) +
-            numpy.einsum('sar,siar,sjadr->asijdr', L, U, grad_U)
+            einsum('sadr,siar,sjar->asijdr', grad_L, U, U) +
+            einsum('sar,siadr,sjar->asijdr', L, grad_U, U) +
+            einsum('sar,siar,sjadr->asijdr', L, U, grad_U)
         )
 
         # kinetic energy density KEDᵢⱼ(r)
@@ -992,7 +996,7 @@ class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
 
         # Trace over electronic states to get tr(Dᵃ)(r)
         # `trace_D` has shape (nstate,2,Ncoord,), trace_D[eigval,spin,:] = sum_i D[eigval,spin,i,i,:]
-        trace_D_eigen = numpy.einsum('asiir->asr', D_eigen)
+        trace_D_eigen = einsum('asiir->asr', D_eigen)
 
         # Loop over eigenvalues
         for a in range(0, nstate):
@@ -1010,7 +1014,7 @@ class EigendecompositionKineticFunctionalvW(KineticOperatorFunctional):
                 #
                 # KED_{i,j}(r) += 1/8 ∑ₖ∑ₗ ∇Dᵃ_{i,k} Dᵃ⁻¹_{k,l} ·∇Dᵃ_{l,j}
                 #
-                KED[s,...] += 1.0/8.0 * numpy.einsum(
+                KED[s,...] += 1.0/8.0 * einsum(
                     'ikdr,klr,ljdr->ijr',
                     grad_D_eigen[a,s,...], invD_eigen, grad_D_eigen[a,s,...])
 
@@ -1098,13 +1102,13 @@ class EigendecompositionKineticFunctionalII(KineticOperatorFunctional):
             grad_L_square_root[:,:,xyz,:] = dL_square_root
 
         # "Wavefunctions" φᵢₐ = λₐ¹ᐟ² Uᵢₐ
-        wavefunctions = numpy.einsum('sar,siar->siar', L_square_root, U)
+        wavefunctions = einsum('sar,siar->siar', L_square_root, U)
         # and their gradients ∇φᵢₐ = ∇λₐ¹ᐟ² Uᵢₐ + λₐ¹ᐟ² ∇Uᵢₐ
         grad_wavefunctions = (
             # ∇λₐ¹ᐟ² Uᵢₐ
-            numpy.einsum('sadr,siar->siadr', grad_L_square_root, U) +
+            einsum('sadr,siar->siadr', grad_L_square_root, U) +
             # λₐ¹ᐟ² ∇Uᵢₐ
-            numpy.einsum('sar,siadr->siadr', L_square_root, grad_U))
+            einsum('sar,siadr->siadr', L_square_root, grad_U))
 
         # Any scale factor can be used, since the additional term
         #  scale * ....
@@ -1116,17 +1120,17 @@ class EigendecompositionKineticFunctionalII(KineticOperatorFunctional):
         #    1/2 ∑ₐ ∇φᵢₐ·∇φⱼₐ + 1/2 ∑ᵤ∑ᵥ∑ₖ (∇φᵢᵤ φⱼᵥ - φᵢᵤ ∇φⱼᵥ) Uₖᵤ ∇Uₖᵥ
         KED = (
             # 1/2 ∑ₐ ∇φᵢₐ·∇φⱼₐ
-            0.5 * numpy.einsum('siadr,sjadr->sijr', grad_wavefunctions, grad_wavefunctions) +
+            0.5 * einsum('siadr,sjadr->sijr', grad_wavefunctions, grad_wavefunctions) +
             # 1/2 ∑ᵤ∑ᵥ∑ₖ ∇φᵢᵤ φⱼᵥ Uₖᵤ ∇Uₖᵥ
-            scale * 0.5 * numpy.einsum('siudr,sjvr,skur,skvdr->sijr',
+            scale * 0.5 * einsum('siudr,sjvr,skur,skvdr->sijr',
                 grad_wavefunctions, wavefunctions, U, grad_U) -
             # - 1/2 ∑ᵤ∑ᵥ∑ₖ φᵢᵤ ∇φⱼᵥ) Uₖᵤ ∇Uₖᵥ
-            scale * 0.5 * numpy.einsum('siur,sjvdr,skur,skvdr->sijr',
+            scale * 0.5 * einsum('siur,sjvdr,skur,skvdr->sijr',
                 wavefunctions, grad_wavefunctions, U, grad_U)
             # If the following term is added, the functional KED becomes
             # identical to KED = 1/2 ∇D¹ᐟ² ∇D¹ᐟ²
             #
-            #+ 0.5 * numpy.einsum('uv,siur,sjvr,skudr,skvdr->sijr',
+            #+ 0.5 * einsum('uv,siur,sjvr,skudr,skvdr->sijr',
             #    offdiagonal, wavefunctions, wavefunctions, grad_U, grad_U)
             #
         )
@@ -1212,7 +1216,7 @@ class MatrixSquareRootKineticFunctional(KineticOperatorFunctional):
 
         # kinetic energy density
         # KEDᵢⱼ(r) = 1/2 ∑ₖ ∇(D¹ᐟ²)ᵢₖ ∇(D¹ᐟ²)ₖⱼ
-        KED = 0.5 * numpy.einsum('sikdr,skjdr->sijr', grad_D_square_root, grad_D_square_root)
+        KED = 0.5 * einsum('sikdr,skjdr->sijr', grad_D_square_root, grad_D_square_root)
 
         return KED
 
@@ -1383,7 +1387,7 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
 
         # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
         #   X²ᵢⱼ = ∑ₐ ∇Rᵢₐ·∇Rₐⱼ
-        X2 = pow(36.0 * numpy.pi, 2.0/3.0) * numpy.einsum(
+        X2 = pow(36.0 * numpy.pi, 2.0/3.0) * einsum(
             'siadr,sajdr->sijr', grad_R, grad_R)
 
         # The enhancement factor G(X²) is a matrix function. It is calculated
@@ -1398,11 +1402,11 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
         #   KED[D]ᵢⱼ(r) = 2²ᐟ³ C_F ½ [Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]ᵢⱼ
         KED = pow(2.0, 2.0/3.0) * self.C_F * 0.5 * (
             # D(r)⁵ᐟ³ G(X²(r))
-            numpy.einsum(
+            einsum(
                 'siar,sajr->sijr',
                 D_matrix_power, G_enhancement_factor) +
             # G(X²(r)) D(r)⁵ᐟ³
-            numpy.einsum(
+            einsum(
                 'siar,sajr->sijr',
                 G_enhancement_factor, D_matrix_power)
         )

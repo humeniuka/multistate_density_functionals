@@ -29,11 +29,15 @@ Except for one-electron systems, the second lower bound seems to be higher.
     Inequalities: Selecta of Elliott H. Lieb (2002): 269-303.
 """
 from abc import ABC, abstractmethod
+import functools
 import numpy
 import pyscf.dft
 import pyscf.gto
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
 
 
 class LowerBoundKinetic(ABC):
@@ -127,7 +131,7 @@ class LowerBoundKinetic(ABC):
             #
             #   lower_bound = ∫ lower_bound(r) dr
             #
-            lower_bound += numpy.einsum('r,r->', weights, lower_bound_r)
+            lower_bound += einsum('r,r->', weights, lower_bound_r)
 
         return lower_bound
 
@@ -173,8 +177,8 @@ class LowerBoundKineticSumOverStates(LowerBoundKinetic):
         # Evaluate D(r) and ∇D(r) on the integration grid.
         D, grad_D, _ = msmd.evaluate(coords)
         # Sum over spins.
-        D = numpy.einsum('sijr->ijr', D)
-        grad_D = numpy.einsum('sijdr->ijdr', grad_D)
+        D = einsum('sijr->ijr', D)
+        grad_D = einsum('sijdr->ijdr', grad_D)
 
         # Apply the von-Weizsäcker lower bound to each electronic state individually
         # and average over states.
@@ -184,7 +188,7 @@ class LowerBoundKineticSumOverStates(LowerBoundKinetic):
             # average over states
             lower_bound += (1.0/nstate) * (1.0/8.0) * (
                 # scalar product of gradients
-                numpy.einsum('dr,dr->r', grad_D[i,i,:,:], grad_D[i,i,:,:]) /
+                einsum('dr,dr->r', grad_D[i,i,:,:], grad_D[i,i,:,:]) /
                 # Avoid division by zero.
                 (D[i,i,:] +  1.0e-20)
             )
@@ -233,15 +237,15 @@ class LowerBoundKineticSubspaceInvariant(LowerBoundKinetic):
         D, grad_D, _ = msmd.evaluate(coords)
         # Sum over spins and average over electronic states to obtain the
         # subspace density ρᵥ = 1/N ∑ᵢ Dᵢᵢ(r)
-        subspace_density = (1.0/nstate) * numpy.einsum('siir->r', D)
+        subspace_density = (1.0/nstate) * einsum('siir->r', D)
         # gradient of subspace density, ∇ρᵥ = 1/N ∑ᵢ ∇Dᵢᵢ(r)
-        grad_subspace_density = (1.0/nstate) * numpy.einsum('siidr->dr', grad_D)
+        grad_subspace_density = (1.0/nstate) * einsum('siidr->dr', grad_D)
 
         # lower bound on the average kinetic energy density
         #  1/N ∑ᵢ KEDᵢᵢ(r) ≥ 1/8 |∇ρᵥ|²/ρᵥ
         lower_bound = (1.0/8.0) * (
             # scalar product of subspace gradient
-            numpy.einsum('dr,dr->r', grad_subspace_density, grad_subspace_density) /
+            einsum('dr,dr->r', grad_subspace_density, grad_subspace_density) /
             # Avoid division by zero.
             (subspace_density +  1.0e-20)
         )

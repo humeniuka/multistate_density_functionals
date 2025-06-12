@@ -23,6 +23,7 @@ except ImportError as err:
     """)
     raise err
 
+import functools
 import numpy
 import numpy.linalg as la
 import pyscf.dft
@@ -30,6 +31,9 @@ import pyscf.dft
 from msdft.LinearAlgebra import matrix_function_batch
 from msdft.LinearAlgebra import matrix_function_derivatives_batch
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
 
 
 class HartreeLikeFunctional(object):
@@ -199,7 +203,7 @@ class HartreeLikeFunctionalPoisson(object):
         #
         #  J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∫ Dᵢₖ(r) Vₖⱼ(r)
         #
-        hartree_like_matrix = 0.5 * numpy.einsum(
+        hartree_like_matrix = 0.5 * einsum(
             'r,ikr,kjr->ij',
             self.grids.weights,
             # Both spins feel the same Coulomb potentials, so sum over spins.
@@ -318,7 +322,7 @@ class ExchangeCorrelationLikeFunctional(ABC):
             #
             #   XCᵢⱼ = ∫ XCEDᵢⱼ(r) dr
             #
-            xc_like_matrix += numpy.einsum('r,sijr->ij', weights, XCED)
+            xc_like_matrix += einsum('r,sijr->ij', weights, XCED)
 
         return xc_like_matrix
 
@@ -406,7 +410,7 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
         # Trace over electronic states to get tr(D)(r).
         # `trace_D` has shape (2,Ncoord,), trace_D[s,:] = sum_i D[spin,i,i,:]
-        trace_D = numpy.einsum('siir->sr', D)
+        trace_D = einsum('siir->sr', D)
 
         # Loop over spins. The exchange energy is computed separately for each spin
         # projection and added.
@@ -424,7 +428,7 @@ class LSDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
                 # The fractional matrix power is obtained from the eigenvalue decomposition
                 # as D⁴ᐟ³(r) = U(r) Λ⁴ᐟ³(r) Uᵀ(r)
-                D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 4.0/3.0), U)
+                D_matrix_power = einsum('ia,a,ja->ij', U, pow(abs(L), 4.0/3.0), U)
                 # LSDA exchange energy density
                 exchange_energy_r = prefactor * D_matrix_power
                 # Check that the exchange energy density is real.
@@ -521,7 +525,7 @@ class LDAExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
             # The fractional matrix power is obtained from the eigenvalue decomposition
             # as D⁴ᐟ³(r) = U(r) Λ⁴ᐟ³(r) Uᵀ(r)
-            D_matrix_power = numpy.einsum('ia,a,ja->ij', U, pow(abs(L), 4.0/3.0), U)
+            D_matrix_power = einsum('ia,a,ja->ij', U, pow(abs(L), 4.0/3.0), U)
             # LDA exchange energy density
             exchange_energy_r = self.Cx * D_matrix_power
             # Check that the exchange energy density is real.
@@ -691,7 +695,7 @@ class LDACorrelationLikeFunctional(ExchangeCorrelationLikeFunctional):
             # The paramagnetic (spin=0) correlation energy function is applied to the eigenvalues
             #   CED[D](r) = U(r) εᶜ(Λ(r)) Uᵀ(r)
             ced_eigenvalues = self.correlation_energy_density(abs(L), spin=0)
-            CED[0,:,:,r] = numpy.einsum('ia,a,ja->ij', U, ced_eigenvalues, U)
+            CED[0,:,:,r] = einsum('ia,a,ja->ij', U, ced_eigenvalues, U)
 
         return CED
 
@@ -859,7 +863,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
         # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
         #   X²ᵢⱼ = ∑ₐ ∇Rᵢₐ·∇Rₐⱼ
-        X2 = pow(36.0 * numpy.pi, 2.0/3.0) * numpy.einsum(
+        X2 = pow(36.0 * numpy.pi, 2.0/3.0) * einsum(
             'siadr,sajdr->sijr', grad_R, grad_R)
 
         # The enhancement factor F(X²) is a matrix function. It is calculated
@@ -874,11 +878,11 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         #   XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ ½( D(r)⁴ᐟ³ F(X²(r)) + F(X²(r)) D(r)⁴ᐟ³ )ᵢⱼ
         XED = pow(2.0, 1.0/3.0) * self.Cx * 0.5 * (
             # D(r)⁴ᐟ³ F(X²(r))
-            numpy.einsum(
+            einsum(
                 'siar,sajr->sijr',
                 D_matrix_power, F_enhancement_factor) +
             # F(X²(r)) D(r)⁴ᐟ³
-            numpy.einsum(
+            einsum(
                 'siar,sajr->sijr',
                 F_enhancement_factor, D_matrix_power)
         )

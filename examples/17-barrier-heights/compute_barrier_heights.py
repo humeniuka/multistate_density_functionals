@@ -85,10 +85,14 @@ def msdft_hamiltonian(msmd: MultistateMatrixDensityCASSCF):
     J = msmd.hartree_matrix_product()
     # nuclear attraction Vᵢⱼ[D(r)]
     V = msmd.nuclear_attraction_energy()
-    # exchange-correlation energy
-    XC = -exchange_gga(msmd) + correlation_lda(msmd)
     # repulsion between nuclei
     N = msmd.mol.energy_nuc() * numpy.eye(msmd.number_of_states)
+    # correlation energy
+    C = correlation_lda(msmd)
+    # exchange energy
+    X = -exchange_gga(msmd)
+    # exchange-correlation energy
+    XC = X + C
 
     # Total electronic Hamiltonian in the subspace
     H = T + J + V + XC + N

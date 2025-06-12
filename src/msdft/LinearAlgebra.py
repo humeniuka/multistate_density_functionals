@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import functools
 import numpy
 import numpy.linalg
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
 
 
 class LinearAlgebraException(Exception):
@@ -130,14 +134,14 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
     # where < , > is the scalar product.
     #
     # Λ'(r), 1st derivatives of eigenvalues of D(r)
-    L_deriv1 = numpy.einsum('ki,klp,li->ip', U, D_deriv1, U)
+    L_deriv1 = einsum('ki,klp,li->ip', U, D_deriv1, U)
 
     # Uᵀ.D'.U
-    UtD1U = numpy.einsum('ki,klp,lj->ijp', U, D_deriv1, U)
+    UtD1U = einsum('ki,klp,lj->ijp', U, D_deriv1, U)
 
     if D_deriv2 is not None:
         # Uᵀ.D''.U
-        UtD2U = numpy.einsum('ki,klp,lj->ijp', U, D_deriv2, U)
+        UtD2U = einsum('ki,klp,lj->ijp', U, D_deriv2, U)
 
     # Compute Cᵢⱼ = 1/(λᵢ-λⱼ) ∑ₖ,ₗ Uₖᵢ D'ₖₗ Uₗⱼ   for i ≠ j and λᵢ ≠ λⱼ.
     # Since eigenvectors are normalized, C is an antisymmetric matrix,
@@ -195,7 +199,7 @@ def eigensystem_derivatives(D, D_deriv1, D_deriv2=None, epsilon=1.0e-12):
 
     # Eigenvector derivatives
     # U' = U.C
-    U_deriv1 = numpy.einsum('ik,kjp->ijp', U, C)
+    U_deriv1 = einsum('ik,kjp->ijp', U, C)
 
     return L, U, L_deriv1, U_deriv1
 
@@ -231,7 +235,7 @@ def matrix_function(func, X):
     # Apply the scalar function to the eigenvalues, f(λₐ)
     fL = func(L)
     # Compute the matrix function F(X)ᵢⱼ = ∑ₐ Uᵢₐ f(λₐ) Uⱼₐ
-    F = numpy.einsum('ia,a,ja->ij', U, fL, U)
+    F = einsum('ia,a,ja->ij', U, fL, U)
 
     return F
 
@@ -272,7 +276,7 @@ def matrix_function_batch(func, X):
     # f(x)
     f_eigenvalues = func(x_eigenvalues)
     # F(X) = U f(x) Uᵀ
-    F = numpy.einsum('siar,sar,sjar->sijr', U, f_eigenvalues, U)
+    F = einsum('siar,sar,sjar->sijr', U, f_eigenvalues, U)
 
     return F
 
@@ -358,7 +362,7 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
     # Apply the scalar function to the eigenvalues, f(λₐ)
     fL = func(L)
     # Compute the matrix function F(X)ᵢⱼ = ∑ₐ Uᵢₐ f(λₐ) Uⱼₐ
-    F = numpy.einsum('ia,a,ja->ij', U, fL, U)
+    F = einsum('ia,a,ja->ij', U, fL, U)
 
     # Compute the matrix Dₐᵦ.
     D = numpy.zeros_like(X)
@@ -377,11 +381,11 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
                 D[a,b] = (fL[a]-fL[b])/(L[a]-L[b])
 
     # Transform dX/dt into ∑ₖ∑ₗ Uₖₐ [dX/dt]ₖₗ Uₗᵦ
-    UtdXU = numpy.einsum('ka,klp,lb->abp', U, X_deriv1, U)
+    UtdXU = einsum('ka,klp,lb->abp', U, X_deriv1, U)
 
     # Derivative of F(X)
     # [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((Uᵀ.[dX/dt].U)ₐᵦ Dₐᵦ) Uⱼᵦ
-    F_deriv1 = numpy.einsum('ia,abp,jb->ijp',
+    F_deriv1 = einsum('ia,abp,jb->ijp',
         U, UtdXU * numpy.expand_dims(D, 2), U)
 
     return F, F_deriv1
@@ -484,7 +488,7 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
     # Apply the scalar function to the eigenvalues, f(λₐ)
     fL = func(L)
     # Compute the matrix function F(X)ᵢⱼ = ∑ₐ Uᵢₐ f(λₐ) Uⱼₐ
-    F = numpy.einsum('...ia,...a,...ja->...ij', U, fL, U)
+    F = einsum('...ia,...a,...ja->...ij', U, fL, U)
 
     # Construct matrix Yₐᵦ of eigenvalue derivatives.
     eigval_derivs = numpy.zeros_like(U)
@@ -515,11 +519,11 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
             eigval_derivs[...,a,b] = Yab
 
     # Transform dX/dt into ∑ₖ∑ₗ Uₖₐ [dX/dt]ₖₗ Uₗᵦ
-    UtdXU = numpy.einsum('...ka,...klp,...lb->...abp', U, X_deriv1, U)
+    UtdXU = einsum('...ka,...klp,...lb->...abp', U, X_deriv1, U)
 
     # Derivative of F(X)
     # [dF/dt]ᵢⱼ = ∑ₐ ∑ᵦ Uᵢₐ ((Uᵀ.[dX/dt].U)ₐᵦ Yₐᵦ) Uⱼᵦ
-    F_deriv1 = numpy.einsum('...ia,...abp,...jb->...ijp',
+    F_deriv1 = einsum('...ia,...abp,...jb->...ijp',
         U, UtdXU * numpy.expand_dims(eigval_derivs, -1), U)
 
     # Restore original order of axes

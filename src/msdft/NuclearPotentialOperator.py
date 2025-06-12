@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import functools
 import numpy
 import numpy.linalg as la
 
 import pyscf.dft
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
+
 
 class NuclearPotentialOperator(object):
     def __init__(self, mol, level=8):
@@ -83,6 +88,6 @@ class NuclearPotentialOperator(object):
             #
             #  ∫ V(r) Dᵢⱼ(r)
             #
-            potential_matrix += numpy.einsum('r,ijr->ij', self.grids.weights * V, D[s,...])
+            potential_matrix += einsum('r,ijr->ij', self.grids.weights * V, D[s,...])
 
         return potential_matrix

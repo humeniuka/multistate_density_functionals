@@ -6,6 +6,7 @@ matrix with the state densities on the diagonal and the transition densities on 
 off-diagonal.
 """
 from abc import ABC, abstractmethod
+import functools
 
 import numpy
 import scipy.linalg
@@ -18,6 +19,9 @@ import pyscf.fci
 import pyscf.mcscf
 import pyscf.scf
 import pyscf.tddft
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
 
 
 class MultistateMatrixDensity(ABC):
@@ -156,7 +160,7 @@ class MultistateMatrixDensity(ABC):
         :rtype matrix_elements: numpy.ndarray of shape (nstate,nstate)
         """
         integrals_1e_ao = self.mol.intor_symmetric(intor)
-        matrix_elements = numpy.einsum(
+        matrix_elements = einsum(
             'ab,sijab->ij',
             integrals_1e_ao,
             self.density_matrices)
@@ -219,7 +223,7 @@ class MultistateMatrixDensity(ABC):
 
         # All combinations of Coulomb interactions between (transition densities)
         # D_{i,j}(r) and D_{k,l}(r)
-        coulomb_integrals = numpy.einsum(
+        coulomb_integrals = einsum(
             'ijab,abcd,klcd->ijkl',
             dm_spin_trace,
             integrals_eri,
@@ -264,7 +268,7 @@ class MultistateMatrixDensity(ABC):
         V = numpy.array(potential_list).reshape((nstate,nstate,nao,nao))
         # Contract density matrices with electrostatic potential.
         # J[D(r)]ᵢⱼ = 1/2 ∑ₖ ∑_{a,b} P^{i,k}_{a,b} V[k,j,a,b]
-        hartree_like_matrix = 0.5 * numpy.einsum(
+        hartree_like_matrix = 0.5 * einsum(
             'ikab,kjab->ij',
             dm_spin_trace,
             V)
@@ -350,16 +354,16 @@ class MultistateMatrixDensity(ABC):
                 for j in range(0, nstate):
                     # (transition) density in AO basis.
                     dao_ij = self.density_matrices[spin,i,j,:,:]
-                    D[spin,i,j,:] = numpy.einsum('ab,ra,rb->r', dao_ij, ao_value, ao_value)
+                    D[spin,i,j,:] = einsum('ab,ra,rb->r', dao_ij, ao_value, ao_value)
                     grad_D[spin,i,j,:,:] = (
-                        numpy.einsum('ab,gra,rb->gr', dao_ij, grad_ao_value, ao_value) +
-                        numpy.einsum('ab,ra,grb->gr', dao_ij, ao_value, grad_ao_value))
+                        einsum('ab,gra,rb->gr', dao_ij, grad_ao_value, ao_value) +
+                        einsum('ab,ra,grb->gr', dao_ij, ao_value, grad_ao_value))
 
                     # ∇²D(r) = sum_{a,b} P_{a,b} [ (∇²𝛘*_a)(𝛘_b) + 2 (∇𝛘_a)·(∇𝛘_b) + (𝛘_a)(∇²𝛘*_b) ]
                     lapl_D[spin,i,j,:] = (
-                        numpy.einsum('ab,ra,rb->r', dao_ij, lapl_ao_value, ao_value) +
-                        2*numpy.einsum('ab,gra,grb->r', dao_ij, grad_ao_value, grad_ao_value) +
-                        numpy.einsum('ab,ra,rb->r', dao_ij, ao_value, lapl_ao_value)
+                        einsum('ab,ra,rb->r', dao_ij, lapl_ao_value, ao_value) +
+                        2*einsum('ab,gra,grb->r', dao_ij, grad_ao_value, grad_ao_value) +
+                        einsum('ab,ra,rb->r', dao_ij, ao_value, lapl_ao_value)
                         )
 
         return D, grad_D, lapl_D
@@ -456,7 +460,7 @@ class MultistateMatrixDensity(ABC):
                                 D_derivs[spin,i,j,xyz,n,:] += (
                                     scipy.special.binom(n,k) *
                                     # ∑_{a,b}
-                                    numpy.einsum('ab,ra,rb->r',
+                                    einsum('ab,ra,rb->r',
                                         # Pⁱʲ_{a,b}
                                         dao_ij,
                                         # ∂ⁿ⁻ᵏ/∂xⁿ⁻ᵏ 𝛘a(r)
@@ -526,11 +530,11 @@ class MultistateMatrixDensity(ABC):
                     dao_ij = self.density_matrices[spin,i,j,:,:]
 
                     # using the Laplacian of the orbitals
-                    KED_laplacian[spin,i,j,:] = -0.5 * numpy.einsum(
+                    KED_laplacian[spin,i,j,:] = -0.5 * einsum(
                         'ab,ra,rb->r',
                         dao_ij, ao_value, lapl_ao_value)
                     # or using the gradients of the orbitals.
-                    KED_gradgrad[spin,i,j,:] = 0.5 * numpy.einsum(
+                    KED_gradgrad[spin,i,j,:] = 0.5 * einsum(
                         'ab,dra,drb->r',
                         dao_ij, grad_ao_value, grad_ao_value)
 
@@ -584,7 +588,7 @@ class MultistateMatrixDensity(ABC):
         #                  D2ᵢⱼ(r,r')
         # Vᵢⱼ(r) = 1/2 ∫ ----------- dr'
         #                    |r-r'|
-        full_electron_repulsion_2e = 0.5 * numpy.einsum('ijabcd,ra,rb,rcd->ijr',
+        full_electron_repulsion_2e = 0.5 * einsum('ijabcd,ra,rb,rcd->ijr',
             # D2ᵢⱼ[a,b,c,d]
             density_matrices_2e,
             # χa(r) χb(r)
@@ -596,7 +600,7 @@ class MultistateMatrixDensity(ABC):
         #                ∑ₖ  Dᵢₖ(r) Dₖⱼ(r')
         # Jᵢⱼ(r) = 1/2 ∫ ------------------ dr'
         #                      |r-r'|
-        hartree_1e = 0.5 * numpy.einsum('ikab,kjcd,ra,rb,rcd->ijr',
+        hartree_1e = 0.5 * einsum('ikab,kjcd,ra,rb,rcd->ijr',
             density_matrices_1e,
             density_matrices_1e,
             # χa(r) χb(r)
@@ -665,10 +669,10 @@ class MultistateMatrixDensity(ABC):
         D_ref, _, _ = msmd_ref.evaluate(grids.coords)
         # Similarity between D and D' is measured by the
         # scalar product <D,D'> = ∫ Dᵢⱼ(r) D'ᵢⱼ(r) dr
-        overlap = numpy.einsum('r,sijr,sijr->ij', grids.weights, D, D_ref)
+        overlap = einsum('r,sijr,sijr->ij', grids.weights, D, D_ref)
         # The similarity is normalized by the norm squared of reference
         # ||D'||² = <D',D'> = ∫ D'ᵢⱼ(r) D'ᵢⱼ(r) dr
-        norm_squared = numpy.einsum('r,sijr,sijr->ij', grids.weights, D_ref, D_ref)
+        norm_squared = einsum('r,sijr,sijr->ij', grids.weights, D_ref, D_ref)
         # If D and D' are similar and have the same phases (σᵢ=1),
         # the matrix Sᵢⱼ = <D,D'>/<D',D'> = σᵢσⱼ should be a matrix that has ones everywhere.
         similarity = overlap / norm_squared
@@ -682,11 +686,11 @@ class MultistateMatrixDensity(ABC):
         # other eigenvalues should be approximately zero.
 
         # Apply the sign to the one-particle (transition) density matrices.
-        self.density_matrices = numpy.einsum('i,j,sijab->sijab', signs, signs, self.density_matrices)
+        self.density_matrices = einsum('i,j,sijab->sijab', signs, signs, self.density_matrices)
 
         # Apply the sign to the two-particle (transition) density matrices.
         if self._density_matrices_2e is not None:
-            self._density_matrices_2e = numpy.einsum('i,j,sijabcd->sijabcd', signs, signs, self._density_matrices_2e)
+            self._density_matrices_2e = einsum('i,j,sijabcd->sijabcd', signs, signs, self._density_matrices_2e)
 
     def _zero_transition_densities(self):
         """
@@ -725,7 +729,7 @@ def _density_matrix_mo2ao(dm_mo, mo_coeff):
     """
     nao, nmo = mo_coeff.shape
     assert dm_mo.shape == (nmo,nmo)
-    dm_ao = numpy.einsum(
+    dm_ao = einsum(
         'am,mn,bn->ab',
         mo_coeff, dm_mo, mo_coeff)
     return dm_ao
@@ -1073,7 +1077,7 @@ def _density_matrix_cas2ao(dm_active, nocc, ncas, mo_coeff, is_transition_dm):
         dm_virtual
     )
     # MO coefficients of active orbitals
-    dm_ao = numpy.einsum(
+    dm_ao = einsum(
         'am,mn,bn->ab',
         mo_coeff, dm_mo, mo_coeff)
     return dm_ao
@@ -1452,7 +1456,7 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
             :rtype dm_ao: numpy.ndarray of shape (nao,nao)
             """
             assert dm_mo.shape == (nmo,nmo)
-            dm_ao = numpy.einsum(
+            dm_ao = einsum(
                 'am,mn,bn->ab',
                 rks.mo_coeff, dm_mo, rks.mo_coeff)
             return dm_ao
@@ -1492,7 +1496,7 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
             # CIS[istate,o,v] = sqrt(w) (A-B)⁻¹ᐟ² (X+Y)
             cis_coefficients[istate-1,:,:] = (
                 numpy.sqrt(tddft.e[istate-1]) *
-                numpy.einsum('iajb,jb->ia', invsqrtAminusB, XplusY))
+                einsum('iajb,jb->ia', invsqrtAminusB, XplusY))
             # Normalize CIS coefficients,
             # this is needed because X and Y are normalized to 1.
             cis_coefficients[istate-1,:,:] /= scipy.linalg.norm(
@@ -1540,13 +1544,13 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
                         dm1[occ_indices, occ_indices] = 2.0
                     else:
                         # electron density
-                        dm1_electron = numpy.einsum(
+                        dm1_electron = einsum(
                             # sum over occupied orbitals o
                             'ou,ov->uv',
                             cis_coefficients[i-1,:,:],
                             cis_coefficients[i-1,:,:])
                         # hole density
-                        dm1_hole = numpy.einsum(
+                        dm1_hole = einsum(
                             # sum over virtual orbitals v
                             'kv,lv->kl',
                             cis_coefficients[i-1,:,:],
@@ -1580,16 +1584,16 @@ class MultistateMatrixDensityTDDFT(MultistateMatrixDensity):
                         tdm1[vo_block] = 0.5 * cis_coefficients[i-1,:,:].transpose()
                     else:
                         # transition density between excited states i, j
-                        tdm1[vv_block] = numpy.einsum(
+                        tdm1[vv_block] = einsum(
                             'ou,ov->uv',
                             cis_coefficients[i-1,:,:],
                             cis_coefficients[j-1,:,:])
-                        tdm1[oo_block] = numpy.einsum(
+                        tdm1[oo_block] = einsum(
                             'kv,lv->kl',
                             cis_coefficients[i-1,:,:],
                             cis_coefficients[j-1,:,:])
                         for o in occ_indices:
-                            tdm1[o,o] -= 2.0 * numpy.einsum(
+                            tdm1[o,o] -= 2.0 * einsum(
                                 'v,v->',
                                 cis_coefficients[i-1,o,:],
                                 cis_coefficients[j-1,o,:])
@@ -1705,7 +1709,7 @@ class CoreOrbitalDensities(MultistateMatrixDensity):
             # 1-particle density matrix for core orbital c is just
             #   P_{a,b} = C_{a,c} C_{b,c}.
             # Spin part of core orbital is assumed to be spin-up.
-            density_matrices[0,c,c,:,:] = numpy.einsum(
+            density_matrices[0,c,c,:,:] = einsum(
                 'a,b->ab', rhf.mo_coeff[:,c], rhf.mo_coeff[:,c])
 
         # The energies of the core orbitals are stored instead of

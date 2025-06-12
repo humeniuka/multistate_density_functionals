@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
+import functools
 import numpy
 import scipy.linalg
+
+# Always use greedy optimization
+einsum = functools.partial(numpy.einsum, optimize='greedy')
+
 
 class BasisTransformation(object):
     def __init__(self, L):
@@ -26,7 +31,7 @@ class BasisTransformation(object):
         nstate = len(fcivecs)
         # Convert list into an array of shape (nstate,...,...)
         v = numpy.asarray(fcivecs)
-        v_transformed = numpy.einsum('ab,buv->auv', self.L, v)
+        v_transformed = einsum('ab,buv->auv', self.L, v)
         # Convert the transformed array back into a list of CI vectors
         fcivecs_transformed = [v_transformed[i] for i in range(0, nstate)]
 
