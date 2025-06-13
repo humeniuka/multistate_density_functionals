@@ -717,7 +717,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
         with
 
-            K[Dᵅ(r)] = 2¹ᐟ³ Cₓ ∫ ½ [ Dᵅ(r)⁴ᐟ³ F(X²(r)ᵅ) + F(X²(r)ᵅ) Dᵅ(r)⁴ᐟ³] dr
+            K[Dᵅ(r)] = 2¹ᐟ³ Cₓ ∫ Dᵅ(r)²ᐟ³ F(X²(r)ᵅ) Dᵅ(r)²ᐟ³ dr
 
             (similarly for K[Dᵝ(r)])
 
@@ -725,7 +725,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
 
             F(X²(r)) = 1 + β/(2¹ᐟ³ Cₓ) X²(r) / (1 + γ β X(r) sinh⁻¹(X(r))).
 
-        - D(r)⁴ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
+        - D(r)²ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
         - F(X²(r)) is the enhancement factor over LDA. It is a matrix function of the square of
           the dimensionless (reduced) gradient, X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r), which depends on
           the gradient of the Wigner-Seitz radius R(r) = (4π/3 D(r))⁻¹ᐟ³.
@@ -737,14 +737,23 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         The exchange-correlation matrix has to be symmetric/hermitian. Since the product of two
         matrices is not symmetric (unless the two matrices commute), the product of two matrix
         functions A and B that depend on D and ∇D, A[D].B[∇D], will not be symmetric,
-        because [D,∇D]≠0. The simplest way to symmetrize the expression is to replace
-        A.B with 1/2 (A.B+B.A). Therefore the GGA exchange-energy density
+        because [D,∇D]≠0.
+
+        In addition, the exchange energy -K has to be non-positive, meaning that K has to be
+        positive definite. However the product of two positive definite matrices A.B
+        will in general not be positive definite.
+
+        The simplest way to obtain a symmetric matrix that also positive definite is to replace
+        A.B with A¹ᐟ².B.A¹ᐟ², which must be positive definite since it can be written as C.Cᵀ
+        for C = A¹ᐟ².B¹ᐟ², provided both A and A are symmetric.
+
+        Therefore the GGA exchange-energy density
 
             ρᵅ(r)⁴ᐟ³ F(x²(r)ᵅ)
 
         is replaced by
 
-            ½ [ Dᵅ(r)⁴ᐟ³ F(X²(r)ᵅ) + F(X²(r)ᵅ) Dᵅ(r)⁴ᐟ³]
+            Dᵅ(r)²ᐟ³ F(X²(r)ᵅ) Dᵅ(r)²ᐟ³
 
         in the matrix functional.
 
@@ -786,7 +795,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         compute the energy density for the exchange-like part of the electron-electron
         repulsion operator in the subspace of electronic states,
 
-            XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ ½( D(r)⁴ᐟ³ F(X²(r)) + F(X²(r)) D(r)⁴ᐟ³ )ᵢⱼ
+            XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ (D(r)²ᐟ³ F(X²(r)) D(r)²ᐟ³ )ᵢⱼ
 
         NOTE: At odds with the usual definition of the exchange energy density,
         (εₓ,ᵢⱼ(r) ∝ ρ(r)¹ᐟ³), XED contains an additional factor of D(r)
@@ -820,8 +829,8 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         D, grad_D, _ = msmd.evaluate(coords)
 
         # The fractional matrix power is obtained from the eigenvalue decomposition.
-        # as D⁴ᐟ³(r) = U(r) Λ⁴ᐟ³(r) Uᵀ(r)
-        D_matrix_power = matrix_function_batch(lambda L: pow(abs(L), 4.0/3.0), D)
+        # as D²ᐟ³(r) = U(r) Λ²ᐟ³(r) Uᵀ(r)
+        D_matrix_power = matrix_function_batch(lambda L: pow(abs(L), 2.0/3.0), D)
 
         # The matrix version of the Wigner-Seitz radius is also calculated from the eigenvalue
         # decomposition as R(r) = U(r) (4π/3 Λ(r))⁻¹ᐟ³ Uᵀ(r).
@@ -875,16 +884,12 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
           lambda x2: self.enhancement_factor(abs(x2)), X2)
 
         # Symmetrized GGA exchange-energy density,
-        #   XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ ½( D(r)⁴ᐟ³ F(X²(r)) + F(X²(r)) D(r)⁴ᐟ³ )ᵢⱼ
-        XED = pow(2.0, 1.0/3.0) * self.Cx * 0.5 * (
-            # D(r)⁴ᐟ³ F(X²(r))
+        #   XED[D]ᵢⱼ(r) = 2¹ᐟ³ Cₓ ( D(r)²ᐟ³ F(X²(r)) D(r)²ᐟ³ )ᵢⱼ
+        XED = pow(2.0, 1.0/3.0) * self.Cx * (
+            # D(r)²ᐟ³ F(X²(r)) D(r)²ᐟ³
             einsum(
-                'siar,sajr->sijr',
-                D_matrix_power, F_enhancement_factor) +
-            # F(X²(r)) D(r)⁴ᐟ³
-            einsum(
-                'siar,sajr->sijr',
-                F_enhancement_factor, D_matrix_power)
+                'siar,sabr,sbjr->sijr',
+                D_matrix_power, F_enhancement_factor, D_matrix_power)
         )
         # Check that the exchange energy density is real.
         assert numpy.max(abs(XED).imag) < 1.0e-10

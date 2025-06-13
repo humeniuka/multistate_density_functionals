@@ -1245,7 +1245,7 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
 
         with
 
-            T[Dᵅ(r)] = 2²ᐟ³ C_F ∫ ½ [ Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³] dr
+            T[Dᵅ(r)] = 2²ᐟ³ C_F ∫ Dᵅ(r)⁵ᐟ⁶ G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ⁶ dr
 
             (similarly for T[Dᵝ(r)])
 
@@ -1253,7 +1253,7 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
 
             G(X²(r)) = 1 + α X²(r) / (1 + γ X(r) sinh⁻¹(X(r))).
 
-        - D(r)⁵ᐟ³ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
+        - D(r)⁵ᐟ⁶ is a fractional matrix-power of D(r), which is calculated by diagonalizing D.
         - G(X²(r)) is the enhancement factor over LDA. It is a matrix function of the square of
           the dimensionless (reduced) gradient, X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r), which depends on
           the gradient of the Wigner-Seitz radius R(r) = (4π/3 D(r))⁻¹ᐟ³.
@@ -1265,14 +1265,22 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
         The kinetic-energy matrix has to be symmetric/hermitian. Since the product of two
         matrices is not symmetric (unless the two matrices commute), the product of two matrix
         functions A and B that depend on D and ∇D, A[D].B[∇D], will not be symmetric,
-        because [D,∇D]≠0. The simplest way to symmetrize the expression is to replace
-        A.B with 1/2 (A.B+B.A). Therefore the GGA kinetic-energy density
+        because [D,∇D]≠0.
+
+        In addition, the kinetic energy T has to be positive definite. However, the product
+        of two positive definite matrices A.B will in general not be positive definite.
+
+        The simplest way to obtain a symmetric matrix that also positive definite is to replace
+        A.B with A¹ᐟ².B.A¹ᐟ², which must be positive definite since it can be written as C.Cᵀ
+        for C = A¹ᐟ².B¹ᐟ², provided both A and A are symmetric.
+
+        Therefore the GGA kinetic-energy density
 
             ρᵅ(r)⁵ᐟ³ G(x²(r)ᵅ)
 
         is replaced by
 
-            ½ [ Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]
+            Dᵅ(r)⁵ᐟ⁶ G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ⁶
 
         in the matrix functional.
 
@@ -1314,7 +1322,7 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
 
            KEDᵢⱼ(r) = <Ψᵢ|-1/2 ∑ₙ δ(r-rₙ) ∇ₙ²|Ψⱼ>
 
-                    ≈ 2²ᐟ³ C_F ½ [Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]ᵢⱼ
+                    ≈ 2²ᐟ³ [ C_F Dᵅ(r)⁵ᐟ⁶ G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ⁶ ]ᵢⱼ
 
         :param msmd: The multistate matrix density in the electronic subspace
            for which the kinetic energy density should be evaluated.
@@ -1344,8 +1352,8 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
         D, grad_D, _ = msmd.evaluate(coords)
 
         # The fractional matrix power is obtained from the eigenvalue decomposition.
-        # as D⁵ᐟ³(r) = U(r) Λ⁵ᐟ³(r) Uᵀ(r)
-        D_matrix_power = matrix_function_batch(lambda L: pow(abs(L), 5.0/3.0), D)
+        # as D⁵ᐟ⁶(r) = U(r) Λ⁵ᐟ⁶(r) Uᵀ(r)
+        D_matrix_power = matrix_function_batch(lambda L: pow(abs(L), 5.0/6.0), D)
 
         # The matrix version of the Wigner-Seitz radius is also calculated from the eigenvalue
         # decomposition as R(r) = U(r) (4π/3 Λ(r))⁻¹ᐟ³ Uᵀ(r).
@@ -1399,16 +1407,12 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
           lambda x2: self.enhancement_factor(abs(x2)), X2)
 
         # Symmetrized GGA kinetic-energy density,
-        #   KED[D]ᵢⱼ(r) = 2²ᐟ³ C_F ½ [Dᵅ(r)⁵ᐟ³ G(X²(r)ᵅ) + G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ³]ᵢⱼ
-        KED = pow(2.0, 2.0/3.0) * self.C_F * 0.5 * (
-            # D(r)⁵ᐟ³ G(X²(r))
+        #   KED[D]ᵢⱼ(r) = 2²ᐟ³ C_F [ Dᵅ(r)⁵ᐟ⁶ G(X²(r)ᵅ) Dᵅ(r)⁵ᐟ⁶ ]ᵢⱼ
+        KED = pow(2.0, 2.0/3.0) * self.C_F * (
+            # D(r)⁵ᐟ⁶ G(X²(r)) D(r)⁵ᐟ⁶
             einsum(
-                'siar,sajr->sijr',
-                D_matrix_power, G_enhancement_factor) +
-            # G(X²(r)) D(r)⁵ᐟ³
-            einsum(
-                'siar,sajr->sijr',
-                G_enhancement_factor, D_matrix_power)
+                'siar,sabr,sbjr->sijr',
+                D_matrix_power, G_enhancement_factor, D_matrix_power)
         )
         # Check that the kinetic energy density is real.
         assert numpy.max(abs(KED).imag) < 1.0e-10
