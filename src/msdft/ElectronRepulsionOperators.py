@@ -790,7 +790,8 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
             self,
             msmd : MultistateMatrixDensity,
             coords : numpy.ndarray,
-            epsilon = 1.0e-12):
+            epsilon = 1.0e-8
+        ):
         """
         compute the energy density for the exchange-like part of the electron-electron
         repulsion operator in the subspace of electronic states,

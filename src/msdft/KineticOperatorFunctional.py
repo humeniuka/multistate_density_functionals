@@ -1316,7 +1316,8 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
             self,
             msmd : MultistateMatrixDensity,
             coords : numpy.ndarray,
-            epsilon = 1.0e-12):
+            epsilon = 1.0e-8
+        ):
         """
         compute the kinetic energy density
 
