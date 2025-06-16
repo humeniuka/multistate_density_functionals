@@ -25,7 +25,6 @@ except ImportError as err:
 
 import functools
 import numpy
-import numpy.linalg as la
 import pyscf.dft
 
 from msdft.LinearAlgebra import matrix_function_batch
@@ -790,7 +789,8 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
             self,
             msmd : MultistateMatrixDensity,
             coords : numpy.ndarray,
-            epsilon = 1.0e-8
+            epsilon_zero = 1.0e-12,
+            epsilon_degeneracy = 1.0e-12
         ):
         """
         compute the energy density for the exchange-like part of the electron-electron
@@ -810,9 +810,13 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
             density is calculated.
         :type coords: numpy.ndarray of shape (Ncoord,3)
 
-        :param epsilon: Threshold for neglecting singular eigenvalues.
-            Eigenvalues |λₐ| <= epsilon are treated as zero.
-        :type epsilon: float
+        :param epsilon_zero: Threshold for neglecting singular eigenvalues.
+            Eigenvalues |λₐ| <= epsilon_zero are treated as zero.
+        :type epsilon_zero: float
+
+        :param epsilon_degeneracy: Eigenvalues λₐ and λᵦ are considered degenerate if
+            |λₐ-λᵦ| < epsilon_degeneracy*(1 + max({|λᵢ|}ᵢ))
+        :type epsilon_degeneracy: float
 
         :return: XEDᵢⱼ(r), exchange energy density
         :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
@@ -838,7 +842,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         def wigner_seitz_radius(density):
             # Avoid dividing by zero for ρ=0.
             # Non-zero eigenvalues, for which division is not problematic.
-            good = abs(density) > epsilon
+            good = abs(density) > epsilon_zero
             # When ρ=0, the electron radius should be r=inf. However, since the
             # xc-energy is 0 if there are no electrons, any value can be chosen
             # for r(ρ=0). Here we set r(ρ=0) to 0.
@@ -867,12 +871,12 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
             D,
             # derivatives of matrix density ∇Dᵢⱼ
             grad_D,
-            # threshold for neglecting singular eigenvalues
-            epsilon=epsilon
+            # threshold for treating eigenvalues as degenerate
+            epsilon_degeneracy=epsilon_degeneracy
         )
 
         # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
-        #   X²ᵢⱼ = ∑ₐ ∇Rᵢₐ·∇Rₐⱼ
+        #   X²ᵢⱼ = (36π)²ᐟ³ ∑ₐ ∇Rᵢₐ·∇Rₐⱼ
         X2 = pow(36.0 * numpy.pi, 2.0/3.0) * einsum(
             'siadr,sajdr->sijr', grad_R, grad_R)
 

@@ -281,7 +281,13 @@ def matrix_function_batch(func, X):
     return F
 
 
-def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
+def matrix_function_derivatives(
+    func,
+    func_deriv1,
+    X,
+    X_deriv1,
+    epsilon_degeneracy = 1.0e-12
+):
     """
     Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
     some external parameters given the derivatives of the argument, dX/dt,
@@ -300,9 +306,9 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
 
     The derivative of the matrix function w/r/t the parameters t becomes
 
-                                    f'(λₐ)               if λₐ=λᵦ
+                                       f'(λₐ)               if λₐ=λᵦ
         dF/dt = ∑ₐ ∑ᵦ Pₐ.dX/dt.Pᵦ  x {
-                                    [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)  if λₐ≠λᵦ
+                                      [f(λₐ)-f(λᵦ)]/(λₐ-λᵦ)  if λₐ≠λᵦ
 
     where the sums are over the eigenvalues λₐ and the projectors onto the corresponding
     eigenvectors (Pₐ)ᵢⱼ = Uᵢₐ Uⱼₐ. In terms of the eigenvectors the derivative of the
@@ -332,9 +338,9 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
         the p-th external parameter.
     :type X_deriv1: numpy.ndarray of shape (n,n,p)
 
-    :param epsilon: Eigenvalues are considered the same,
-        if they differ by less than `epsilon`.
-    :type epsilon: float
+    :param epsilon_degeneracy: Eigenvalues are considered the same,
+        if they differ by less than `epsilon_degeneracy*(1 + max({|λₐ|}))`.
+    :type epsilon_degeneracy: float
 
     :return:
         F, F_deriv1
@@ -366,10 +372,12 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
 
     # Compute the matrix Dₐᵦ.
     D = numpy.zeros_like(X)
+    # Threshold for treating eigenvalues as degenerate
+    threshold = epsilon_degeneracy * (1.0 + abs(L).max())
     # Loop over eigenvalue pairs.
     for a in range(0, dimension):
         for b in range(0, dimension):
-            if abs(L[a] - L[b]) < epsilon:
+            if abs(L[a] - L[b]) < threshold:
                 # Eigenvalues λₐ=λᵦ to within numerical precision.
                 # To ensure that D is symmetric, we compute
                 # Dₐᵦ = f'(1/2(λₐ+λᵦ))
@@ -391,7 +399,13 @@ def matrix_function_derivatives(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12)
     return F, F_deriv1
 
 
-def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
+def matrix_function_derivatives_batch(
+    func,
+    func_deriv1,
+    X,
+    X_deriv1,
+    epsilon_degeneracy = 1.0e-12
+):
     """
     Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
     some external parameters given the derivatives of the argument, dX/dt,
@@ -443,9 +457,9 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
         the p-th external parameter.
     :type X_deriv1: numpy.ndarray of shape (:,n,n,p,:)
 
-    :param epsilon: Eigenvalues are considered the same,
-        if they differ by less than `epsilon`.
-    :type epsilon: float
+    :param epsilon_degeneracy: Eigenvalues are considered the same,
+        if they differ by less than `epsilon_degeneracy*(1 + max({|λₐ|}))`.
+    :type epsilon_degeneracy: float
 
     :return: batch of matrices with values and derivatives
         F, F_deriv1
@@ -492,8 +506,8 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
 
     # Construct matrix Yₐᵦ of eigenvalue derivatives.
     eigval_derivs = numpy.zeros_like(U)
-    # Eigenvalues are considered the same, if they differ by less than `epsilon`.
-    epsilon = 1.0e-12
+    # Eigenvalues are considered the same, if they differ by less than `epsilon*(1 + max({|λₐ|}))`.
+    threshold = epsilon_degeneracy * (1.0 + abs(L).max(axis=-1))
     # Loop over matrix dimensions
     for a in range(0, nstate):
         La = L[...,a]
@@ -502,7 +516,7 @@ def matrix_function_derivatives_batch(func, func_deriv1, X, X_deriv1, epsilon=1.
             Lb = L[...,b]
             fLb = fL[...,b]
             # Which eigenvalue pairs are the same?
-            same = numpy.abs(La - Lb) < epsilon
+            same = numpy.abs(La - Lb) < threshold
 
             # Yₐᵦ has size (...), without the last two dimensions (nstate,nstate).
             Yab = numpy.zeros(U.shape[:-2])

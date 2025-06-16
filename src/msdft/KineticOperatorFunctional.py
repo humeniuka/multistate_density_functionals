@@ -1210,8 +1210,8 @@ class MatrixSquareRootKineticFunctional(KineticOperatorFunctional):
             D,
             # derivatives of matrix density ∇Dᵢⱼ
             grad_D,
-            # threshold for neglecting singular eigenvalues
-            epsilon=epsilon
+            # threshold for treating eigenvalues as degenerate
+            epsilon_degeneracy=epsilon
         )
 
         # kinetic energy density
@@ -1316,7 +1316,8 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
             self,
             msmd : MultistateMatrixDensity,
             coords : numpy.ndarray,
-            epsilon = 1.0e-8
+            epsilon_zero = 1.0e-12,
+            epsilon_degeneracy = 1.0e-12
         ):
         """
         compute the kinetic energy density
@@ -1333,9 +1334,13 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
            density is calculated.
         :type coords: numpy.ndarray of shape (Ncoord,3)
 
-        :param epsilon: Threshold for neglecting singular eigenvalues.
-           Eigenvalues |λₐ| <= epsilon are treated as zero.
-        :type epsilon: float
+        :param epsilon_zero: Threshold for neglecting singular eigenvalues.
+            Eigenvalues |λₐ| <= epsilon_zero are treated as zero.
+        :type epsilon_zero: float
+
+        :param epsilon_degeneracy: Eigenvalues λₐ and λᵦ are considered degenerate if
+            |λₐ-λᵦ| < epsilon_degeneracy*(1 + max({|λᵢ|}ᵢ))
+        :type epsilon_degeneracy: float
 
         :return: KEDᵢⱼ(r), kinetic energy density
         :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
@@ -1361,7 +1366,7 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
         def wigner_seitz_radius(density):
             # Avoid dividing by zero for ρ=0.
             # Non-zero eigenvalues, for which division is not problematic.
-            good = abs(density) > epsilon
+            good = abs(density) > epsilon_zero
             # When ρ=0, the electron radius should be r=inf. However, since the
             # kinetic-energy is 0 if there are no electrons, any value can be chosen
             # for r(ρ=0). Here we set r(ρ=0) to 0.
@@ -1391,7 +1396,7 @@ class GGALeeLeeParr91KineticFunctional(KineticOperatorFunctional):
             # derivatives of matrix density ∇Dᵢⱼ
             grad_D,
             # threshold for neglecting singular eigenvalues
-            epsilon=epsilon
+            epsilon_degeneracy=epsilon_degeneracy
         )
 
         # Compute X²(r) = (36π)²ᐟ³ ∇R(r)·∇R(r)
