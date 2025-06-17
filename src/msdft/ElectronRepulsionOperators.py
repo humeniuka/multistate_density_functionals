@@ -900,3 +900,126 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
         assert numpy.max(abs(XED).imag) < 1.0e-10
 
         return XED
+
+
+class EigenvalueFunctional(ExchangeCorrelationLikeFunctional, ABC):
+    """
+    Abstract base class for matrix functionals that apply a scalar XC-functional
+    to the eigenvalues and their derivatives of the matrix density.
+    """
+    @abstractmethod
+    def xc_functional(self, density, grad_density, lapl_density):
+        """
+        The scalar XC functional f(ρ(r), ∇ρ(r), ∇²ρ(r)) that is applied to the
+        eigenvalues of the matrix density D(r)
+        """
+        pass
+
+    def energy_density(
+            self,
+            msmd : MultistateMatrixDensity,
+            coords : numpy.ndarray
+        ):
+        """
+        :param msmd: The multistate matrix density in the electronic subspace
+        :type msmd: :class:`~.MultistateMatrixDensity`
+
+        :param coords: The Cartesian positions at which the exchange energy
+            density is calculated.
+        :type coords: numpy.ndarray of shape (Ncoord,3)
+
+        :return: XEDᵢⱼ(r), exchange energy density
+        :rtype: numpy.ndarray of shape (2,Mstate,Mstate,Ncoord)
+            XED[s,i,j,r] is the exchange energy density with spin s,
+            between the electronic states i and j at position coords[r,:].
+        """
+        # Evaluate D(r), ∇D(r) and ∇²D(r) on the integration grid.
+        D, grad_D, lapl_D = msmd.evaluate(coords)
+
+        # The matrix exchange-correlation functional F(D,∇D,∇²D) is calculated
+        # via the eigendecomposition of the matrix density D(r) = U(r).Λ(r).U(r)ᵀ,
+        # where Λ and U are the eigenvalues and eigenvectors of D, respectively.
+        # A scalar xc-functional f(ρ(r), ∇ρ(r), ∇²ρ(r)) is turned into a matrix
+        # functional by applying f to the eigenvalues of D, i.e.
+        #
+        #   F(D,∇D,∇²D)(r) := U(r) f(Λ(r), ∇Λ(r), ∇²Λ(r)) Uᵀ(r)
+        #                   = U(r) diag(f[λ1(r)],...,f[λᵢ(r)],...,f[λN(r)]) Uᵀ(r)
+        #
+        # where
+        #   ∇λᵢ = (Uᵀ.∇D.U)ᵢᵢ
+        # and
+        #   ∇²λᵢ := (Uᵀ.∇²D.U)ᵢᵢ
+        # While ∇λᵢ is actually the gradient of λᵢ, ∇²λᵢ is NOT the Laplacian
+        # of λᵢ, since the gradients of the eigenvectors are neglected.
+
+        # numpy.linalg.eigh(...) can operate on multiple matrices in parallel,
+        # Since the calculation is parallelized over the first axis, we have to
+        # move the coordinate axis to the first position. For each grid point r
+        # and spin orientation s, the (N x N)-matrix  X(r) is diagonalized.
+        # (nspin,nstate,nstate,ncoord) -> (ncoord,nspin,nstate,nstate)
+        D = numpy.moveaxis(D, 3, 0)
+        eigenvalues, U = numpy.linalg.eigh(D)
+
+        # Restore original order of axes
+        #   (ncoord,nspin,nstate) -> (npin, nstate, ncoord)
+        eigenvalues = numpy.moveaxis(eigenvalues, 0, 2)
+        #   (ncoord,nspin,nstate,nstate) -> (npin,nstate,nstate,ncoord)
+        U = numpy.moveaxis(U, 0, 3)
+
+        # ρ(r) = λᵢ
+        density = eigenvalues
+        # ∇ρ(r) = ∇λᵢ = (Uᵀ.∇D.U)ᵢᵢ
+        grad_density = einsum('sair,sabdr,sbir->sird', U, grad_D, U)
+        # ∇²ρ(r) = ∇²λᵢ := (Uᵀ.∇²D.U)ᵢᵢ
+        lapl_density = einsum('sair,sabr,sbir->sir', U, lapl_D, U)
+
+        # Apply xc-functional to eigenvalues
+        # f(Λ(r), ∇Λ(r), ∇²Λ(r))
+        xed_eigenvalues = self.xc_functional(density, grad_density, lapl_density)
+
+        # and transform back from the eigenbasis
+        # F(D,∇D,∇²D) := U f(Λ(r), ∇Λ(r), ∇²Λ(r)) Uᵀ
+        XED = einsum('siar,sar,sjar->sijr', U, xed_eigenvalues, U)
+
+        return XED
+
+
+class GGABecke88ExchangeFunctional(EigenvalueFunctional):
+    # The prefactor Cₓ for the LDA part of exchange energy.
+    # The variable called "Cx" in [Becke88] corresponds to 2¹ᐟ³ * Cx_Dirac.
+    Cx = Cx_Dirac
+    # The empirical value of β (see table II in [Becke88]) was determined from a least square fit.
+    beta = 0.0042
+    # gamma should be 6 to get the right asymptotics of Ex.
+    gamma = 6.0
+    # Threshold for neglecting small density, where the density gradient diverges
+    epsilon_zero = 1.0e-12
+
+    @property
+    def spin_type(self):
+        return POLARIZED
+
+    def xc_functional(self, density, grad_density, lapl_density):
+        """
+        The scalar XC functional f(ρ(r), ∇ρ(r), ∇²ρ(r)) that is applied to the
+        eigenvalues of the matrix density D(r)
+        """
+        # LDA exchange energy
+        xed_lda = pow(2.0, 1.0/3.0) * self.Cx * pow(abs(density), 4.0/3.0)
+
+        good = abs(density) > self.epsilon_zero
+        # compute the reduced density gradient
+        # x² = (∇ρ)² / ρ(r)⁸ᐟ³
+        grad_density_squared = einsum('...d,...d->...', grad_density, grad_density)
+        x2 = grad_density_squared[good] / pow(density[good], 8.0/3.0)
+
+        # enhancement factor
+        x = numpy.sqrt(x2)
+        enhancement_factor = 1.0 + self.beta / (pow(2.0, 1.0/3.0) * self.Cx) * (
+            x2 / (1 + self.gamma*self.beta * x * numpy.arcsinh(x))
+        )
+
+        xed = numpy.zeros_like(density)
+        xed[good] = xed_lda[good] * enhancement_factor
+
+        return xed
