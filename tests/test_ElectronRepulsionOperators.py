@@ -17,11 +17,13 @@ import unittest
 
 from msdft.BasisTransformation import BasisTransformation
 from msdft.ElectronRepulsionOperators import ExchangeCorrelationLikeFunctional
+from msdft.ElectronRepulsionOperators import GGABecke88ExchangeFunctional
 from msdft.ElectronRepulsionOperators import GGABecke88ExchangeLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctional
 from msdft.ElectronRepulsionOperators import HartreeLikeFunctionalPoisson
 from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LDAExchangeLikeFunctional
+from msdft.ElectronRepulsionOperators import LibxcFunctional
 from msdft.ElectronRepulsionOperators import LSDAExchangeLikeFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensity
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
@@ -626,6 +628,83 @@ class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTests, u
                     # pyscf computes Ex[ρ] = -K[ρ], so we have to include a minus sign
                     # when comparing K[ρ] with Ex[ρ].
                     exchange_matrix_single, -exchange_matrix_multi, decimal=6)
+
+
+class TestGGABecke88ExchangeFunctional(TestGGABecke88ExchangeLikeFunctional, unittest.TestCase):
+    @property
+    def xc_functional_class(self):
+        """ The functional to be tested. """
+        return GGABecke88ExchangeFunctional
+
+
+class TestLibxcFunctional(ExchangeCorrelationFunctionalTests, unittest.TestCase):
+    @property
+    def xc_functional_class(self):
+        """ The functional to be tested. """
+        return LibxcFunctional
+
+    def test_chachyio_correlation_functional_implementation(self):
+        """
+        Check that LibxcFunctional gives the same values for Chachyio's correlation functional
+        as the reference implementation.
+        """
+        for name, mol in tqdm({
+                # combine all test molecules into a single dictionary
+                **self.create_test_molecules_1electron(),
+                **self.create_closed_shell_test_molecules()}.items()):
+            with self.subTest(molecule=name):
+                # multistate matrix density
+                msmd = self.create_matrix_density(mol, nstate=3)
+
+                # reference implementation
+                correlation_lda = LDACorrelationLikeFunctional(mol)
+                # libxc implementation of the same functionals
+                correlation_lda_libxc = LibxcFunctional(
+                    msmd.mol, xc_code=',LDA_C_CHACHIYO', spin=0, level=4)
+
+                # Evaluate correlation energy
+                grids = pyscf.dft.gen_grid.Grids(mol)
+                grids.level = 2
+                grids.build()
+
+                ced_ref = correlation_lda.energy_density(msmd, grids.coords)
+                ced_libxc = correlation_lda_libxc.energy_density(msmd, grids.coords)
+
+                # libxc does not remove points where density <= epsilon_zero, therefore
+                # the result is not exactly the same
+                numpy.testing.assert_almost_equal(ced_libxc, ced_ref, decimal=5)
+
+    def test_becke88_exchange_functional_implementation(self):
+        """
+        Check that LibxcFunctional gives the same values for Becke's 88 exchange functional
+        as the reference implementation.
+        """
+        for name, mol in tqdm({
+                # combine all test molecules into a single dictionary
+                **self.create_test_molecules_1electron(),
+                **self.create_closed_shell_test_molecules()}.items()):
+            with self.subTest(molecule=name):
+                # multistate matrix density
+                msmd = self.create_matrix_density(mol, nstate=3)
+
+                # reference implementation
+                exchange_gga = GGABecke88ExchangeFunctional(mol)
+                # libxc implementation of the same functionals
+                exchange_gga_libxc = LibxcFunctional(
+                    msmd.mol, xc_code='GGA_X_B88,', spin=1, level=4)
+
+                # Evaluate exchange energy on a grid
+                grids = pyscf.dft.gen_grid.Grids(mol)
+                grids.level = 1
+                grids.build()
+
+                # The reference implementation does not contain the (-1).
+                xed_ref = (-1) * exchange_gga.energy_density(msmd, grids.coords)
+                xed_libxc = exchange_gga_libxc.energy_density(msmd, grids.coords)
+
+                # libxc does not remove points where density <= epsilon_zero, therefore
+                # the result is not exactly the same
+                numpy.testing.assert_almost_equal(xed_libxc, xed_ref, decimal=5)
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ except ImportError as err:
 import functools
 import numpy
 import pyscf.dft
+import pyscf.dft.libxc
 
 from msdft.LinearAlgebra import matrix_function_batch
 from msdft.LinearAlgebra import matrix_function_derivatives_batch
@@ -768,10 +769,7 @@ class GGABecke88ExchangeLikeFunctional(ExchangeCorrelationLikeFunctional):
            in the integration grid.
         :type level: int
         """
-        # generate a multicenter integration grid
-        self.grids = pyscf.dft.gen_grid.Grids(mol)
-        self.grids.level = level
-        self.grids.build()
+        super().__init__(mol, level=level)
 
     def enhancement_factor(self, x2):
         """ The scalar function f(x²) for the enhancement factor """
@@ -936,6 +934,12 @@ class EigenvalueFunctional(ExchangeCorrelationLikeFunctional, ABC):
         # Evaluate D(r), ∇D(r) and ∇²D(r) on the integration grid.
         D, grad_D, lapl_D = msmd.evaluate(coords)
 
+        if self.spin_type == UNPOLARIZED:
+            # sum over spins
+            D = numpy.sum(D, axis=0, keepdims=True)
+            grad_D = numpy.sum(grad_D, axis=0, keepdims=True)
+            lapl_D = numpy.sum(lapl_D, axis=0, keepdims=True)
+
         # The matrix exchange-correlation functional F(D,∇D,∇²D) is calculated
         # via the eigendecomposition of the matrix density D(r) = U(r).Λ(r).U(r)ᵀ,
         # where Λ and U are the eigenvalues and eigenvectors of D, respectively.
@@ -1004,7 +1008,7 @@ class GGABecke88ExchangeFunctional(EigenvalueFunctional):
         The scalar XC functional f(ρ(r), ∇ρ(r), ∇²ρ(r)) that is applied to the
         eigenvalues of the matrix density D(r)
         """
-        # LDA exchange energy
+        # LDA exchange energy (without the minus sign)
         xed_lda = pow(2.0, 1.0/3.0) * self.Cx * pow(abs(density), 4.0/3.0)
 
         good = abs(density) > self.epsilon_zero
@@ -1023,3 +1027,117 @@ class GGABecke88ExchangeFunctional(EigenvalueFunctional):
         xed[good] = xed_lda[good] * enhancement_factor
 
         return xed
+
+
+class LibxcFunctional(EigenvalueFunctional):
+    def __init__(self, mol, xc_code='GGA_X_B88,LDA_C_CHACHIYO', spin=1, level=8):
+        """
+        A scalar xc-functional f(ρ(r), ∇ρ(r), ∇²ρ(r)) is turned into a matrix
+        functional by applying f to the eigenvalues of D, i.e.
+
+           F(D,∇D,∇²D)(r) := U(r) f(Λ(r), ∇Λ(r), ∇²Λ(r)) Uᵀ(r)
+                           = U(r) diag(f[λ1(r)],...,f[λᵢ(r)],...,f[λN(r)]) Uᵀ(r)
+
+        All LDA and GGA xc-correlation functionals implemented in libxc are supported.
+
+        :param mol: The molecule defines the integration grid.
+        :type mol: pyscf.gto.Mole
+
+        :param xc_code: name of the exchange-correlation functional,
+            xc_code consists of two parts, separated by ','. The first part
+            describes the exchange functional, the second one the correlation functional.
+            For details see the doc string of `pyscf.dft.libxc.eval_xc`
+        :type xc_code: str
+
+        :param spin: spin polarized calculation is spin > 0
+        :type spin: int
+
+        :param level: The level (3-8) controls the number of grid points
+           in the integration grid.
+        :type level: int
+
+        References
+        ----------
+        [libxc] S. Lehtola et al. (2018), Software X 7, 1-5,
+            "Recent developments in libxc —
+            A comprehensive library of functionals for density functional theory"
+            https://doi.org/10.1016/j.softx.2017.11.002
+        """
+        super().__init__(mol, level=level)
+        self.xc_code = xc_code
+        self.spin = spin
+
+    @property
+    def spin_type(self):
+        if self.spin > 0:
+            return POLARIZED
+        else:
+            return UNPOLARIZED
+
+    def xc_functional(self, density, grad_density, lapl_density):
+        """
+        The scalar XC functional f(ρ(r), ∇ρ(r), ∇²ρ(r)) that is applied to the
+        eigenvalues of the matrix density D(r)
+        """
+        nspin, nstate, ncoord = density.shape
+        # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+        rho = numpy.zeros((6, ncoord*nstate))
+        if self.spin_type == POLARIZED:
+            assert nspin == 2
+            # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+            # For a spin-polarized GGA functional we have to provide
+            # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu,0,0)
+            #           (den_d,grad_xd,grad_yd,grad_zd,0,0))
+            rho_ud = numpy.zeros((2, 6, nstate*ncoord))
+            for spin in [0,1]:
+                # den
+                rho_ud[spin,0,:] = numpy.reshape(density[spin,...], nstate*ncoord)
+                # grad_x
+                rho_ud[spin,1,:] = numpy.reshape(grad_density[spin,...,0], nstate*ncoord)
+                # grad_y
+                rho_ud[spin,2,:] = numpy.reshape(grad_density[spin,...,1], nstate*ncoord)
+                # grad_z
+                rho_ud[spin,3,:] = numpy.reshape(grad_density[spin,...,2], nstate*ncoord)
+                # laplacian
+                rho_ud[spin,4,:] = numpy.reshape(lapl_density[spin,...], nstate*ncoord)
+            exc, _, _, _ = pyscf.dft.libxc.eval_xc(self.xc_code, rho_ud, spin=1)
+            # Separate exc of different eigenvalues.
+            exc = numpy.reshape(exc, (nstate,ncoord))
+            # libxc divides the exchange energy per particle by the total spin-summed density,
+            #   exc[ρᵅ,ρᵝ] = 1/ρ * (ρᵅ exc[ρᵅ] + ρᵝ exc[ρᵝ]),
+            # so that the total exchange energy is calculated as
+            #   Exc[ρ] = ∫ xced(r) dr = ∫ ρ exc[ρᵅ,ρᵝ] dr.
+            # (see Eqn. (4) in [libxc])
+            # To get the xc-energy density the output has to be multiplied by the total
+            # spin-summed density.
+            # Here xced is calculated for each spin channel separately,
+            #   xced = (ρᵅ exc[ρᵅ,ρᵝ], ρᵝ exc[ρᵅ,ρᵝ])
+            # summing over spin would give
+            #   (ρᵅ+ρᵝ) exc[ρᵅ,ρᵝ]
+            xced = numpy.zeros((2,nstate,ncoord))
+            for spin in [0,1]:
+                xced[spin,...] = density[spin,...] * exc
+        else:
+            assert nspin == 1
+            # den
+            rho[0,:] = numpy.reshape(density, nstate*ncoord)
+            # grad_x
+            rho[1,:] = numpy.reshape(grad_density[...,0], nstate*ncoord)
+            # grad_y
+            rho[2,:] = numpy.reshape(grad_density[...,1], nstate*ncoord)
+            # grad_z
+            rho[3,:] = numpy.reshape(grad_density[...,2], nstate*ncoord)
+            # laplacian
+            rho[4,:] = numpy.reshape(lapl_density, nstate*ncoord)
+            # Use libxc to evaluate the xc-functional
+            exc, _, _, _ = pyscf.dft.libxc.eval_xc(self.xc_code, rho, spin=0)
+            # libxc computes the xc-energy per particle,
+            # so that the total exchange energy is calculated as
+            #   Exc[ρ] = ∫ xced[ρ](r) dr = ∫ ρ(r) exc[ρ](r) dr.
+            # (see Eqn. (4) in [libxc])
+            # To get the xc-energy density the output has to be multiplied by the density.
+            xced = rho[0,:] * exc
+            # Separate XCED of different eigenvalues again.
+            xced = numpy.reshape(xced, (1,nstate,ncoord))
+
+        return xced
