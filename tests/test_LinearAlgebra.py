@@ -71,7 +71,7 @@ def kinetic_energy_density(L, U, grad_L, grad_U):
     return KED
 
 
-def matrix_function_derivatives_batch_slow(func, func_deriv1, X, X_deriv1, epsilon=1.0e-12):
+def matrix_function_derivatives_batch_slow(func, func_deriv1, X, X_deriv1, epsilon_degeneracy=1.0e-12):
     """
     Compute the derivative of an analytic matrix function F(t)=f(X(t)) with respect to
     some external parameters given the derivatives of the argument, dX/dt,
@@ -95,9 +95,9 @@ def matrix_function_derivatives_batch_slow(func, func_deriv1, X, X_deriv1, epsil
         the p-th external parameter.
     :type X_deriv1: numpy.ndarray of shape (:,n,n,p,:)
 
-    :param epsilon: Eigenvalues are considered the same,
-        if they differ by less than `epsilon`.
-    :type epsilon: float
+    :param epsilon_degeneracy: Eigenvalues are considered the same,
+        if they differ by less than `epsilon_degeneracy`.
+    :type epsilon_degeneracy: float
 
     :return: batch of matrices with values and derivatives
         F, F_deriv1
@@ -116,7 +116,9 @@ def matrix_function_derivatives_batch_slow(func, func_deriv1, X, X_deriv1, epsil
         for r in range(0, ncoord):
             # Apply matrix function to each matrix in the batch.
             F[s,:,:,r], F_deriv1[s,:,:,:,r] = matrix_function_derivatives(
-                func, func_deriv1, X[s,:,:,r], X_deriv1[s,:,:,:,r], epsilon=epsilon)
+                func, func_deriv1, X[s,:,:,r], X_deriv1[s,:,:,:,r],
+                epsilon_degeneracy=epsilon_degeneracy
+            )
 
     return F, F_deriv1
 
