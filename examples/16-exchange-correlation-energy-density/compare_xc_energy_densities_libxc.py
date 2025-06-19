@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-compare LDA exchange-correlation energy densities XC(r) computed with the Chachiyo
-correlation and Dirac exchange with the exact values obtained from full CI.
-
-The Becke 88 GGA exchange energy density is also plotted.
+The libxc implementation of Becke's 88 exchange and Chachiyo's correlation
+functionals is compared with the EigenFunctional implementation.
 """
 import matplotlib.pyplot as plt
 import numpy
@@ -17,6 +15,7 @@ from msdft.ElectronRepulsionOperators import LDACorrelationLikeFunctional
 from msdft.ElectronRepulsionOperators import LDAExchangeLikeFunctional
 # Becke 1988 exchange
 from msdft.ElectronRepulsionOperators import GGABecke88ExchangeFunctional
+from msdft.ElectronRepulsionOperators import LibxcFunctional
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
 
@@ -42,22 +41,35 @@ def compare_xc_energy_densities(mol, nstate=2):
     coords = numpy.zeros((ncoord, 3))
     coords[:,2] = r
 
-    # LDA functionals for exchange and correlation
-    exchange_lda = LDAExchangeLikeFunctional(mol)
+    # LDA functional for correlation
     correlation_lda = LDACorrelationLikeFunctional(mol)
     # GGA functional for exchange
     exchange_gga = GGABecke88ExchangeFunctional(mol)
+    # libxc implementation of the same functionals
+    correlation_lda_libxc = LibxcFunctional(
+        msmd.mol, xc_code=',LDA_C_CHACHIYO', spin=0, level=4)
+    exchange_gga_libxc = LibxcFunctional(
+        msmd.mol, xc_code='GGA_X_B88,', spin=1, level=4)
 
     # Evaluate XC-energy density XCᵢⱼ(r) = - xᵢⱼ[D](r) + cᵢⱼ[D](r) along the cut
-    # ... with the approximate functionals
-    # There is only a single spin component, since the LDA functional operate on the
-    # total charge density.
-    xed_lda = exchange_lda.energy_density(msmd, coords)[0,...]
-    ced_lda = correlation_lda.energy_density(msmd, coords)[0,...]
-    xced_lda = -xed_lda + ced_lda
-    # GGA exchange-energy summed over spins
-    xed_gga = numpy.sum(exchange_gga.energy_density(msmd, coords), axis=0)
-    xced_gga = -xed_gga + ced_lda
+    # ... with my own implementation
+    xed_gga = numpy.sum(
+        # sum over spins
+        exchange_gga.energy_density(msmd, coords), axis=0)
+    ced_lda = numpy.sum(
+        # sum over spins
+        correlation_lda.energy_density(msmd, coords), axis=0)
+    # Minus sign is not contained in our definition of exchange functional.
+    xced = -xed_gga + ced_lda
+    # ... and with libxc's implementation
+    xed_gga_libxc = numpy.sum(
+        # sum over spins
+        exchange_gga_libxc.energy_density(msmd, coords), axis=0)
+    ced_lda_libxc = numpy.sum(
+        # sum over spins
+        correlation_lda_libxc.energy_density(msmd, coords), axis=0)
+    # Minus sign is already contained in libxc's implementation of exchange functional.
+    xced_libxc = xed_gga_libxc + ced_lda_libxc
 
     # ... and exactly using the pair-density.
     xced_fci = msmd.exchange_correlation_energy_density(coords)
@@ -67,17 +79,17 @@ def compare_xc_energy_densities(mol, nstate=2):
 
     # The first row is for exchange only, the second one for correlation
     # and the third for the sum of the two.
-    for row in [0,1,2]:
+    for row in [0,1]:
         axes[row,0].set_xlabel(r"r / $a_0$")
-        axes[row,0].set_ylabel(r"state XCED(r) / Hartree")
+        axes[row,0].set_ylabel(r"state energy density / Hartree")
 
         axes[row,1].set_xlabel(r"r / $a_0$")
-        axes[row,1].set_ylabel(r"transition XCED(r) / Hartree")
+        axes[row,1].set_ylabel(r"transition energy density / Hartree")
 
     for column in [0,1]:
         axes[0,column].set_title(r"exchange")
         axes[1,column].set_title(r"correlation")
-        axes[2,column].set_title(r"exchange-correlation")
+        axes[2,column].set_title(r"exchange and correlation")
 
     # Plot XC-energy density between different states.
     for istate in range(0, nstate):
@@ -89,40 +101,44 @@ def compare_xc_energy_densities(mol, nstate=2):
             else:
                 column = 1
 
-            # exact XCED as reference
-            label = r"xc$_{%d,%d}(r)$ (exact)" % (istate, jstate)
-            line, = axes[2,column].plot(
-                r, xced_fci[istate,jstate,:],
-                lw=3, alpha=0.25,
-                label=label)
-
             # approximate exchange
-            # ... LDA
-            axes[0,column].plot(
-                r, -xed_lda[istate,jstate,:],
-                lw=1, color=line.get_color(),
-                ls='--', label=r"x$_{%d,%d}(r)$ LDA" % (istate, jstate))
-            # ... GGA (Becke 88)
-            axes[0,column].plot(
+            # ... exchange
+            line, = axes[0,column].plot(
                 r, -xed_gga[istate,jstate,:],
-                lw=1, color=line.get_color(),
-                ls=':', label=r"x$_{%d,%d}(r)$ GGA" % (istate, jstate))
-            # approximate correlation
+                lw=1,
+                ls='-', label=r"x$_{%d,%d}(r)$" % (istate, jstate))
+            # ... exchange (libxc)
+            axes[0,column].plot(
+                # libxc's exchange functional already contains the correct minus sign.
+                r,  xed_gga_libxc[istate,jstate,:],
+                lw=2, color=line.get_color(),
+                ls='-.', label=r"x$_{%d,%d}(r)$ libxc" % (istate, jstate))
+            # ... correlation
             axes[1,column].plot(
                 r, ced_lda[istate,jstate,:],
                 lw=1, color=line.get_color(),
-                ls="-.", label=r"c$_{%d,%d}(r)$ LDA" % (istate, jstate))
-            # approximate exchange-correlation energy density
-            # .. LDA exchange + LDA correlation
+                ls="-", label=r"c$_{%d,%d}(r)$" % (istate, jstate))
+            # ... correlation (libxc)
+            axes[1,column].plot(
+                r, ced_lda_libxc[istate,jstate,:],
+                lw=2, color=line.get_color(),
+                ls="-.", label=r"c$_{%d,%d}(r)$ libxc" % (istate, jstate))
+            # ... exchange and correlation
             axes[2,column].plot(
-                r, xced_lda[istate,jstate,:],
+                r, xced[istate,jstate,:],
                 lw=1, color=line.get_color(),
-                ls="-.", label=r"xc$_{%d,%d}(r)$ LDA(xc)" % (istate, jstate))
-            # ... GGA exchange + LDA correlation
+                ls=":", label=r"xc$_{%d,%d}(r)$" % (istate, jstate))
+            # ... libxc
             axes[2,column].plot(
-                r, xced_gga[istate,jstate,:],
+                r, xced_libxc[istate,jstate,:],
                 lw=1, color=line.get_color(),
-                ls=":", label=r"xc$_{%d,%d}(r)$ GGA(x)+LDA(c)" % (istate, jstate))
+                ls="-.", label=r"xc$_{%d,%d}(r)$ libxc" % (istate, jstate))
+            # ... full CI reference
+            axes[2,column].plot(
+                r, xced_fci[istate,jstate,:],
+                lw=2, color=line.get_color(),
+                ls="-", label=r"xc$_{%d,%d}(r)$ fci" % (istate, jstate))
+
 
     for row in [0,1,2]:
         for column in [0,1]:

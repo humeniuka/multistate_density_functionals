@@ -23,10 +23,10 @@ import pyscf.gto
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
 
-# hydrogen molecule, closed shell
+# hydrogen molecule
 mol = pyscf.gto.M(
     atom = 'H 0 0 -0.35; H 0 0 0.35',
-    basis = '6-31g', #'cc-pvdz',
+    basis = 'cc-pvdz',
     # singlet
     spin = 0)
 nstate = 3
@@ -34,7 +34,10 @@ nstate = 3
 msmd = MultistateMatrixDensityFCI.create_matrix_density(
     mol, nstate=nstate,
     # To compute the xc-energy density we need the pair-density matrix Dᵢⱼ(r,r').
-    compute_pair_density=True
+    compute_pair_density=True,
+    # Spin symmetry is turned off, since we just want the lowest
+    # electronic states no matter what spin state.
+    spin_symmetry=False
 )
 
 # Plot exchange-correlation energy density along z-axis
