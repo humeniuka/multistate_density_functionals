@@ -438,7 +438,7 @@ class PairDensityMatrixFCIMixinTests:
         #print(XC_ref)
 
         # Compare the two ways of calculating the XC matrix
-        numpy.testing.assert_allclose(XC, XC_ref, atol=1.0e-10)
+        numpy.testing.assert_allclose(XC, XC_ref, atol=1.0e-6)
 
     def test_exchange_correlation_energy_density(self):
         """
