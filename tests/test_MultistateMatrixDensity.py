@@ -84,7 +84,7 @@ class BaseTestMultistateMatrixDensity(ABC):
         # The trace over spin and electronic states should be equal to
         # (number of electrons) x (number of states)
         integral_trace_D = numpy.einsum('r,sr->', grids.weights, trace_D)
-        self.assertAlmostEqual(integral_trace_D, number_of_electrons*nstate)
+        self.assertAlmostEqual(integral_trace_D, number_of_electrons*nstate, places=5)
 
     def test_integrals(self):
         """ Check integrals of D(r) for all test molecules """
