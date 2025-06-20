@@ -3,7 +3,7 @@
 """
 Compute the potential energy curves of H2 as a function of the bond length using MSDFT.
 
-The electronic matrix density is computed with CASSCF using a small active space,
+The electronic matrix density is computed with full configuration interaction,
 while the Hamiltonian matrix in the subspace of the electronic states is computed
 as the sum of
     - the kinetic energy of the CASSCF wavefunctions Tᵢⱼ
