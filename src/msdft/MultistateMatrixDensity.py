@@ -614,7 +614,6 @@ class MultistateMatrixDensity(ABC):
 
         return xced
 
-
     @staticmethod
     @abstractmethod
     def create_matrix_density(mol, nstate=4):
@@ -707,6 +706,22 @@ class MultistateMatrixDensity(ABC):
                 if i != j:
                     # zero out transition density in AO basis.
                     self.density_matrices[:,i,j,:,:] *= 0.0
+
+    def __getstate__(self):
+        """ export state of MultistateMatrixDensity (used by pickle.dump) """
+        # capture what is normally pickled
+        state = self.__dict__.copy()
+        # pyscf.gto.Mole objects have to serialized as json strings
+        state['mol'] = state['mol'].dumps()
+        # what we return here will be stored in the pickle
+        return state
+
+    def __setstate__(self, newstate):
+        """ reconstruct state of MultistateMatrixDensity (used by pickle.load) """
+        # Load pyscf.gto.Mole object from json string
+        newstate['mol'] = pyscf.gto.Mole.loads(newstate['mol'])
+        # re-instate our __dict__ state from the pickled state
+        self.__dict__.update(newstate)
 
 
 def _density_matrix_mo2ao(dm_mo, mo_coeff):

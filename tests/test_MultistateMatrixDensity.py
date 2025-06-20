@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 import numpy
 import numpy.linalg as la
 import numpy.testing
+import pickle
+import tempfile
 
 import pyscf.dft
 import pyscf.fci
@@ -317,6 +319,22 @@ class BaseTestMultistateMatrixDensity(ABC):
                 continue
             with self.subTest(molecule=name):
                 self.check_align_phases(mol)
+
+    def test_pickle(self):
+        """ Check that the matrix density can be saved to and loaded from a pickle file. """
+        for name, mol in tqdm(self.create_test_molecules().items()):
+            with self.subTest(molecule=name):
+                msmd = self.create_matrix_density(mol, nstate=2)
+                with tempfile.NamedTemporaryFile(delete=False) as f_tmp:
+                    # save matrix density to named temporary file
+                    pickle.dump(msmd, f_tmp)
+                    f_tmp.close()
+                    # load matrix density again
+                    with open(f_tmp.name, mode='rb') as f_pickle:
+                        msmd_loaded = pickle.load(f_pickle)
+                    # compare some data
+                    self.assertEqual(msmd_loaded.number_of_states, msmd.number_of_states)
+                    numpy.testing.assert_equal(msmd_loaded.mol.atom_coords(), msmd.mol.atom_coords())
 
     def test_raises_if_pair_density_is_missing(self):
         """
