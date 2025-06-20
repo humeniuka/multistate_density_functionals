@@ -1080,26 +1080,35 @@ class LibxcFunctional(EigenvalueFunctional):
         eigenvalues of the matrix density D(r)
         """
         nspin, nstate, ncoord = density.shape
-        # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
-        rho = numpy.zeros((6, ncoord*nstate))
+        xc_type = pyscf.dft.libxc.xc_type(self.xc_code)
+        # rho (*,N) are ordered as
+        #   (den,)                          for xc_type == 'LDA'
+        #   (den,grad_x,grad_y,grad_z)      for xc_type == 'GGA'
+        #   (den,grad_x,grad_y,grad_z,tau)  for xc_type == 'MGGA'
+        if xc_type == 'LDA':
+            nvar = 1
+        elif xc_type == 'GGA':
+            nvar = 4
+        else:
+            # MGGA and HF
+            raise NotImplementedError(f"Can only use LDA or GGA functionals, not xc_type= {xc_type}")
         if self.spin_type == POLARIZED:
             assert nspin == 2
-            # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+            # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,tau)
             # For a spin-polarized GGA functional we have to provide
-            # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu,0,0)
-            #           (den_d,grad_xd,grad_yd,grad_zd,0,0))
-            rho_ud = numpy.zeros((2, 6, nstate*ncoord))
+            # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu)
+            #           (den_d,grad_xd,grad_yd,grad_zd))
+            rho_ud = numpy.zeros((2, nvar, nstate*ncoord))
             for spin in [0,1]:
                 # den
                 rho_ud[spin,0,:] = numpy.reshape(density[spin,...], nstate*ncoord)
-                # grad_x
-                rho_ud[spin,1,:] = numpy.reshape(grad_density[spin,...,0], nstate*ncoord)
-                # grad_y
-                rho_ud[spin,2,:] = numpy.reshape(grad_density[spin,...,1], nstate*ncoord)
-                # grad_z
-                rho_ud[spin,3,:] = numpy.reshape(grad_density[spin,...,2], nstate*ncoord)
-                # laplacian
-                rho_ud[spin,4,:] = numpy.reshape(lapl_density[spin,...], nstate*ncoord)
+                if nvar > 1:
+                    # grad_x
+                    rho_ud[spin,1,:] = numpy.reshape(grad_density[spin,...,0], nstate*ncoord)
+                    # grad_y
+                    rho_ud[spin,2,:] = numpy.reshape(grad_density[spin,...,1], nstate*ncoord)
+                    # grad_z
+                    rho_ud[spin,3,:] = numpy.reshape(grad_density[spin,...,2], nstate*ncoord)
             exc, _, _, _ = pyscf.dft.libxc.eval_xc(self.xc_code, rho_ud, spin=1)
             # Separate exc of different eigenvalues.
             exc = numpy.reshape(exc, (nstate,ncoord))
@@ -1119,16 +1128,17 @@ class LibxcFunctional(EigenvalueFunctional):
                 xced[spin,...] = density[spin,...] * exc
         else:
             assert nspin == 1
+            # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,tau)
+            rho = numpy.zeros((nvar, nstate*ncoord))
             # den
             rho[0,:] = numpy.reshape(density, nstate*ncoord)
-            # grad_x
-            rho[1,:] = numpy.reshape(grad_density[...,0], nstate*ncoord)
-            # grad_y
-            rho[2,:] = numpy.reshape(grad_density[...,1], nstate*ncoord)
-            # grad_z
-            rho[3,:] = numpy.reshape(grad_density[...,2], nstate*ncoord)
-            # laplacian
-            rho[4,:] = numpy.reshape(lapl_density, nstate*ncoord)
+            if nvar > 1:
+                # grad_x
+                rho[1,:] = numpy.reshape(grad_density[...,0], nstate*ncoord)
+                # grad_y
+                rho[2,:] = numpy.reshape(grad_density[...,1], nstate*ncoord)
+                # grad_z
+                rho[3,:] = numpy.reshape(grad_density[...,2], nstate*ncoord)
             # Use libxc to evaluate the xc-functional
             exc, _, _, _ = pyscf.dft.libxc.eval_xc(self.xc_code, rho, spin=0)
             # libxc computes the xc-energy per particle,

@@ -546,9 +546,9 @@ class TestLDACorrelationLikeFunctional(ExchangeCorrelationFunctionalTests, unitt
                 ncoord = grids.coords.shape[0]
 
                 D, _, _ = msmd.evaluate(grids.coords)
-                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,tau)
                 # but only den has to be non-zero for an LDA functional.
-                rho = numpy.zeros((6, ncoord))
+                rho = numpy.zeros((1, ncoord))
                 # Sum over spins.
                 rho[0,:] = D[0,0,0,:] + D[1,0,0,:]
                 exc, _, _, _ = pyscf.dft.libxc.eval_xc(',LDA_C_CHACHIYO', rho)
@@ -602,11 +602,11 @@ class TestGGABecke88ExchangeLikeFunctional(ExchangeCorrelationFunctionalTests, u
                 ncoord = grids.coords.shape[0]
 
                 D, grad_D, _ = msmd.evaluate(grids.coords)
-                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,tau)
                 # For a spin-polarized GGA functional we have to provide
-                # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu,0,0)
-                #           (den_d,grad_xd,grad_yd,grad_zd,0,0))
-                rho_ud = numpy.zeros((2, 6, ncoord))
+                # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu)
+                #           (den_d,grad_xd,grad_yd,grad_zd))
+                rho_ud = numpy.zeros((2, 4, ncoord))
                 rho_ud[:,0,:] = D[:,0,0,:]
                 rho_ud[:,1:4,:] = grad_D[:,0,0,:,:]
 
