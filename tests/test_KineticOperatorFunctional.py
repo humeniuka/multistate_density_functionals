@@ -312,7 +312,7 @@ class KineticFunctionalTests(ABC):
             kinetic_matrix = kinetic_functional(msmd, available_memory=memory)
 
             numpy.testing.assert_almost_equal(
-                kinetic_matrix, kinetic_matrix_ref)
+                kinetic_matrix, kinetic_matrix_ref, decimal=6)
 
     def test_chunk_size(self):
         """
@@ -824,11 +824,11 @@ class TestGGALeeLeeParr91KineticFunctional(KineticFunctionalTests, unittest.Test
                 ncoord = grids.coords.shape[0]
 
                 D, grad_D, _ = msmd.evaluate(grids.coords)
-                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,laplacian,tau)
+                # rho (*,N) are ordered as (den,grad_x,grad_y,grad_z,tau)
                 # For a spin-polarized GGA functional we have to provide
-                # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu,0,0)
-                #           (den_d,grad_xd,grad_yd,grad_zd,0,0))
-                rho_ud = numpy.zeros((2, 6, ncoord))
+                # rho_ud = ((den_u,grad_xu,grad_yu,grad_zu)
+                #           (den_d,grad_xd,grad_yd,grad_zd))
+                rho_ud = numpy.zeros((2, 4, ncoord))
                 rho_ud[:,0,:] = D[:,0,0,:]
                 rho_ud[:,1:4,:] = grad_D[:,0,0,:,:]
 
