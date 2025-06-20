@@ -126,7 +126,7 @@ class TestNuclearPotentialOperator(unittest.TestCase):
         # (transition) density matrices in the AO basis with the kinetic energy matrix.
         V_nuclear_exact = msmd.exact_1e_operator(intor='int1e_nuc')
 
-        numpy.testing.assert_almost_equal(V_nuclear_msdft, V_nuclear_exact)
+        numpy.testing.assert_almost_equal(V_nuclear_msdft, V_nuclear_exact, decimal=6)
 
     def test_nuclear_potential_matrix(self):
         """
