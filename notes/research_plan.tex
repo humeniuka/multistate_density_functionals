@@ -26,7 +26,7 @@
 \renewcommand\vec[1]{\mathbf{#1}}
 
 
-\title{\centering A New, Variational, Multistate Density Functional Theory for Predicting Optical Properties of Materials}
+\title{\centering Research Plan:\\ A New, Variational, Multistate Density Functional Theory for Predicting Optical Properties of Materials}
 \date{\vspace{-3ex}}
 
 \begin{document}
@@ -105,7 +105,14 @@ some free parameters (such as the precise functional form of the enhancement fac
 could be chosen in an optimal fashion by machine learning.
 Since the multistate functional is analytical and independent of the number of electronic states,
 training data from calculations of ground and excited state calculations can be combined to fit a single functional.
-Especially the kinetic functional, for which there is no good (semilocal) approximations, could benefit from machine learning.
+Especially the kinetic functional, for which there is no good (semilocal) approximations, could benefit from machine learning (see Fig. \ref{fig:equivariant_ml_matrix_functional}).
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.7\linewidth]{figures/equivariant_ml_matrix_functional.png}
+    \caption{\label{fig:equivariant_ml_matrix_functional} Equivariant ML model for the kinetic energy functional.
+    The same model accepts matrix densities with different numbers of states.}
+\end{figure}
 
 \subsection{Implementation of efficient computational method \label{sec:implementation}}
 The proposed theory potentially lends itself to a very efficient linear-scaling implementation that allows to describe
