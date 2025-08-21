@@ -562,6 +562,17 @@ class MultistateMatrixDensity(ABC):
         For a 1-electron system, the 2-particle matrix density is set to 0, so that the
         xc-correlation energy density exactly cancels the Hartree energy density.
 
+        Note that the xc energy density is not uniquely defined, since any
+        function that integrates to 0 can be added without changing the Hamiltonian,
+        see [Burke1988].
+
+        References
+        ----------
+        [Burke1988] Burke (1988) "Unambiguous exchange-correlation energy density",
+            J. Chem. Phys. 109, 8161–8167 (1998)
+            https://doi.org/10.1063/1.477479
+
+
         :param coords: The Cartesian positions at which the kinetic energy
             density is calculated.
         :type coords: numpy.ndarray of shape (Ncoord,3)
