@@ -625,6 +625,128 @@ class MultistateMatrixDensity(ABC):
 
         return xced
 
+    def exchange_correlation_hole(
+        self,
+        coords1 : numpy.ndarray,
+        coords2 : numpy.ndarray):
+        """
+        compute the multistate exchange-correlation hole as
+
+            H^{xc}ᵢⱼ(r,r') = ∑ₖ  (D⁻¹(r))ᵢₖ D2ₖⱼ(r,r') - Dᵢⱼ(r')
+
+        from the pair density (or 2-particle matrix density)
+
+            D2ᵢⱼ(r,r') = n*(n-1) ∫ dr_3 ... ∫ dr_n Ψᵢ(r,r',r_3,...,r_n) Ψⱼ(r,r',r_3,...,r_n)
+
+        and the 1-particle matrix density Dᵢⱼ(r). In analogy with the ground state
+        case, the pair density can be written as
+
+            D2ᵢⱼ(r,r') = ∑ₖ Dᵢₖ(r) [ Dₖⱼ(r') + H^{xc}ₖⱼ(r,r') ]
+
+        so that the exchange-correlation matrix becomes the electrostatic interaction
+        between the matrix density and the exchange-correlation hole
+
+                                  ∑ₖ Dᵢₖ(r) H^{xc}ₖⱼ(r,r')
+            XCᵢⱼ = 1/2 ∫ dr ∫ dr' ------------------------
+                                           |r-r'|
+
+        The integral only depends on the spherical average of the exchange-correlation
+        hole over r'.
+
+        Note that the hole H^{xc}ᵢⱼ(r,r') is not symmetric in the two arguments r and r'.
+        Integrating over the second argument gives (-1) times the identity:
+
+            ∫ dr' H^{xc}ᵢⱼ(r,r') = (-1) δᵢⱼ    ∀r
+
+        For 1-electron systems, there is no pair density and the exchange-correlation hole
+        cancels the matrix density exactly,
+
+            H^{xc}ᵢⱼ(r,r') = -Dᵢⱼ(r')
+
+        :param coords1: The Cartesian positions r
+        :type coords1: numpy.ndarray of shape (Ncoord1,3)
+
+        :param coords2: The Cartesian positions r'
+        :type coords2: numpy.ndarray of shape (Ncoord2,3)
+
+        :return: H^{xc}ᵢⱼ(r,r')
+            exchange correlation hole evaluated at r and r'
+        :rtype: numpy.ndarray of shape (Mstate,Mstate,Ncoord1,Ncoord2)
+            xc_hole[i,j,r,s] is the exchange-correlation hole between
+            states i and j at the grid points coords1[r,:] and coords2[s,:]
+
+        References (xc-hole in DFT)
+        ------------------------------
+        [Perdew1996] J. Perdew, K. Burke, Y. Wang.
+            "Generalized gradient approximation for the exchange-correlation hole of a many-electron system."
+            Physical review B 54.23 (1996): 16533.
+            doi: 10.1103/PhysRevB.54.16533
+        """
+        # spin-traced 2-electron density matrices in the AO basis
+        density_matrices_2e = self.density_matrices_2e
+        # sum over spin to get spin-traced 1-electron matrix density
+        density_matrices_1e = self.density_matrices[0,...] + self.density_matrices[1,...]
+
+        # Evaluate atomic orbitals 𝛘ₐ(r) on the first grid r.
+        ao_value_r1 = numint.eval_ao(self.mol, coords1)
+
+        # Evaluate atomic orbitals 𝛘ₐ(r') on the second grid r'.
+        ao_value_r2 = numint.eval_ao(self.mol, coords2)
+
+        # Evaluate matrix density Dᵢⱼ(r) on the first grid r.
+        matrix_density_r1 = einsum('ijab,ra,rb->ijr',
+            # Dᵢⱼ[a,b]
+            density_matrices_1e,
+            # χa(r)
+            ao_value_r1,
+            # χb(r)
+            ao_value_r1
+        )
+
+        # compute matrix inverse (D⁻¹(r))ᵢⱼ
+        # numpy.linalg.inv(A) can invert batches of matrices A[], but the
+        # matrix dimensions have to be in the last two axes, (...,M,M).
+        # Therefore we have change to order of the axes in `matrix_density_r1`
+        # from (Mstate,Mstate,Ncoord) to (Ncoord,Mstate,Mstate), compute the
+        # inverse and finally restore the original order of the axes.
+        inv_matrix_density_r1 = numpy.moveaxis(
+            numpy.linalg.inv(
+                numpy.moveaxis(matrix_density_r1, 2, 0)
+            ), 0, 2
+        )
+
+        # Evaluate matrix density Dᵢⱼ(r') on the second grid r'.
+        matrix_density_r2 = einsum('ijab,sa,sb->ijs',
+            # Dᵢⱼ[a,b]
+            density_matrices_1e,
+            # χa(r')
+            ao_value_r2,
+            # χb(r')
+            ao_value_r2
+        )
+
+        # Evaluate matrix pair density D2ᵢⱼ(r,r')
+        matrix_pair_density = einsum('ijabcd,ra,rb,sc,sd->ijrs',
+            # D2ᵢⱼ[a,b,c,d]
+            density_matrices_2e,
+            # χa(r) χb(r)
+            ao_value_r1, ao_value_r1,
+            # χc(r') χd(r')
+            ao_value_r2, ao_value_r2
+        )
+
+        # multistate exchange-correlation hole
+        # H^{xc}ᵢⱼ(r,r') = ∑ₖ  (D⁻¹(r))ᵢₖ D2ₖⱼ(r,r') - Dᵢⱼ(r')
+        xc_hole = (
+            # ∑ₖ  (D⁻¹(r))ᵢₖ D2ₖⱼ(r,r')
+            einsum('ikr,kjrs->ijrs', inv_matrix_density_r1, matrix_pair_density)
+            # - Dᵢⱼ(r')
+            # broadcasting, (Mstate,Mstate,Ncoord2) -> (Mstate,Mstate,1,Ncoord2)
+            -numpy.expand_dims(matrix_density_r2, axis=2)
+        )
+
+        return xc_hole
+
     @staticmethod
     @abstractmethod
     def create_matrix_density(mol, nstate=4):

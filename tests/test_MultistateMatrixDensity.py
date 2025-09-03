@@ -501,6 +501,74 @@ class PairDensityMatrixFCIMixinTests:
             with self.subTest(molecule=name):
                 self.check_align_phases(mol)
 
+    def check_exchange_correlation_hole_normalization(
+        self, mol, random_number_generator, nstate=2
+    ):
+        """
+        Check that the multistate exchange-correlation hole is normalized
+
+            ∫ dr' H^{xc}ᵢⱼ(r,r') = (-1) δᵢⱼ    ∀r
+
+        and that for molecules with a single electrons
+
+            H^{xc}ᵢⱼ(r,r') = -Dᵢⱼ(r')   ∀r
+        """
+        msmd = self.create_matrix_density(
+            mol, nstate=nstate,
+            # We need the pair density Dᵢⱼ(r,r')
+            compute_pair_density=True)
+
+        # The electron is put at a random position r close to the origin.
+        coords1 = 2.0*(random_number_generator.random((1,3)) - 0.5)
+
+        # The xc-hole is integrated around r, ∫ d³u H^{xc}ᵢⱼ(r,r+u)
+        # using a spherical Becke grid centered at r with the radial
+        # and angular distribution of the integration points taken from the
+        # hydrogen atom.
+        dummy_mol = pyscf.gto.M(atom="H 0 0 0", spin=1)
+        grids = pyscf.dft.gen_grid.Grids(dummy_mol)
+        grids.level = 6
+        grids.build()
+        # r' = r+u
+        coords2 = coords1 + grids.coords
+
+        # Numerically integrate exchange-correlation hole over second coordinate.
+        xc_hole = msmd.exchange_correlation_hole(coords1, coords2)
+        # ∫ d³u H^{xc}ᵢⱼ(r,r+u)
+        xc_hole_integral = numpy.einsum('s,ijrs->ijr', grids.weights, xc_hole)
+
+        # Independently of r, the integral should always be equal to (-1) δᵢⱼ
+        identity = numpy.eye(msmd.number_of_states)
+        numpy.testing.assert_almost_equal(xc_hole_integral[:,:,0], -identity, decimal=3)
+
+        number_of_electrons = sum(mol.nelec)
+        if number_of_electrons == 1:
+            # matrix density Dᵢⱼ(r')
+            D_spin, _, _ = msmd.evaluate(coords2)
+            # sum over spin
+            D = numpy.sum(D_spin, axis=0)
+            # For a single electron, H^{xc}ᵢⱼ(r,r') = -Dᵢⱼ(r')
+            numpy.testing.assert_allclose(xc_hole[:,:,0,:], -D, rtol=1.0e-5, atol=1.0e-10)
+
+    def test_exchange_correlation_hole_normalization(self):
+        """
+        Check integrals of the exchange-correlation hole.
+        """
+        # The hardcoded seed ensures that the same random numbers are used
+        # every time the test is run. Otherwise the test fails occasionally
+        # when the threshold is is too tight.
+        rng = numpy.random.default_rng(seed=6789)
+
+        for name, mol in tqdm(
+                self.create_test_molecules().items()):
+            for nstate in tqdm([1,3]):
+                with self.subTest(molecule=name, nstate=nstate):
+                    try:
+                        self.check_exchange_correlation_hole_normalization(mol, rng, nstate=nstate)
+                    except NotImplementedError:
+                        # For some methods (CISD, TD-DFT) the 2-particle matrix density is not implemented.
+                        return
+
 
 class BaseTestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
     def create_test_molecules(self):
