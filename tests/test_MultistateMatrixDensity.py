@@ -569,6 +569,65 @@ class PairDensityMatrixFCIMixinTests:
                         # For some methods (CISD, TD-DFT) the 2-particle matrix density is not implemented.
                         return
 
+    def check_spherically_averaged_xc_hole(
+        self, mol, nstate=2
+    ):
+        """
+        Check that the diagonal matrix elements of the spherially averaged
+        exchange-correlation hole are negative at all distances,
+
+            H^{xc}ᵢᵢ(r,|u|) <= 0    ∀r
+
+        and that it integrates to (-1) x identity matrix
+
+            ∫ du 4π u² H^{xc}ᵢⱼ(r,|u|) = (-1) δᵢⱼ  ∀r
+
+        """
+        msmd = self.create_matrix_density(
+            mol, nstate=nstate,
+            # We need the pair density Dᵢⱼ(r,r')
+            compute_pair_density=True)
+
+        # First electron is put at the origin.
+        center_r = numpy.array([0.0, 0.0, 0.0])
+
+        # distances from the electron
+        distances_u = numpy.linspace(0.0, 6.0, 400)
+
+        spherical_xc_hole = msmd.spherically_averaged_xc_hole(center_r, distances_u)
+
+        # Check negativity
+        for i in range(0, msmd.number_of_states):
+            numpy.testing.assert_array_less(
+                # H^{xc}ᵢᵢ(r,|u|) <= 0
+                spherical_xc_hole[:,i,i], numpy.zeros_like(spherical_xc_hole[:,i,i]) + 1.0e-5
+            )
+
+        # Check integral
+        du = numpy.ediff1d(distances_u, to_end=distances_u[-1])
+        # volume element
+        dV = 4.0*numpy.pi * pow(distances_u, 2) * du
+
+        xc_hole_integral = numpy.einsum('w,wij->ij', dV, spherical_xc_hole)
+
+        # Independently of r, the integral should always be equal to (-1) δᵢⱼ
+        identity = numpy.eye(msmd.number_of_states)
+        numpy.testing.assert_almost_equal(xc_hole_integral, -identity, decimal=2)
+
+    def test_spherically_averaged_xc_hole(self):
+        """
+        Check negativity and integrals of spherically averaged exchange-correlation hole.
+        """
+        name = 'hydrogen molecule'
+        mol = self.create_test_molecules()[name]
+        for nstate in tqdm([1,3]):
+            with self.subTest(molecule=name, nstate=nstate):
+                try:
+                    self.check_spherically_averaged_xc_hole(mol, nstate=nstate)
+                except NotImplementedError:
+                    # For some methods (CISD, TD-DFT) the 2-particle matrix density is not implemented.
+                    return
+
 
 class BaseTestMultistateMatrixDensityFCI(BaseTestMultistateMatrixDensity, unittest.TestCase):
     def create_test_molecules(self):

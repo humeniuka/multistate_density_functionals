@@ -15,6 +15,7 @@ import scipy.special
 import pyscf.ao2mo
 from pyscf.dft import numint
 import pyscf.ci
+import pyscf.dft.LebedevGrid
 import pyscf.fci
 import pyscf.mcscf
 import pyscf.scf
@@ -746,6 +747,69 @@ class MultistateMatrixDensity(ABC):
         )
 
         return xc_hole
+
+    def spherically_averaged_xc_hole(
+        self,
+        center_r: numpy.ndarray,
+        distances_u: numpy.ndarray,
+        lebedev_points = 110
+    ) -> numpy.ndarray:
+        """
+        Average the exchange-correlation hole around the point r spherically so that it becomes
+        a function of the radial distance |u| between r and r'=r+u.
+
+        The spherically averaged exchange-correlation hole around some point r is
+
+            H^{xc}ᵢⱼ(r,|u|) = 1/(4 π) ∫ dΩ H^{xc}ᵢⱼ(r,r+|u|*e(Ω))
+
+        where e(Ω) is a unit vector in the direction of u, such that u = r'-r = |u|*e(Ω).
+
+        :param center_r: position of electron
+        :type center_r: numpy.ndarray of shape (3,)
+
+        :param distance_u: radial distances from electron
+        :type distance_u: numpy.ndarray of shape (Nist,)
+
+        :param lebedev_points: number of angular integration points for averaging over orientations
+            If no Lebdev grid with the desired number of points exist a ValueError is raised.
+        :type lebdev_points: int
+
+        :return spherical_xc_hole: spherically averaged xc-hole matrices for each distance
+            spherical_xc_hole[u,:,:] = H^{xc}ᵢⱼ(r,distances_u[u])
+        :rtype spherical_xc_hole: numpy.ndarray of shape (Ndist,Nstate,Nstate)
+        """
+        # Check shapes of inputs
+        assert center_r.shape == (3,), "`center_r` should be single point in 3D."
+        assert len(distances_u.shape) == 1, "`distances_u` should be a list of floats."
+
+        ndist = len(distances_u)
+        nstate = self.number_of_states
+        # output array
+        spherical_xc_hole = numpy.zeros((ndist,nstate,nstate))
+
+        # angular integration grid Ω
+        angular_grid = pyscf.dft.LebedevGrid.MakeAngularGrid(lebedev_points)
+        angular_coords = angular_grid[:,0:3]
+        angular_weights = angular_grid[:,3]
+
+        # change shape (3,) -> (1,3)
+        center_r = numpy.expand_dims(center_r, 0)
+
+        for u, distance_u in enumerate(distances_u):
+            # Scale and shift angular grid so that the integration points lie
+            # on a shell of radius |u| around r.
+            coords2 = center_r + distance_u * angular_coords
+
+            # compute exchange-correlation hole H^{xc}ᵢⱼ(r,r+|u|*e(Ω))
+            xc_hole = self.exchange_correlation_hole(center_r, coords2)
+
+            # integral over orientations, 1/(4 π) ∫ ... dΩ
+            spherical_xc_hole[u,:,:] = numpy.einsum(
+                'w,ijw', angular_weights, xc_hole[:,:,0,:]
+            )
+
+        return spherical_xc_hole
+
 
     @staticmethod
     @abstractmethod
