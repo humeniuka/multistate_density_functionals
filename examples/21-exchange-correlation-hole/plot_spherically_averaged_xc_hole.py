@@ -12,7 +12,19 @@ is defined as
 
 where e(Ω) is a unit vector in the direction Ω, such that u = r'-r = |u|*e(Ω).
 
-H^{xc}ᵢⱼ(r,|u|) is plotted as a function of the distance |u| from r.
+H^{xc}ᵢⱼ(r,|u|) is plotted as a function of the distance |u| from r
+(similarly to figures in [Becke/Roussel1989]).
+
+References
+----------
+[Becke1983] Becke, A. D.
+    "Hartree-Fock exchange energy of an inhomogeneous electron gas."
+    International journal of quantum chemistry 23.6 (1983): 1915-1922.
+    doi:10.1002/qua.560230605
+[Becke/Roussel1989] A. Becke, A, M. Roussel.
+    "Exchange holes in inhomogeneous systems: A coordinate-space model."
+    Phys. Rev. A, 39(8), 3761-3767.
+    doi:10.1103/PhysRevA.39.3761
 """
 import matplotlib
 import matplotlib.pyplot as plt
@@ -21,8 +33,156 @@ from pyscf.data.nist import HARTREE2EV
 import pyscf.fci
 import pyscf.gto
 import pyscf.scf
+import scipy.special
 
 from msdft.MultistateMatrixDensity import MultistateMatrixDensityFCI
+
+def xc_hole_taylor_expansion(
+    msmd: MultistateMatrixDensityFCI,
+    center_r: numpy.ndarray,
+    distances_u: numpy.ndarray
+    ) -> numpy.ndarray:
+    """
+    Compute the Taylor expansion of the spherically averaged exchange-correlation hole
+    as a function of the distance from the reference point.
+
+    For a system with a single electron, the Taylor expansion up to second order
+    of the spherical average of the exchange-correlation hole H^{xc}ᵢⱼ(r,r+u)
+    over the coordinate u about the reference point r is
+
+        <H^{xc,sr}ᵢⱼ(r,r+u)> = -Dᵢⱼ(r) - 1/6 ∇²Dᵢⱼ(r) u² + ...
+
+    The exact exchange-correlation hole for a one-electron system however is different
+    from the Taylor expansion. It is independent of the reference point and is given by
+
+        H^{xc,sr}ᵢⱼ(r,r') = -Dᵢⱼ(r')     (note that the argument of Dᵢⱼ is r', not r!)
+
+    :param msmd: matrix density and its derivatives at the reference point
+    :type msmd: instance of MultistateMatrixDensityFCI
+
+    :param center_r: reference point
+    :type center_r: numpy.ndarray of shape (3,)
+
+    :param distances_u: distances u from reference point
+    :type distances_u: numpy.ndarray of shape (Ndist,)
+
+    :return spherical_xc_hole_sr: short-range Taylor expansion of spherical
+        exchange-correlation hole as a function of the distance from the reference point,
+        xc_hole_sr[u,:,:] = <H^{xc,sr}ᵢⱼ(r)>(distances_u[u])
+    :rtype spherical_xc_hole_sr: numpy.ndarray of shape (Ndist,Nstate,Nstate)
+    """
+    # Evaluate matrix density and its derivatives at the reference point r
+    coords = numpy.reshape(center_r, (1,3))
+    # Only Dᵢⱼ(r) and its Laplacian ∇²Dᵢⱼ(r) are needed
+    D, _, lapl_D = msmd.evaluate(coords)
+    # sum over spin and select reference point
+    D = numpy.sum(D, axis=0)[:,:,0]
+    lapl_D = numpy.sum(lapl_D, axis=0)[:,:,0]
+
+    # Taylor expansion around u=0 up to quadratic order
+    spherical_xc_hole_sr = (
+        # -Dᵢⱼ(r)
+        -numpy.expand_dims(D, 0)
+        # - 1/6 ∇²Dᵢⱼ(r) u²
+        -1.0/6.0 * numpy.einsum('ij,u->uij', lapl_D, distances_u**2)
+    )
+
+    # The exchange energy should be calculated for spin up and spin down
+    # separately. Since only the total charge density is given, we have to
+    # divide it by two.
+    spherical_xc_hole_sr *= 0.5
+
+    return spherical_xc_hole_sr
+
+def exchange_hole_homogeneous(
+    msmd: MultistateMatrixDensityFCI,
+    center_r: numpy.ndarray,
+    distances_u: numpy.ndarray
+    ) -> numpy.ndarray:
+    """
+    Compute the (spherically symmetric) exchange hole of the homogeneous electron gas (HEG)
+    as a function of the distance from the reference point.
+
+    For the ground state density, the exchange hole is given by (see [Becke1983], without minus sign)
+
+        ρₓ^{HEG}(u) = -9 ρ [j1(k u)/(k u)]²
+
+    with the Fermi momentum
+
+        k = (6π²ρ)¹ᐟ³
+
+    and the spherical Bessel function of 1st order
+
+        j1(x) = sin(x)/x² - cos(x)/x
+
+    Since the hole only depends on the density it can be turned into a matrix function
+    by diagonalizing the matrix density, applying ρₓ^{HEG}(u) to each eigenvalue and
+    transforming back.
+
+    :param msmd: matrix density at the reference point
+    :type msmd: instance of MultistateMatrixDensityFCI
+
+    :param center_r: reference point
+    :type center_r: numpy.ndarray of shape (3,)
+
+    :param distances_u: distances u from reference point
+    :type distances_u: numpy.ndarray of shape (Ndist,)
+
+    :return x_hole_heg: exchange hole of the homogeneous electron gas
+        as a function of the distance from the reference point,
+    :rtype x_hole_heg: numpy.ndarray of shape (Ndist,Nstate,Nstate)
+
+    References
+    ----------
+    [Becke1983] Becke, A. D.
+        "Hartree-Fock exchange energy of an inhomogeneous electron gas."
+        International journal of quantum chemistry 23.6 (1983): 1915-1922.
+        doi:10.1002/qua.560230605
+    """
+    # Evaluate matrix density at the reference point r
+    coords = numpy.reshape(center_r, (1,3))
+    # Only Dᵢⱼ(r) is needed
+    D, _, _ = msmd.evaluate(coords)
+    # sum over spin and select reference point
+    D = numpy.sum(D, axis=0)[:,:,0]
+
+    # The exchange energy should be calculated for spin up and spin down
+    # separately. Since only the total charge density is given, we have to
+    # divide it by two.
+    D *= 0.5
+
+    def exchange_hole_heg(density, u):
+        # Fermi momentum
+        kF = pow(6.0 * numpy.pi**2 * density, 1.0/3.0)
+        x = kF*u
+        # spherical Bessel function of 1st order
+        j1 = scipy.special.spherical_jn(1, x)
+        rho_x_heg = -9.0 * density * pow(j1/x, 2)
+        return rho_x_heg
+
+    # Compute eigenvalues Λ and eigenvectors U of the symmetric matrix D.
+    L, U = numpy.linalg.eigh(D)
+
+    # number of electronic states
+    nstate = msmd.number_of_states
+    # number of distances u
+    ndist = distances_u.shape[0]
+
+    # Empty output array
+    x_hole_heg = numpy.zeros((ndist,nstate,nstate))
+
+    for i,u in enumerate(distances_u):
+        x_hole_heg[i,:,:] = numpy.einsum(
+            'ia,a,ja->ij',
+            # X = U ρₓ(Λ,u) U⁻¹
+            U,
+            # apply ρₓ(Λ,u) to eigenvalues Λ
+            exchange_hole_heg(L, u),
+            U
+        )
+
+    return x_hole_heg
+
 
 #
 # taken from https://github.com/pyscf/pyscf/blob/master/examples/scf/31-v_atom_rohf.py
@@ -87,12 +247,19 @@ msmd = MultistateMatrixDensityFCI(
     compute_pair_density=True)
 
 # First electron is put somewhat close to the origin r=0
-center_r = numpy.array([0.0, 0.0, 1.0])
+center_r = numpy.array([0.0, 0.0, 0.5])
 
 # Plot xc-hole as a function of te distance from the electron.
-distances_u = numpy.linspace(0.0, 5.0, 1000)
+distances_u = numpy.linspace(0.0, 2.0, 100)
 
+# Exact spherical xc-hole
 spherical_xc_hole = msmd.spherically_averaged_xc_hole(center_r, distances_u)
+
+# Quadratic Taylor expansion around u=0 derived for one-electron system
+spherical_xc_hole_approximate = xc_hole_taylor_expansion(msmd, center_r, distances_u)
+
+# exchange hole of homogeneous electron gas
+x_hole_heg = exchange_hole_homogeneous(msmd, center_r, distances_u)
 
 # Figure, axes, labels
 fig, axes = plt.subplots(1,2, figsize=(10,5))
@@ -117,6 +284,14 @@ for i in range(0, nstate):
         lw=2, alpha=0.5,
         label=state_labels[i]
     )
+    axes[0].plot(
+        distances_u, spherical_xc_hole_approximate[:,i,i],
+        ls="--", color=line.get_color()
+    )
+    axes[0].plot(
+        distances_u, x_hole_heg[:,i,i],
+        ls="-.", color=line.get_color()
+    )
 
 axes[0].legend(title="$\mathbf{(a)}$ diagonal")
 
@@ -132,6 +307,14 @@ for i in range(0, nstate):
                 lw=2, alpha=0.5,
                 label=state_labels[i]+","+state_labels[j]
             )
+            axes[1].plot(
+                distances_u, spherical_xc_hole_approximate[:,i,j],
+                ls="--", color=line.get_color()
+            )
+            axes[1].plot(
+                distances_u, x_hole_heg[:,i,j],
+                ls="-.", color=line.get_color()
+            )
         else:
             # Transition matrix elements between states with different spin are zero.
             numpy.testing.assert_allclose(
@@ -145,13 +328,15 @@ axes[1].legend(title="$\mathbf{(b)}$ off-diagonal")
 # Create the invisible solid and dashed
 # black lines that are shown in the figure legend.
 solid_line = matplotlib.lines.Line2D([], [], ls="-", color="black")
-#dashed_line = matplotlib.lines.Line2D([], [], ls="--", color="black")
+dashed_line = matplotlib.lines.Line2D([], [], ls="--", color="black")
+dashdot_line = matplotlib.lines.Line2D([], [], ls="-.", color="black")
 
 fig.legend(
-    [solid_line,],#, dashed_line],
+    [solid_line, dashed_line, dashdot_line],
     [
-        r"$H^{\text{xc}}_{IJ}(\vec{r},\vert \vec{u} \vert ) = \frac{1}{4 \pi} \int H^{\text{xc}}_{IJ}(\vec{r},\vec{u}) d\Omega_u$",
-        #r"$\text{xc}^{\text{MSDFT}}_{IJ}(r) = \text{x}^{\text{B88}}[\mathbf{D}]_{IJ}(r) + \text{c}^{\text{LYP}}[\mathbf{D}]_{IJ}(r)$"
+        r"$<H^{\text{xc}}_{IJ}(\vec{r},\vert \vec{u} \vert )> = \frac{1}{4 \pi} \int H^{\text{xc}}_{IJ}(\vec{r},\vec{u}) d\Omega_u$",
+        r"$<H^{\text{xc,sr}}_{IJ}(\vec{r},\vert \vec{u} \vert )> = -D_{IJ}(\vec{r}) -\frac{1}{6} \nabla^2 D_{IJ}(\vec{r}) u^2$",
+        r"$H^{\text{x,HEG}}_{IJ}(\vec{r},\vert \vec{u} \vert )>$"
     ],
     fontsize='large',
     frameon=False,
