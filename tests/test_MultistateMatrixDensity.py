@@ -582,6 +582,8 @@ class PairDensityMatrixFCIMixinTests:
 
             ∫ du 4π u² H^{xc}ᵢⱼ(r,|u|) = (-1) δᵢⱼ  ∀r
 
+        NOTE: Only the exchange hole is strictly negative, the correlation hole
+        can be both positive and negative, but the exchange hole is much deeper.
         """
         msmd = self.create_matrix_density(
             mol, nstate=nstate,

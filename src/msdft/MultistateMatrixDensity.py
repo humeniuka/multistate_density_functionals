@@ -664,7 +664,7 @@ class MultistateMatrixDensity(ABC):
 
             H^{xc}ᵢⱼ(r,r') = -Dᵢⱼ(r')
 
-        :param coords1: The Cartesian positions r
+        :param coords1: The Cartesian positions r of reference points
         :type coords1: numpy.ndarray of shape (Ncoord1,3)
 
         :param coords2: The Cartesian positions r'
@@ -678,10 +678,14 @@ class MultistateMatrixDensity(ABC):
 
         References (xc-hole in DFT)
         ------------------------------
+        [Becke/Roussel1989] A. Becke, A, M. Roussel.
+            "Exchange holes in inhomogeneous systems: A coordinate-space model."
+            Phys. Rev. A, 39(8), 3761-3767.
+            doi:10.1103/PhysRevA.39.3761
         [Perdew1996] J. Perdew, K. Burke, Y. Wang.
             "Generalized gradient approximation for the exchange-correlation hole of a many-electron system."
             Physical review B 54.23 (1996): 16533.
-            doi: 10.1103/PhysRevB.54.16533
+            doi:10.1103/PhysRevB.54.16533
         """
         # spin-traced 2-electron density matrices in the AO basis
         density_matrices_2e = self.density_matrices_2e
@@ -764,7 +768,7 @@ class MultistateMatrixDensity(ABC):
 
         where e(Ω) is a unit vector in the direction of u, such that u = r'-r = |u|*e(Ω).
 
-        :param center_r: position of electron
+        :param center_r: position of electron, reference point
         :type center_r: numpy.ndarray of shape (3,)
 
         :param distance_u: radial distances from electron
