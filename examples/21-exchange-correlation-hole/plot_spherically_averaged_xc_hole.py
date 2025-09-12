@@ -29,6 +29,7 @@ References
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy
+import scipy.linalg
 from pyscf.data.nist import HARTREE2EV
 import pyscf.fci
 import pyscf.gto
@@ -171,6 +172,7 @@ def exchange_hole_homogeneous(
     # Empty output array
     x_hole_heg = numpy.zeros((ndist,nstate,nstate))
 
+    # Loop over distances u from reference point
     for i,u in enumerate(distances_u):
         x_hole_heg[i,:,:] = numpy.einsum(
             'ia,a,ja->ij',
@@ -182,6 +184,203 @@ def exchange_hole_homogeneous(
         )
 
     return x_hole_heg
+
+def lie_product(X: numpy.ndarray, Y: numpy.ndarray) -> numpy.ndarray:
+    """
+    The Lie-Trotter product (★-product) between two (n x n) matrices is defined as
+
+        X ★ Y := lim_{n→∞} (X¹ᐟⁿ Y¹ᐟⁿ)ⁿ = exp(log(X) + log(Y))
+
+    It has the following properties:
+
+        (1) X ★ Y = Y ★ X                    (commutative)
+        (2) X ★ (Y ★ Z) = (X ★ Y) ★ Z)       (associative)
+        (3) Xᵀ=X, Yᵀ=Y => (X ★ Y)ᵀ = (X ★ Y) (preserves symmetry)
+
+    With the help of the Lie-product a multivariate scalar analytical function
+    that is defined in terms of a Taylor series, for instance
+
+        f(x,y) = ∑ᵢ∑ⱼ fᵢⱼ xⁱ yʲ
+
+    can be uniquely translated into an analytic matrix function by reusing the
+    Taylor coefficients and replacing the monomial products by Lie products
+
+        F(X,Y) = ∑ᵢ∑ⱼ fᵢⱼ Xⁱ ★ Yʲ = ∑ᵢ∑ⱼ fᵢⱼ exp(i log(X) + j log(Y))
+
+    :param X: first factor X, batch of positive definite, symmetric matrices
+    :type X: matrix of size (n,n)
+
+    :param Y: second factor Y, batch of positive definite, symmetric matrices
+    :type Y: same shape as X
+
+    :return Z: X ★ Y, Lie matrix product
+    :type Z: same shape as X
+
+    NOTE: X and Y are required to be positive definite, however, this is not checked.
+
+    References
+    ----------
+    [Lie] https://en.wikipedia.org/wiki/Lie_product_formula
+    """
+    logX = scipy.linalg.logm(X)
+    logY = scipy.linalg.logm(Y)
+    Z = scipy.linalg.expm(logX + logY)
+
+    return Z
+
+
+def exchange_hole_gaussian_inhomogeneous(
+    msmd: MultistateMatrixDensityFCI,
+    center_r: numpy.ndarray,
+    distances_u: numpy.ndarray
+    ) -> numpy.ndarray:
+    """
+    Plot the spherically averaged exchange hole that is obtained from
+    the Gaussian approximation to the homogeneous hole.
+
+    The exchange hole of the homogeneous electron gas shows oscillations
+    at long range that are not observed in atoms or molecules. Since for
+    small x
+
+        (j1(x)/x)² ≈ 1/9 (1 - 1/5 x²) ≈ 1/9 exp(-1/5 x²)
+
+    the oscillating part can be replaced by a Gaussian, so that
+
+        ρₓ^{HEG}(u) = -9 ρ [j1(k u)/(k u)]² ≈ - ρ exp(-1/5 k² u²)
+
+    The Taylor expansion of the spherically averaged exchange hole around
+    u=0 is given by
+
+        <ρₓ(u)> ≈ -ρ(r) - 1/6 (∇²ρ - 2𝜏 + 1/2 (∇ρ)²/ρ) s² + ...
+
+    The kinetic energy term can be replaced by a semiclassical expansion.
+    To ensure that the model for the exchange hole agrees with the Taylor
+    expansion around u=0, the following Gaussian ansatz is made for <ρₓ(u)>,
+
+        <ρₓ(u)> ≈ -ρ(r) (1 + a u² + b u⁴) exp(-1/5 k² u²)
+
+    The parameters a and b are determined by (1) matching the Taylor expansion
+    around u and (2) from the requirement that the exchange hole integrates to -1,
+
+        4 π ∫ ρₓ(u) u² du = -1.
+
+    The parameters are
+
+        a = 1/18 ∇²ρ/ρ + 2/27 (∇ρ)²/ρ²
+
+    and
+
+        b = -1.2154 a ρ²ᐟ³ -1.2015 ρ⁴ᐟ³
+
+    NOTE: Unfortunately this model for the exchange hole violates the constraint that
+    ρₓ(u) should be negative for all u.
+
+    :param msmd: matrix density at the reference point
+    :type msmd: instance of MultistateMatrixDensityFCI
+
+    :param center_r: reference point
+    :type center_r: numpy.ndarray of shape (3,)
+
+    :param distances_u: distances u from reference point
+    :type distances_u: numpy.ndarray of shape (Ndist,)
+
+    :return x_hole: exchange hole model for inhomogeneous system
+        as a function of the distance from the reference point,
+    :rtype x_hole: numpy.ndarray of shape (Ndist,Nstate,Nstate)
+    """
+    # Evaluate matrix density and its derivatives at the reference point r
+    coords = numpy.reshape(center_r, (1,3))
+    D, grad_D, lapl_D = msmd.evaluate(coords)
+    # sum over spin and select reference point
+    D = numpy.sum(D, axis=0)[...,0]
+    grad_D = numpy.sum(grad_D, axis=0)[...,0]
+    lapl_D = numpy.sum(lapl_D, axis=0)[...,0]
+
+    # The exchange energy should be calculated for spin up and spin down
+    # separately. Since only the total charge density is given, we have to
+    # divide it by two.
+    D *= 0.5
+    grad_D *= 0.5
+    lapl_D *= 0.5
+
+    # Compute eigenvalues Λ and eigenvectors U of the symmetric matrix D.
+    L, U = numpy.linalg.eigh(D)
+
+    # Matrix version of parameters a
+    # D⁻¹
+    inv_D = numpy.einsum('ia,a,ja->ij', U, 1.0/L, U)
+    # D⁻²
+    inv_D_squared = numpy.einsum('ia,a,ja->ij', U, 1.0/L**2, U)
+    # (∇D)²
+    grad_D_squared = numpy.einsum('ikd,kjd->ij', grad_D, grad_D)
+    # D²ᐟ³
+    D_pow_23 = numpy.einsum('ia,a,ja->ij', U, pow(L, 2.0/3.0), U)
+    # D⁴ᐟ³
+    D_pow_43 = numpy.einsum('ia,a,ja->ij', U, pow(L, 4.0/3.0), U)
+    # Fermi momentum square k² = (6π²D)²ᐟ³
+    k_squared = numpy.einsum('ia,a,ja->ij', U, pow(6*numpy.pi**2 * L, 2.0/3.0), U)
+
+    """
+    # Expansion for many electron ground state
+    # Parameter a = 1/18 ∇²D ★ D⁻¹ + 2/27 (∇D)² ★ D⁻²
+    a = (
+        1.0/18.0 * lie_product(inv_D, lapl_D) +
+        2.0/27.0 * lie_product(inv_D_squared, grad_D_squared)
+    )
+    """
+    # Expansion for a single electron, but many states
+    # Parameter a = 1/5 k² + 1/6 ∇²D ★ D⁻¹
+    a = (
+        1.0/5.0 * k_squared +
+        1.0/6.0 * lie_product(inv_D, lapl_D)
+    )
+    # Parameter b = -1.2154 a ρ²ᐟ³ -1.2015 ρ⁴ᐟ³
+    b = (
+        -1.21541329929216 * lie_product(a, D_pow_23) +
+        -0.120151564826915 * D_pow_43
+    )
+
+    # number of electronic states
+    nstate = msmd.number_of_states
+    # number of distances u
+    ndist = distances_u.shape[0]
+
+    # Empty output array
+    x_hole = numpy.zeros((ndist,nstate,nstate))
+
+    # identity matrix
+    Id = numpy.eye(nstate)
+
+    # Loop over distances u from reference point
+    for i,u in enumerate(distances_u):
+        # polynomial (1 + a u² + b u⁴)
+        polynomial = Id + a * u**2 + b * u**4
+        # exponential exp(-1/5 k² u²)
+        exponential = scipy.linalg.expm(-1.0/5.0 * k_squared * u**2)
+        # combine all factors
+        # <ρₓ(u)> ≈ -D(r) ★ (1 + a u² + b u⁴) ★ exp(-1/5 k² u²)
+        x_hole[i,:,:] = lie_product(-D, lie_product(polynomial, exponential))
+
+    return x_hole
+
+def check_hole_normalization(x_hole, distances_u):
+    """
+    verify that the exchange hole is normalized
+
+        4 π ∫ Dₓ(u) u² du = -Id
+    """
+    du = numpy.ediff1d(distances_u, to_end=distances_u[-1]-distances_u[-2])
+    integral = numpy.einsum(
+        'uij,u->ij', x_hole, 4.0 * numpy.pi * distances_u**2 * du
+    )
+    print(r"4 π ∫ Dₓ(u) u² du")
+    with numpy.printoptions(precision=3, suppress=True):
+        print(integral)
+
+    # number of electronic states
+    nstate = x_hole.shape[-1]
+    Id = numpy.eye(nstate)
+    #numpy.testing.assert_allclose(integral, -Id)
 
 
 #
@@ -247,19 +446,29 @@ msmd = MultistateMatrixDensityFCI(
     compute_pair_density=True)
 
 # First electron is put somewhat close to the origin r=0
-center_r = numpy.array([0.0, 0.0, 0.5])
+center_r = numpy.array([0.0, 0.0, 0.0])
 
 # Plot xc-hole as a function of te distance from the electron.
-distances_u = numpy.linspace(0.0, 2.0, 100)
+distances_u = numpy.linspace(1.0e-6, 2.0, 500)
 
 # Exact spherical xc-hole
 spherical_xc_hole = msmd.spherically_averaged_xc_hole(center_r, distances_u)
+print("Exact spherically averaged xc-hole")
+check_hole_normalization(spherical_xc_hole, distances_u)
 
 # Quadratic Taylor expansion around u=0 derived for one-electron system
-spherical_xc_hole_approximate = xc_hole_taylor_expansion(msmd, center_r, distances_u)
+spherical_xc_hole_taylor = xc_hole_taylor_expansion(msmd, center_r, distances_u)
 
 # exchange hole of homogeneous electron gas
 x_hole_heg = exchange_hole_homogeneous(msmd, center_r, distances_u)
+print("Exchange hole of homogeneous electron gas")
+check_hole_normalization(x_hole_heg, distances_u)
+
+# exchange hole of inhomogeneous system from Gaussian approximation
+x_hole_approximate = exchange_hole_gaussian_inhomogeneous(msmd, center_r, distances_u)
+print("Approximate exchange hole (Gaussian)")
+check_hole_normalization(x_hole_approximate, distances_u)
+
 
 # Figure, axes, labels
 fig, axes = plt.subplots(1,2, figsize=(10,5))
@@ -285,12 +494,18 @@ for i in range(0, nstate):
         label=state_labels[i]
     )
     axes[0].plot(
-        distances_u, spherical_xc_hole_approximate[:,i,i],
+        distances_u, spherical_xc_hole_taylor[:,i,i],
+        lw=0.5,
         ls="--", color=line.get_color()
     )
     axes[0].plot(
         distances_u, x_hole_heg[:,i,i],
         ls="-.", color=line.get_color()
+    )
+    axes[0].plot(
+        distances_u, x_hole_approximate[:,i,i],
+        lw=2,
+        ls=":", color=line.get_color()
     )
 
 axes[0].legend(title="$\mathbf{(a)}$ diagonal")
@@ -308,12 +523,18 @@ for i in range(0, nstate):
                 label=state_labels[i]+","+state_labels[j]
             )
             axes[1].plot(
-                distances_u, spherical_xc_hole_approximate[:,i,j],
+                distances_u, spherical_xc_hole_taylor[:,i,j],
+                lw=0.5,
                 ls="--", color=line.get_color()
             )
             axes[1].plot(
                 distances_u, x_hole_heg[:,i,j],
                 ls="-.", color=line.get_color()
+            )
+            axes[1].plot(
+                distances_u, x_hole_approximate[:,i,j],
+                lw=2,
+                ls=":", color=line.get_color()
             )
         else:
             # Transition matrix elements between states with different spin are zero.
@@ -330,13 +551,15 @@ axes[1].legend(title="$\mathbf{(b)}$ off-diagonal")
 solid_line = matplotlib.lines.Line2D([], [], ls="-", color="black")
 dashed_line = matplotlib.lines.Line2D([], [], ls="--", color="black")
 dashdot_line = matplotlib.lines.Line2D([], [], ls="-.", color="black")
+dotted_line = matplotlib.lines.Line2D([], [], ls=":", color="black")
 
 fig.legend(
-    [solid_line, dashed_line, dashdot_line],
+    [solid_line, dashed_line, dashdot_line, dotted_line],
     [
         r"$<H^{\text{xc}}_{IJ}(\vec{r},\vert \vec{u} \vert )> = \frac{1}{4 \pi} \int H^{\text{xc}}_{IJ}(\vec{r},\vec{u}) d\Omega_u$",
-        r"$<H^{\text{xc,sr}}_{IJ}(\vec{r},\vert \vec{u} \vert )> = -D_{IJ}(\vec{r}) -\frac{1}{6} \nabla^2 D_{IJ}(\vec{r}) u^2$",
-        r"$H^{\text{x,HEG}}_{IJ}(\vec{r},\vert \vec{u} \vert )>$"
+        r"$<H^{\text{xc,Taylor series}}_{IJ}(\vec{r},\vert \vec{u} \vert )> = -D_{IJ}(\vec{r}) -\frac{1}{6} \nabla^2 D_{IJ}(\vec{r}) u^2$",
+        r"$H^{\text{x,HEG}}_{IJ}(\vec{r},\vert \vec{u} \vert )>$",
+        r"$H^{\text{x,Gaussian}}_{IJ}(\vec{r},\vert \vec{u} \vert )>$",
     ],
     fontsize='large',
     frameon=False,
