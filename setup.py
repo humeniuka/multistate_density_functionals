@@ -39,7 +39,14 @@ setup(
     author_email='alexander.humeniuk@gmail.com',
     license='LICENSE.txt',
     package_dir = {"": "src"},
-    install_requires=['becke-multicenter-integration', 'matplotlib', 'numpy', 'pyscf==2.9.0', 'scipy', 'tqdm'],
+    install_requires=[
+        'becke-multicenter-integration',
+        'matplotlib==3.8.0',
+        'numpy==1.26.0',
+        'pyscf==2.9.0',
+        'scipy==1.11.3',
+        'tqdm'
+    ],
     include_package_data=True,
     zip_safe=False,
 )
