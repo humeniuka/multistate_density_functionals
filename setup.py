@@ -41,10 +41,10 @@ setup(
     package_dir = {"": "src"},
     install_requires=[
         'becke-multicenter-integration',
-        'matplotlib==3.8.0',
-        'numpy==1.26.0',
+        'matplotlib',
+        'numpy<2.4',
         'pyscf==2.9.0',
-        'scipy==1.11.3',
+        'scipy',
         'tqdm'
     ],
     include_package_data=True,
